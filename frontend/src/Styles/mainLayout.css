@@ -1,0 +1,159 @@
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+/* NAVBAR */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: #0f172a;
+  color: white;
+  position: relative;
+}
+
+/* LOGO */
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* LINKS */
+.nav-links {
+  display: flex;
+  gap: 15px;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+}
+
+/* LOGIN BUTTON */
+/* desktop login */
+.login-btn {
+  background: #22c55e;
+  padding: 8px 15px;
+  border-radius: 5px;
+  color: white;
+  text-decoration: none;
+}
+
+/* mobile login inside menu */
+.login-mobile {
+  background: #22c55e;
+  padding: 10px;
+  border-radius: 5px;
+  color: white;
+  text-decoration: none;
+  text-align: center;
+  margin-top: 10px;
+  display: none;
+}
+
+
+/* CONTENT */
+.content {
+  flex: 1;
+  padding: 20px;
+}
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 15px;
+  background: #0f172a;
+  color: white;
+}
+
+/* HAMBURGER BUTTON */
+.menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+/* ========================= */
+/* 📱 MOBILE RESPONSIVE */
+/* ========================= */
+@media (max-width: 768px) {
+
+  .menu-btn {
+    display: block;
+  }
+
+  .nav-links {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background: #0f172a;
+    flex-direction: column;
+    display: none;
+    padding: 15px;
+  }
+
+  .nav-links.active {
+    display: flex;
+  }
+
+   .login-btn {
+    display: none;
+  }
+
+  .login-mobile {
+    display: block;
+  }
+}.right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* WRAPPER */
+.lang-wrapper {
+  position: relative;
+}
+
+/* BUTTON */
+.lang-btn {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* DRAWER */
+.lang-drawer {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: white;
+  color: black;
+  display: flex;
+  flex-direction: column;
+  min-width: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.lang-drawer button {
+  padding: 8px;
+  border: none;
+  background: white;
+  cursor: pointer;
+}
+
+.lang-drawer button:hover {
+  background: #f1f1f1;
+}
