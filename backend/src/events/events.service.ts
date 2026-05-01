@@ -1,26 +1,49 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Event, EventDocument } from './schemas/event.schema';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 
 @Injectable()
 export class EventsService {
-  create(createEventDto: CreateEventDto) {
-    return 'This action adds a new event';
+  constructor(@InjectModel(Event.name) private eventModel: Model<EventDocument>) {}
+
+  create(dto: CreateEventDto) {
+    return this.eventModel.create(dto);
   }
 
-  findAll() {
-    return `This action returns all events`;
+  findAll(status?: string, isPublished?: boolean) {
+    const filter: Record<string, unknown> = {};
+    if (status) filter.status = status;
+    if (isPublished !== undefined) filter.isPublished = isPublished;
+    return this.eventModel.find(filter).sort({ date: -1 }).exec();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} event`;
+  async findOne(id: string) {
+    const event = await this.eventModel.findById(id).exec();
+    if (!event) throw new NotFoundException(`Event ${id} not found`);
+    return event;
   }
 
-  update(id: number, updateEventDto: UpdateEventDto) {
-    return `This action updates a #${id} event`;
+  async update(id: string, dto: UpdateEventDto) {
+    const event = await this.eventModel
+      .findByIdAndUpdate(id, dto, { new: true })
+      .exec();
+    if (!event) throw new NotFoundException(`Event ${id} not found`);
+    return event;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} event`;
+  async remove(id: string) {
+    const event = await this.eventModel.findByIdAndDelete(id).exec();
+    if (!event) throw new NotFoundException(`Event ${id} not found`);
+    return { deleted: true };
+  }
+
+  async togglePublish(id: string) {
+    const event = await this.eventModel.findById(id).exec();
+    if (!event) throw new NotFoundException(`Event ${id} not found`);
+    event.isPublished = !event.isPublished;
+    return event.save();
   }
 }
