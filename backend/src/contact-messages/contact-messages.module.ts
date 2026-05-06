@@ -3,10 +3,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ContactMessagesService } from './contact-messages.service';
 import { ContactMessagesController } from './contact-messages.controller';
 import { ContactMessage, ContactMessageSchema } from './schemas/contact-message.schema';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { JwtModule } from '../services/jwt/jwt.modul';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: ContactMessage.name, schema: ContactMessageSchema }])],
+  imports: [MongooseModule.forFeature([{ name: ContactMessage.name, schema: ContactMessageSchema }]),JwtModule],
   controllers: [ContactMessagesController],
-  providers: [ContactMessagesService],
+  providers: [ContactMessagesService,JwtAuthGuard],
 })
 export class ContactMessagesModule {}

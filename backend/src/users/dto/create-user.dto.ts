@@ -1,7 +1,7 @@
 export class CreateUserDto {
-  fullName: string;
-  email: string;
-  password: string;
+  fullName!: string;
+  email!: string;
+  password!: string;
   role?: string[];
   genre?: string;
   profileImage?: string;

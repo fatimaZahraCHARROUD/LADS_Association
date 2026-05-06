@@ -1,14 +1,14 @@
 export class LocalizedStringDto {
-  en: string;
-  fr: string;
-  ar: string;
+  en!: string;
+  fr!: string;
+  ar!: string;
 }
 
 export class CreateEventDto {
-  title: LocalizedStringDto;
-  description: LocalizedStringDto;
+  title!: LocalizedStringDto;
+  description!: LocalizedStringDto;
   category?: string;
-  date: string;
+  date!: string;
   time?: string;
   location?: string;
   maxParticipants?: number;

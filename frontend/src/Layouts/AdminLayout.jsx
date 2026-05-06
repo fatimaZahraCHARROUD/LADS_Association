@@ -21,6 +21,10 @@ export default function AdminLayout() {
   const [msgOpen, setMsgOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  const logout =()=>{
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  }
   return (
     <div className="admin-layout">
 
@@ -100,7 +104,7 @@ export default function AdminLayout() {
         )}
 
         {/* LOGOUT */}
-        <Link to="/" className="sidebar-item danger">
+        <Link to="/" onClick={logout} className="sidebar-item danger">
           <LogOut />
           {!collapsed && <span>Logout</span>}
         </Link>

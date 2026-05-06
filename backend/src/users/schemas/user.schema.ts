@@ -6,49 +6,49 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true })
-  fullName: string;
+  fullName!: string;
 
   @Prop({ required: true, unique: true, lowercase: true })
-  email: string;
+  email!: string;
 
   @Prop({ required: true })
-  password: string;
+  password!: string;
 
   @Prop({ type: [String], enum: ['President', 'Manager', 'Responsible', 'Member'], default: ['Member'] })
-  role: string[];
+  role!: string[];
 
   @Prop({ enum: ['Male', 'Female'], default: 'Male' })
-  genre: string;
+  genre!: string;
 
   @Prop({ default: '' })
-  profileImage: string;
+  profileImage!: string;
 
   @Prop({ default: '' })
-  phone: string;
+  phone!: string;
 
   @Prop({ default: '' })
-  birthday: string;
+  birthday!: string;
 
   @Prop({ default: '' })
-  ville: string;
+  ville!: string;
 
   @Prop({ default: '' })
-  niveau_etude: string;
+  niveau_etude!: string;
 
   @Prop({ default: '' })
-  specialite_etude: string;
+  specialite_etude!: string;
 
   @Prop({ default: '' })
-  situation: string;
+  situation!: string;
 
   @Prop({ type: [String], default: [] })
-  departement: string[];
+  departement!: string[];
 
   @Prop({ default: '' })
-  date_adhesion: string;
+  date_adhesion!: string;
 
   @Prop({ default: false })
-  cotisation_payee: boolean;
+  cotisation_payee!: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

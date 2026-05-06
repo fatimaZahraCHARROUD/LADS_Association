@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
 import { ContactMessagesService } from './contact-messages.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 
 @Controller('contact-messages')
 export class ContactMessagesController {
@@ -11,16 +12,19 @@ export class ContactMessagesController {
     return this.contactMessagesService.create(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.contactMessagesService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.contactMessagesService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.contactMessagesService.remove(id);

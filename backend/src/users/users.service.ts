@@ -17,6 +17,10 @@ export class UsersService {
     return this.userModel.find().select('-password').exec();
   }
 
+  async findByEmail(email: string) {
+  return this.userModel.findOne({ email });
+}
+
   async findOne(id: string) {
     const user = await this.userModel.findById(id).select('-password').exec();
     if (!user) throw new NotFoundException(`User ${id} not found`);

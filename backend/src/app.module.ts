@@ -8,6 +8,7 @@ import { LadsInfoModule } from './lads-info/lads-info.module';
 import { ContactMessagesModule } from './contact-messages/contact-messages.module';
 import { MembershipRequestsModule } from './membership-requests/membership-requests.module';
 import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { EventRegistrationsModule } from './event-registrations/event-registrati
     ContactMessagesModule,
     MembershipRequestsModule,
     EventRegistrationsModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

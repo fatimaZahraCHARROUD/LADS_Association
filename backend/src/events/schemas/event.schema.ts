@@ -12,40 +12,40 @@ const localizedString = {
 @Schema({ timestamps: true })
 export class Event {
   @Prop({ type: localizedString, _id: false, required: true })
-  title: { en: string; fr: string; ar: string };
+  title!: { en: string; fr: string; ar: string };
 
   @Prop({ type: localizedString, _id: false, required: true })
-  description: { en: string; fr: string; ar: string };
+  description!: { en: string; fr: string; ar: string };
 
   @Prop({ default: '' })
-  category: string;
+  category!: string;
 
   @Prop({ required: true })
-  date: string;
+  date!: string;
 
   @Prop({ default: '' })
-  time: string;
+  time!: string;
 
   @Prop({ default: '' })
-  location: string;
+  location!: string;
 
   @Prop({ default: 0 })
-  maxParticipants: number;
+  maxParticipants!: number;
 
   @Prop({ default: '' })
-  coverImage: string;
+  coverImage!: string;
 
   @Prop({ default: '' })
-  registerLink: string;
+  registerLink!: string;
 
   @Prop({ enum: ['upcoming', 'past'], default: 'upcoming' })
-  status: string;
+  status!: string;
 
   @Prop({ default: false })
-  isPublished: boolean;
+  isPublished!: boolean;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  createdBy: Types.ObjectId;
+  createdBy!: Types.ObjectId;
 }
 
 export const EventSchema = SchemaFactory.createForClass(Event);

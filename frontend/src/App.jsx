@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Public Pages
 import Home from "./pages/public/Home";
@@ -62,8 +63,15 @@ function App() {
 
 
         {/* ================= ADMIN ROUTES ================= */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+            >
+            <Route index element={<Dashboard />} />
 
           {/* Manage Events */}
           <Route path="events" element={<AdminEvents />} />

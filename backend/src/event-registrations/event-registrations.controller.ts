@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { EventRegistrationsService } from './event-registrations.service';
 import { CreateEventRegistrationDto } from './dto/create-event-registration.dto';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 
 @Controller('event-registrations')
 export class EventRegistrationsController {
@@ -11,16 +12,19 @@ export class EventRegistrationsController {
     return this.eventRegistrationsService.create(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@Query('eventId') eventId?: string) {
     return this.eventRegistrationsService.findAll(eventId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.eventRegistrationsService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.eventRegistrationsService.remove(id);

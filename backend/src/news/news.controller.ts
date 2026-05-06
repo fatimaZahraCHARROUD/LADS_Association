@@ -1,12 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 
 @Controller('news')
 export class NewsController {
   constructor(private readonly newsService: NewsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() dto: CreateNewsDto) {
     return this.newsService.create(dto);
@@ -26,16 +28,19 @@ export class NewsController {
     return this.newsService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateNewsDto) {
     return this.newsService.update(id, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/publish')
   togglePublish(@Param('id') id: string) {
     return this.newsService.togglePublish(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.newsService.remove(id);
