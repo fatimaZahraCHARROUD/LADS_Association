@@ -9,8 +9,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
-  create(dto: CreateUserDto) {
-    return this.userModel.create(dto);
+  async create(dto: CreateUserDto) {
+    const user = await this.userModel.create(dto);
+    const { password: _, ...result } = user.toObject();
+    return result;
   }
 
   findAll() {
