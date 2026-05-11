@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Public Pages
@@ -25,12 +26,26 @@ import AdminMembership from "./pages/admin/Membership";
 import Info from "./pages/admin/Info";
 
 // Layouts
-import MainLayout from "./layouts/MainLayout";
-import AdminLayout from "./layouts/AdminLayout";
+import MainLayout from "./Layouts/MainLayout";
+import AdminLayout from "./Layouts/AdminLayout";
 
 function App() {
   return (
     <Router>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#1F2937",
+            color: "#fff",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: "0.9rem",
+          },
+          success: { iconTheme: { primary: "#10B981", secondary: "#fff" } },
+          error:   { iconTheme: { primary: "#EF4444", secondary: "#fff" } },
+        }}
+      />
       <Routes>
 
         {/* ================= PUBLIC ROUTES ================= */}
