@@ -34,7 +34,12 @@ export class AuthService {
     return {
       message: 'Login successful',
       access_token: token,
-      user,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 
