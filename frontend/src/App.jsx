@@ -21,6 +21,7 @@ import AdminEvents from "./pages/admin/Events";
 import AdminEventRegister from "./pages/admin/EventRegister";
 import AdminNews from "./pages/admin/News";
 import AdminActivities from "./pages/admin/Activities";
+import AdminFormations from "./pages/admin/Formations";
 import Contacts from "./pages/admin/Contacts";
 import AdminMembership from "./pages/admin/Membership";
 import Info from "./pages/admin/Info";
@@ -96,6 +97,9 @@ function App() {
 
           {/* Manage Activities */}
           <Route path="activities" element={<AdminActivities />} />
+
+          {/* Manage Formations */}
+          <Route path="formations" element={<AdminFormations />} />
 
           {/* Manage Event Register */}
           <Route path="eventRegister" element={<AdminEventRegister />} />

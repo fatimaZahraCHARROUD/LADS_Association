@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseConfig } from './config/database.config';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
+import { FormationsModule } from './formations/formations.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { NewsModule } from './news/news.module';
 import { LadsInfoModule } from './lads-info/lads-info.module';
@@ -15,6 +16,7 @@ import { AuthModule } from './auth/auth.module';
     DatabaseConfig,
     UsersModule,
     EventsModule,
+    FormationsModule,
     ActivitiesModule,
     NewsModule,
     LadsInfoModule,
