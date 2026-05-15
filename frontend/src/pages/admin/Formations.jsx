@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { ImageOff } from "lucide-react";
 import { api } from "../../services/api";
 import { EMPTY_ML, ml, mlDisplay, hasAnyMl } from "../../utils/i18n";
+import { uploadImage } from "../../services/upload";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -11,7 +12,6 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import StatusBadge from "../../components/admin/StatusBadge";
 import RowActions from "../../components/admin/RowActions";
 import MultilingualInput from "../../components/admin/MultilingualInput";
-import ImageUrlInput from "../../components/admin/ImageUrlInput";
 import {
   Field, TextInput, DateInput, TimeInput, UrlInput, Select, Toggle,
 } from "../../components/admin/FormField";
@@ -49,6 +49,7 @@ export default function AdminFormations() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const [imageFile, setImageFile] = useState(null);
 
   const load = async () => {
     try {
@@ -65,60 +66,83 @@ export default function AdminFormations() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-    setEditing(null);
-    setForm(EMPTY_FORMATION);
-    setDrawerOpen(true);
-  };
+  setEditing(null);
+  setForm(EMPTY_FORMATION);
+  setImageFile(null);
+  setDrawerOpen(true);
+};
 
   const openEdit = (row) => {
-    setEditing(row);
-    setForm({
-      title: ml(row.title),
-      description: ml(row.description),
-      imgUrl: row.imgUrl || "",
-      date: toFormDate(row.date),
-      heure: row.heure || "",
-      category: row.category || "",
-      status: row.status || "upcoming",
-      registrationLink: row.registrationLink || "",
-      isPublished: !!row.isPublished,
-    });
-    setDrawerOpen(true);
-  };
+  setEditing(row);
+
+  setForm({
+    title: ml(row.title),
+    description: ml(row.description),
+    imgUrl: row.imgUrl || "",
+    date: toFormDate(row.date),
+    heure: row.heure || "",
+    category: row.category || "",
+    status: row.status || "upcoming",
+    registrationLink: row.registrationLink || "",
+    isPublished: !!row.isPublished,
+  });
+
+  setImageFile(null);
+
+  setDrawerOpen(true);
+};
 
   const closeDrawer = () => {
     if (saving) return;
     setDrawerOpen(false);
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!hasAnyMl(form.title)) {
-      toast.error("Title is required in at least one language.");
-      return;
-    }
-    if (!form.date) {
-      toast.error("Date is required.");
-      return;
+ const submit = async (e) => {
+  e.preventDefault();
+
+  if (!hasAnyMl(form.title)) {
+    toast.error("Title is required in at least one language.");
+    return;
+  }
+
+  if (!form.date) {
+    toast.error("Date is required.");
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    let imageUrl = form.imgUrl;
+
+    // upload new image if selected
+    if (imageFile) {
+      imageUrl = await uploadImage(imageFile);
     }
 
-    setSaving(true);
-    try {
-      if (editing) {
-        await api.patch(`/formations/${editing._id}`, form);
-        toast.success("Formation updated");
-      } else {
-        await api.post("/formations", form);
-        toast.success("Formation created");
-      }
-      setDrawerOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
+    const payload = {
+      ...form,
+      imgUrl: imageUrl,
+    };
+
+    if (editing) {
+      await api.patch(`/formations/${editing._id}`, payload);
+      toast.success("Formation updated");
+    } else {
+      await api.post("/formations", payload);
+      toast.success("Formation created");
     }
-  };
+
+    setDrawerOpen(false);
+    setImageFile(null);
+
+    await load();
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const togglePublish = async (row) => {
     try {
@@ -146,24 +170,29 @@ export default function AdminFormations() {
   };
 
   const columns = [
-    {
-      key: "imgUrl",
-      header: "",
-      width: "64px",
-      render: (r) =>
-        r.imgUrl ? (
-          <img
-            src={r.imgUrl}
-            alt=""
-            className="w-12 h-12 rounded-md object-cover border border-brand-border"
-            onError={(e) => (e.target.style.display = "none")}
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
-            <ImageOff size={16} />
-          </div>
-        ),
-    },
+   {
+  key: "imgUrl",
+  header: "",
+  width: "64px",
+  render: (r) =>
+    r.imgUrl ? (
+      <img
+        src={r.imgUrl}
+        alt={mlDisplay(r.title) || "formation"}
+        className="w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100"
+        loading="lazy"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src =
+            "https://via.placeholder.com/150?text=No+Image";
+        }}
+      />
+    ) : (
+      <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
+        <ImageOff size={16} />
+      </div>
+    ),
+},
     {
       key: "title",
       header: "Title",
@@ -317,11 +346,28 @@ export default function AdminFormations() {
             </Field>
           </div>
 
-          <ImageUrlInput
-            label="Image URL"
-            value={form.imgUrl}
-            onChange={(v) => setForm({ ...form, imgUrl: v })}
-          />
+         <Field label="Formation image">
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setImageFile(e.target.files[0])}
+  />
+</Field>
+
+{(imageFile || form.imgUrl) && (
+  <img
+    src={
+      imageFile
+        ? URL.createObjectURL(imageFile)
+        : form.imgUrl
+    }
+    alt="formation preview"
+    className="w-32 h-32 rounded-lg object-cover border mt-2"
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+    }}
+  />
+)}
 
           <Field label="Registration link">
             <UrlInput
