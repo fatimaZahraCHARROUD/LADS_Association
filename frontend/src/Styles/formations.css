@@ -1,0 +1,268 @@
+.formations-page {
+  background: #f5f8fc;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* HERO */
+.formations-hero {
+  height: 340px;
+  background: linear-gradient(
+      rgba(5, 20, 50, 0.85),
+      rgba(5, 20, 50, 0.9)
+    ),
+    url("https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1600&auto=format&fit=crop")
+      center/cover no-repeat;
+
+  display: flex;
+  align-items: center;
+}
+
+.hero-content {
+  color: white;
+}
+
+.hero-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+
+.formations-hero h1 {
+  font-size: 58px;
+  font-weight: 800;
+  margin-bottom: 15px;
+}
+
+.formations-hero h1 span {
+  color: #60a5fa;
+}
+
+.formations-hero p {
+  max-width: 650px;
+  line-height: 1.8;
+  color: #dbeafe;
+}
+
+/* TOPBAR */
+.formations-topbar {
+  margin-top: -45px;
+  margin-bottom: 50px;
+
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.08);
+}
+
+/* SEARCH */
+.search-box {
+  flex: 1;
+  max-width: 400px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  background: #f8fafc;
+  border: 1px solid #dbe3ee;
+
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  font-size: 15px;
+}
+
+/* FILTERS */
+.filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filters button {
+  border: none;
+  background: #e2e8f0;
+  color: #0f172a;
+
+  padding: 10px 16px;
+  border-radius: 12px;
+
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.filters button.active,
+.filters button:hover {
+  background: #2563eb;
+  color: white;
+}
+
+/* GRID */
+.formations-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.formation-card {
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+  transition: 0.3s;
+}
+
+.formation-card:hover {
+  transform: translateY(-8px);
+}
+
+.formation-image {
+  position: relative;
+}
+
+.formation-image img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+.formation-image span {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+
+  padding: 7px 14px;
+  border-radius: 30px;
+
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: white;
+}
+
+/* CATEGORY COLORS */
+.leadership {
+  background: #dbeafe !important;
+  color: #1d4ed8;
+}
+
+.digital {
+  background: #dcfce7 !important;
+  color: #166534;
+}
+
+.social {
+  background: #ffe4e6 !important;
+  color: #be123c;
+}
+
+.entrepreneurship {
+  background: #fef3c7 !important;
+  color: #92400e;
+}
+
+.formation-content {
+  padding: 24px;
+}
+
+.formation-content h3 {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+
+.formation-content p {
+  color: #64748b;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+/* INFO */
+.formation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.formation-info span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #475569;
+}
+
+/* BUTTONS */
+.formation-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.formation-buttons button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.details-btn {
+  background: #e2e8f0;
+}
+
+.join-btn {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+}
+
+.formation-buttons button:hover {
+  transform: translateY(-2px);
+}
+
+/* RESPONSIVE */
+@media (max-width: 992px) {
+  .formations-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .formations-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 768px) {
+  .formations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .formations-hero h1 {
+    font-size: 40px;
+  }
+}

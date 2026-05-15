@@ -1,159 +1,417 @@
-.main-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  font-family: Arial, sans-serif;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* NAVBAR */
-.navbar {
+.main-layout {
+  width: 100%;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #f8fafc;
+}
+
+/* =========================
+   COLORS (NAVY SYSTEM)
+========================= */
+
+:root {
+  --navy: #0b2c4d;
+  --navy-dark: #081f36;
+  --navy-light: #123960;
+  --text-dark: #0f172a;
+}
+
+/* =========================
+   TOP HEADER
+========================= */
+
+.top-header {
+  background: var(--navy);
+  color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 30px;
-  background: #0f172a;
+  padding: 10px 7%;
+  font-size: 14px;
+}
+
+.top-left,
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-right a {
   color: white;
+  transition: 0.3s;
+}
+
+.top-right a:hover {
+  color: #dbeafe;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   LANGUAGE
+========================= */
+
+.lang-wrapper {
   position: relative;
 }
 
-/* LOGO */
-.logo {
-  font-size: 20px;
-  font-weight: bold;
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-/* LINKS */
+.lang-dropdown {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  background: white;
+  width: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  z-index: 100;
+}
+
+.lang-dropdown button {
+  width: 100%;
+  border: none;
+  background: white;
+  padding: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-weight: 600;
+}
+
+.lang-dropdown button:hover {
+  background: #eef2ff;
+}
+
+/* =========================
+   NAVBAR
+========================= */
+
+.navbar {
+  width: 100%;
+  background: white;
+  padding: 18px 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+/* =========================
+   LOGO
+========================= */
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  text-decoration: none;
+}
+
+.logo-shape {
+  width: 55px;
+  height: 55px;
+  background: linear-gradient(
+    135deg,
+    var(--navy),
+    var(--navy-light)
+  );
+  clip-path: polygon(
+    50% 0%,
+    100% 38%,
+    82% 100%,
+    18% 100%,
+    0% 38%
+  );
+}
+
+.logo-main {
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.logo-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* =========================
+   NAV LINKS
+========================= */
+
 .nav-links {
   display: flex;
-  gap: 15px;
+  align-items: center;
+  gap: 32px;
 }
 
 .nav-links a {
-  color: white;
   text-decoration: none;
+  color: var(--text-dark);
+  font-weight: 600;
+  position: relative;
+  transition: 0.3s;
 }
 
-/* LOGIN BUTTON */
-/* desktop login */
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  background: var(--navy);
+  left: 0;
+  bottom: -7px;
+  transition: 0.3s;
+}
+
+.nav-links a:hover {
+  color: var(--navy);
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+/* =========================
+   LOGIN BUTTON (NAVY FIXED)
+========================= */
+
 .login-btn {
-  background: #22c55e;
-  padding: 8px 15px;
-  border-radius: 5px;
+  background: var(--navy);
   color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
   text-decoration: none;
+  font-weight: bold;
+  transition: 0.3s;
 }
 
-/* mobile login inside menu */
-.login-mobile {
-  background: #22c55e;
-  padding: 10px;
-  border-radius: 5px;
-  color: white;
-  text-decoration: none;
-  text-align: center;
-  margin-top: 10px;
-  display: none;
+.login-btn:hover {
+  background: var(--navy-light);
+  transform: translateY(-2px);
 }
 
+/* =========================
+   MOBILE MENU
+========================= */
 
-/* CONTENT */
-.content {
-  flex: 1;
-  padding: 20px;
-}
-
-/* FOOTER */
-.footer {
-  text-align: center;
-  padding: 15px;
-  background: #0f172a;
-  color: white;
-}
-
-/* HAMBURGER BUTTON */
 .menu-btn {
   display: none;
-  background: none;
   border: none;
-  color: white;
+  background: transparent;
   cursor: pointer;
+  color: var(--navy);
 }
 
-/* ========================= */
-/* 📱 MOBILE RESPONSIVE */
-/* ========================= */
-@media (max-width: 768px) {
+/* =========================
+   FOOTER
+========================= */
+
+.footer {
+  background: var(--navy);
+  color: white;
+  text-align: center;
+  padding: 20px;
+  margin-top: 50px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 992px) {
 
   .menu-btn {
     display: block;
+    z-index: 1001;
   }
 
   .nav-links {
     position: absolute;
-    top: 60px;
+    top: 100%;
     left: 0;
-    right: 0;
-    background: #0f172a;
+    width: 100%;
+    background: white;
     flex-direction: column;
+    align-items: flex-start;
+    padding: 25px;
+    gap: 20px;
     display: none;
-    padding: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
   }
 
   .nav-links.active {
     display: flex;
   }
-
-   .login-btn {
-    display: none;
-  }
-
-  .login-mobile {
-    display: block;
-  }
-}.right-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
-/* WRAPPER */
-.lang-wrapper {
-  position: relative;
-}
 
-/* BUTTON */
-.lang-btn {
-  background: transparent;
-  border: 1px solid white;
+
+.footer {
+  background: #0b2c4d;
   color: white;
-  padding: 6px 10px;
-  border-radius: 5px;
-  cursor: pointer;
+  padding: 60px 7% 20px;
 }
 
-/* DRAWER */
-.lang-drawer {
-  position: absolute;
-  top: 40px;
-  right: 0;
-  background: white;
-  color: black;
+/* MAIN GRID */
+.footer-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+/* HEADINGS */
+.footer-col h3,
+.footer-col h4 {
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+/* TEXT */
+.footer-col p {
+  font-size: 14px;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+/* LINKS */
+.footer-col a {
+  display: block;
+  color: #cbd5e1;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: 0.3s;
+}
+
+.footer-col a:hover {
+  color: white;
+  transform: translateX(4px);
+}
+
+/* CONTACT */
+.footer-contact p {
+  margin-top: 6px;
+}
+
+/* SOCIAL */
+.footer-social {
   display: flex;
   flex-direction: column;
-  min-width: 80px;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  z-index: 10;
+  gap: 8px;
+  margin-bottom: 15px;
 }
 
-.lang-drawer button {
+/* LANGUAGE */
+.footer-lang select {
   padding: 8px;
+  border-radius: 6px;
   border: none;
-  background: white;
-  cursor: pointer;
+  outline: none;
 }
 
-.lang-drawer button:hover {
-  background: #f1f1f1;
+/* BOTTOM BAR */
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.footer-links {
+  display: flex;
+  gap: 15px;
+}
+
+.footer-links a {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .footer-container {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .footer-container {
+    grid-template-columns: 1fr;
+  }
+}
+.desktop-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* PRIMARY BUTTON (JOIN US) */
+.join-btn {
+  background: linear-gradient(135deg, #0b2c4d, #15406b);
+  color: white;
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.join-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #15406b, #1e4f7a);
+}
+
+/* SECONDARY BUTTON (LOGIN) */
+.login-btn {
+  background: transparent;
+  color: #0b2c4d;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  text-decoration: none;
+  border: 2px solid #0b2c4d;
+  transition: 0.3s;
+}
+
+.login-btn:hover {
+  background: #0b2c4d;
+  color: white;
 }

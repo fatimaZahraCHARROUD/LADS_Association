@@ -1,0 +1,272 @@
+/* activities.css */
+
+.activities-page {
+  background: #f5f8fc;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* HERO */
+
+.activities-hero {
+  height: 340px;
+  background: linear-gradient(
+      rgba(5, 20, 50, 0.82),
+      rgba(5, 20, 50, 0.88)
+    ),
+    url("https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=1600&auto=format&fit=crop")
+      center/cover no-repeat;
+
+  display: flex;
+  align-items: center;
+}
+
+.hero-content {
+  color: white;
+}
+
+.hero-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.12);
+
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+
+.activities-hero h1 {
+  font-size: 58px;
+  font-weight: 800;
+  margin-bottom: 15px;
+}
+
+.activities-hero h1 span {
+  color: #60a5fa;
+}
+
+.activities-hero p {
+  max-width: 650px;
+  line-height: 1.8;
+  color: #dbeafe;
+}
+
+/* TOPBAR */
+
+.activities-topbar {
+  margin-top: -45px;
+  margin-bottom: 50px;
+
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.08);
+}
+
+/* SEARCH */
+
+.search-box {
+  flex: 1;
+  max-width: 400px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  background: #f8fafc;
+  border: 1px solid #dbe3ee;
+
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  font-size: 15px;
+}
+
+/* FILTERS */
+
+.filters {
+  display: flex;
+  gap: 12px;
+}
+
+.filters button {
+  border: none;
+  background: #e2e8f0;
+  color: #0f172a;
+
+  padding: 12px 20px;
+  border-radius: 12px;
+
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.filters button.active,
+.filters button:hover {
+  background: #2563eb;
+  color: white;
+}
+
+/* ACTIVITIES */
+
+.activities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.activity-card {
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+
+  transition: 0.3s;
+}
+
+.activity-card:hover {
+  transform: translateY(-8px);
+}
+
+.activity-image {
+  position: relative;
+}
+
+.activity-image img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+.activity-image span {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+
+  padding: 8px 14px;
+  border-radius: 30px;
+
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.activity-image .upcoming {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.activity-image .past {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.activity-content {
+  padding: 24px;
+}
+
+.activity-content h3 {
+  font-size: 22px;
+  margin-bottom: 14px;
+  color: #0f172a;
+}
+
+.activity-content p {
+  color: #64748b;
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+
+.activity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  margin-bottom: 24px;
+}
+
+.activity-info span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #475569;
+  font-size: 14px;
+}
+
+/* BUTTON */
+
+.details-btn {
+  width: 100%;
+  border: none;
+
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+
+  padding: 14px;
+  border-radius: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.details-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 992px) {
+  .activities-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .activities-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .activities-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activities-hero h1 {
+    font-size: 40px;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+}

@@ -28,6 +28,7 @@ import Info from "./pages/admin/Info";
 // Layouts
 import MainLayout from "./Layouts/MainLayout";
 import AdminLayout from "./Layouts/AdminLayout";
+import FormationsPage from "./pages/public/Formations";
 
 function App() {
   return (
@@ -64,6 +65,9 @@ function App() {
           {/* Activities */}
           <Route path="/activities" element={<Activities />} />
           <Route path="/activities/:id" element={<ActivitiesDetails />} />
+
+          {/* Activities */}
+          <Route path="/formations" element={<FormationsPage />} />
 
 
           {/* Membership */}

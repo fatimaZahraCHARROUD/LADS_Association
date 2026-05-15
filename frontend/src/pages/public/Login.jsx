@@ -1,7 +1,7 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import "../../Styles/login.css"
 async function login(email, password) {
   const res = await fetch('http://localhost:3000/auth/login', {
     method: 'POST',
@@ -42,35 +42,43 @@ export default function Login() {
     }
   };
 
-  return (
-    <div style={{ maxWidth: '400px', margin: '100px auto' }}>
-      <h2>Login</h2>
+ return (
+    <div className="login-page">
+      <div className="login-card">
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <h2>Welcome Back</h2>
 
-        <br /><br />
+        {/* NEW MESSAGE */}
+        <p className="login-message">
+          If you are a member, please login to access your dashboard.  
+          Not a member yet?{" "}
+          <span onClick={() => navigate("/membership")}>
+            Join us here
+          </span>
+        </p>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <form onSubmit={handleSubmit} className="login-form">
+          <input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <br /><br />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button type="submit">Login</button>
-      </form>
+          <button type="submit">Login</button>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+          {error && <span className="error">{error}</span>}
+        </form>
+      </div>
     </div>
   );
 }

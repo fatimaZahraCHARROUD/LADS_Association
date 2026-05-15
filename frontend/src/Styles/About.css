@@ -1,0 +1,301 @@
+/* about.css */
+
+.about-page {
+  background: #f5f8fc;
+  min-height: 100vh;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* HERO */
+
+.about-hero {
+  height: 360px;
+  background: linear-gradient(
+      rgba(5, 20, 50, 0.82),
+      rgba(5, 20, 50, 0.88)
+    ),
+    url("https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1600&auto=format&fit=crop")
+      center/cover no-repeat;
+
+  display: flex;
+  align-items: center;
+}
+
+.hero-content {
+  color: white;
+}
+
+.hero-badge,
+.section-tag {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+
+.about-hero .hero-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.about-hero h1 {
+  font-size: 58px;
+  font-weight: 800;
+  margin-bottom: 15px;
+}
+
+.about-hero h1 span {
+  color: #60a5fa;
+}
+
+.about-hero p {
+  max-width: 650px;
+  color: #dbeafe;
+  line-height: 1.8;
+}
+
+/* STORY */
+
+.story-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
+  align-items: center;
+
+  padding: 90px 0;
+}
+
+.story-image img {
+  width: 100%;
+  border-radius: 24px;
+  height: 450px;
+  object-fit: cover;
+}
+
+.story-content h2 {
+  font-size: 42px;
+  margin-bottom: 20px;
+  color: #0f172a;
+}
+
+.story-content p {
+  color: #475569;
+  line-height: 1.9;
+  margin-bottom: 18px;
+}
+
+/* MISSION */
+
+.mission-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+
+  margin-bottom: 90px;
+}
+
+.mission-card {
+  background: white;
+  padding: 40px;
+  border-radius: 24px;
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+}
+
+.mission-icon {
+  width: 65px;
+  height: 65px;
+  border-radius: 18px;
+
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 20px;
+}
+
+.mission-card h3 {
+  margin-bottom: 15px;
+  font-size: 26px;
+  color: #0f172a;
+}
+
+.mission-card p {
+  color: #64748b;
+  line-height: 1.8;
+}
+
+/* SECTIONS */
+
+.section-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.section-header h2 {
+  font-size: 42px;
+  color: #0f172a;
+}
+
+/* OBJECTIVES */
+
+.objectives-section {
+  margin-bottom: 90px;
+}
+
+.objectives-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+}
+
+.objective-card {
+  background: white;
+  padding: 35px 28px;
+  border-radius: 22px;
+  text-align: center;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+}
+
+.objective-card span {
+  font-size: 34px;
+  font-weight: 800;
+  color: #2563eb;
+  display: block;
+  margin-bottom: 15px;
+}
+
+.objective-card p {
+  color: #475569;
+  line-height: 1.7;
+}
+
+/* DEPARTMENTS */
+
+.departments-section {
+  margin-bottom: 90px;
+}
+
+.departments-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.department-card {
+  background: white;
+  padding: 35px 28px;
+  border-radius: 22px;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+
+  transition: 0.3s;
+}
+
+.department-card:hover {
+  transform: translateY(-8px);
+}
+
+.department-icon {
+  width: 65px;
+  height: 65px;
+  border-radius: 18px;
+
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 20px;
+}
+
+.department-card h3 {
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.department-card p {
+  color: #64748b;
+  line-height: 1.7;
+}
+
+/* TEAM */
+
+.team-section {
+  padding-bottom: 90px;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.team-card {
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+}
+
+.team-card img {
+  width: 100%;
+  height: 340px;
+  object-fit: cover;
+}
+
+.team-info {
+  padding: 24px;
+  text-align: center;
+}
+
+.team-info h3 {
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+.team-info p {
+  color: #64748b;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 992px) {
+  .story-section,
+  .mission-grid,
+  .objectives-grid,
+  .departments-grid,
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-hero h1 {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 768px) {
+  .story-content h2,
+  .section-header h2 {
+    font-size: 32px;
+  }
+
+  .about-hero h1 {
+    font-size: 34px;
+  }
+}

@@ -1,0 +1,287 @@
+/* membership.css */
+
+.membership-page {
+  background: #f5f8fc;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* HERO */
+
+.membership-hero {
+  height: 340px;
+  background: linear-gradient(
+      rgba(5, 20, 50, 0.82),
+      rgba(5, 20, 50, 0.88)
+    ),
+    url("https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1600&auto=format&fit=crop")
+      center/cover no-repeat;
+
+  display: flex;
+  align-items: center;
+}
+
+.hero-content {
+  color: white;
+}
+
+.hero-badge,
+.section-tag {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 40px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hero-badge {
+  background: rgba(255, 255, 255, 0.12);
+  margin-bottom: 18px;
+}
+
+.section-tag {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  margin-bottom: 16px;
+}
+
+.membership-hero h1 {
+  font-size: 58px;
+  font-weight: 800;
+  margin-bottom: 15px;
+}
+
+.membership-hero h1 span {
+  color: #60a5fa;
+}
+
+.membership-hero p {
+  max-width: 650px;
+  line-height: 1.8;
+  color: #dbeafe;
+}
+
+/* WHY SECTION */
+
+.why-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
+
+  align-items: center;
+  padding: 90px 0;
+}
+
+.why-content h2 {
+  font-size: 42px;
+  margin-bottom: 20px;
+  color: #0f172a;
+}
+
+.why-content p {
+  color: #64748b;
+  line-height: 1.9;
+  margin-bottom: 30px;
+}
+
+.why-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.why-list div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.why-list svg {
+  color: #2563eb;
+}
+
+.why-image img {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 24px;
+}
+
+/* BENEFITS */
+
+.benefits-section {
+  margin-bottom: 90px;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.section-header h2 {
+  font-size: 42px;
+  color: #0f172a;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.benefit-card {
+  background: white;
+  padding: 35px 28px;
+  border-radius: 24px;
+
+  text-align: center;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+
+  transition: 0.3s;
+}
+
+.benefit-card:hover {
+  transform: translateY(-8px);
+}
+
+.benefit-icon {
+  width: 70px;
+  height: 70px;
+
+  margin: auto;
+  margin-bottom: 20px;
+
+  border-radius: 18px;
+
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.benefit-card h3 {
+  margin-bottom: 14px;
+  color: #0f172a;
+}
+
+.benefit-card p {
+  color: #64748b;
+  line-height: 1.7;
+}
+
+/* FORM */
+
+.membership-form-section {
+  padding-bottom: 80px;
+}
+
+.form-card {
+  background: white;
+  padding: 50px;
+  border-radius: 28px;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+}
+
+.membership-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.membership-form input,
+.membership-form textarea {
+  width: 100%;
+
+  border: 1px solid #dbe3ee;
+  background: #f8fafc;
+
+  padding: 16px 18px;
+  border-radius: 14px;
+
+  font-size: 15px;
+  outline: none;
+
+  transition: 0.3s;
+}
+
+.membership-form input:focus,
+.membership-form textarea:focus {
+  border-color: #2563eb;
+  background: white;
+}
+
+.membership-form button {
+  border: none;
+
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+
+  padding: 16px 24px;
+  border-radius: 14px;
+
+  font-size: 16px;
+  font-weight: 600;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.membership-form button:hover {
+  transform: translateY(-2px);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 992px) {
+  .why-section,
+  .benefits-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .membership-hero h1 {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-card {
+    padding: 35px 24px;
+  }
+
+  .why-content h2,
+  .section-header h2 {
+    font-size: 32px;
+  }
+
+  .membership-hero h1 {
+    font-size: 34px;
+  }
+}
