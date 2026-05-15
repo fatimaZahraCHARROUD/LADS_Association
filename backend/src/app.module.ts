@@ -9,7 +9,7 @@ import { ContactMessagesModule } from './contact-messages/contact-messages.modul
 import { MembershipRequestsModule } from './membership-requests/membership-requests.module';
 import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
 import { AuthModule } from './auth/auth.module';
-
+import {UploadModule} from './upload/upload.module';
 @Module({
   imports: [
     DatabaseConfig,
@@ -22,6 +22,7 @@ import { AuthModule } from './auth/auth.module';
     MembershipRequestsModule,
     EventRegistrationsModule,
     AuthModule,
+    UploadModule,
   ],
 })
 export class AppModule {}

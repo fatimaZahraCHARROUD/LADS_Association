@@ -6,19 +6,19 @@ export type ContactMessageDocument = ContactMessage & Document;
 @Schema({ timestamps: true })
 export class ContactMessage {
   @Prop({ required: true })
-  fullName: string;
+  fullName!: string;
 
   @Prop({ required: true })
-  email: string;
+  email!: string;
 
   @Prop({ default: '' })
-  phone: string;
+  phone!: string;
 
   @Prop({ default: '' })
-  subject: string;
+  subject!: string;
 
   @Prop({ required: true })
-  message: string;
+  message!: string;
 }
 
 export const ContactMessageSchema = SchemaFactory.createForClass(ContactMessage);

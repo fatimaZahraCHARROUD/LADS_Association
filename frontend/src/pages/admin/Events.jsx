@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ImageOff } from "lucide-react";
 import { api } from "../../services/api";
 import { EMPTY_ML, ml, mlDisplay, hasAnyMl } from "../../utils/i18n";
+import { uploadImage } from "../../services/upload";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -45,6 +46,7 @@ export default function AdminEvents() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const [imageFile, setImageFile] = useState(null);
 
   const load = async () => {
     try {
@@ -89,39 +91,52 @@ export default function AdminEvents() {
     setDrawerOpen(false);
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!hasAnyMl(form.title)) {
-      toast.error("Title is required in at least one language.");
-      return;
-    }
-    if (!form.date) {
-      toast.error("Date is required.");
-      return;
+ const submit = async (e) => {
+  e.preventDefault();
+
+  if (!hasAnyMl(form.title)) {
+    toast.error("Title is required in at least one language.");
+    return;
+  }
+
+  if (!form.date) {
+    toast.error("Date is required.");
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    let imageUrl = form.coverImage;
+
+    // ✅ upload file if selected
+    if (imageFile) {
+      imageUrl = await uploadImage(imageFile);
     }
 
-    setSaving(true);
     const payload = {
       ...form,
+      coverImage: imageUrl,
       maxParticipants: Number(form.maxParticipants) || 0,
     };
 
-    try {
-      if (editing) {
-        await api.patch(`/events/${editing._id}`, payload);
-        toast.success("Event updated");
-      } else {
-        await api.post("/events", payload);
-        toast.success("Event created");
-      }
-      setDrawerOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
+    if (editing) {
+      await api.patch(`/events/${editing._id}`, payload);
+      toast.success("Event updated");
+    } else {
+      await api.post("/events", payload);
+      toast.success("Event created");
     }
-  };
+
+    setDrawerOpen(false);
+    setImageFile(null);
+    await load();
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const togglePublish = async (row) => {
     try {
@@ -149,24 +164,29 @@ export default function AdminEvents() {
   };
 
   const columns = [
-    {
-      key: "coverImage",
-      header: "",
-      width: "64px",
-      render: (r) =>
-        r.coverImage ? (
-          <img
-            src={r.coverImage}
-            alt=""
-            className="w-12 h-12 rounded-md object-cover border border-brand-border"
-            onError={(e) => (e.target.style.display = "none")}
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
-            <ImageOff size={16} />
-          </div>
-        ),
-    },
+   {
+  key: "coverImage",
+  header: "",
+  width: "64px",
+  render: (r) =>
+    r.coverImage ? (
+      <img
+        src={r.coverImage}
+        alt={mlDisplay(r.title) || "event"}
+        className="w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100"
+        loading="lazy"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src =
+            "https://via.placeholder.com/150?text=No+Image";
+        }}
+      />
+    ) : (
+      <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
+        <ImageOff size={16} />
+      </div>
+    ),
+},
     {
       key: "title",
       header: "Title",
@@ -321,11 +341,13 @@ export default function AdminEvents() {
             </Field>
           </div>
 
-          <ImageUrlInput
-            label="Cover image URL"
-            value={form.coverImage}
-            onChange={(v) => setForm({ ...form, coverImage: v })}
-          />
+          <Field label="Cover image">
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setImageFile(e.target.files[0])}
+  />
+</Field>
 
           <Field label="Registration link">
             <UrlInput
