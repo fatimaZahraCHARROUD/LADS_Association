@@ -1,5 +1,6 @@
 const VARIANTS = {
   upcoming:  "bg-blue-100 text-brand-primary",
+  ongoing:   "bg-amber-100 text-amber-700",
   past:      "bg-gray-200 text-gray-700",
   completed: "bg-gray-200 text-gray-700",
   published: "bg-emerald-100 text-brand-accent",

@@ -7,6 +7,7 @@ import {
   Calendar,
   Activity,
   Newspaper,
+  GraduationCap,
   Mail,
   Users,
   Settings,
@@ -73,6 +74,9 @@ export default function AdminLayout() {
             </SidebarLink>
             <SidebarLink to="/admin/news" icon={Newspaper} collapsed={collapsed} nested>
               News
+            </SidebarLink>
+            <SidebarLink to="/admin/formations" icon={GraduationCap} collapsed={collapsed} nested>
+              Formations
             </SidebarLink>
             <SidebarLink to="/admin/info" icon={Settings} collapsed={collapsed} nested>
               LADS Info
