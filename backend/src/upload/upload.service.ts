@@ -7,7 +7,7 @@ export class UploadService {
     return new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
-          folder: 'events',
+          folder: 'general',
         },
         (error, result) => {
           if (error) return reject(error);

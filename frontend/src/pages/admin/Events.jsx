@@ -62,11 +62,18 @@ const [imageFile, setImageFile] = useState(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(EMPTY_EVENT);
-    setDrawerOpen(true);
-  };
+const openCreate = () => {
+  setEditing(null);
+
+  setImageFile(null);
+
+  setForm({
+    ...EMPTY_EVENT,
+    coverImage: "",
+  });
+
+  setDrawerOpen(true);
+};
 
   const openEdit = (row) => {
     setEditing(row);
@@ -83,6 +90,7 @@ const [imageFile, setImageFile] = useState(null);
       status: row.status || "upcoming",
       isPublished: !!row.isPublished,
     });
+    setImageFile(null);
     setDrawerOpen(true);
   };
 
@@ -341,13 +349,25 @@ const [imageFile, setImageFile] = useState(null);
             </Field>
           </div>
 
-          <Field label="Cover image">
+        <Field label="Cover image">
   <input
     type="file"
     accept="image/*"
     onChange={(e) => setImageFile(e.target.files[0])}
   />
 </Field>
+
+{(imageFile || form.coverImage) && (
+  <img
+    src={
+      imageFile
+        ? URL.createObjectURL(imageFile)
+        : form.coverImage
+    }
+    alt="cover preview"
+    className="w-32 h-32 rounded-lg object-cover border mt-2"
+  />
+)}
 
           <Field label="Registration link">
             <UrlInput

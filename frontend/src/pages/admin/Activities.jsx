@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { ImageOff } from "lucide-react";
 import { api } from "../../services/api";
 import { EMPTY_ML, ml, mlDisplay, hasAnyMl } from "../../utils/i18n";
+import { uploadImage } from "../../services/upload";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -42,6 +43,7 @@ export default function AdminActivities() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const [imageFiles, setImageFiles] = useState([]);
 
   const load = async () => {
     try {
@@ -57,62 +59,89 @@ export default function AdminActivities() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(EMPTY_ACTIVITY);
-    setDrawerOpen(true);
-  };
+const openCreate = () => {
+  setEditing(null);
+  setImageFiles([]);
+  setForm(EMPTY_ACTIVITY);
+  setDrawerOpen(true);
+};
 
   const openEdit = (row) => {
-    setEditing(row);
-    setForm({
-      title: ml(row.title),
-      description: ml(row.description),
-      activityDate: toFormDate(row.activityDate),
-      location: row.location || "",
-      categorie: row.categorie || "",
-      images: Array.isArray(row.images) ? [...row.images] : [],
-      status: row.status || "upcoming",
-      isPublished: !!row.isPublished,
-    });
-    setDrawerOpen(true);
-  };
+  setImageFiles([]);
 
-  const closeDrawer = () => { if (!saving) setDrawerOpen(false); };
+  setEditing(row);
+  setForm({
+    title: ml(row.title),
+    description: ml(row.description),
+    activityDate: toFormDate(row.activityDate),
+    location: row.location || "",
+    categorie: row.categorie || "",
+    images: Array.isArray(row.images) ? [...row.images] : [],
+    status: row.status || "upcoming",
+    isPublished: !!row.isPublished,
+  });
 
+  setDrawerOpen(true);
+};
+
+const closeDrawer = () => {
+  if (saving) return;
+
+  setImageFiles([]);
+  setForm(EMPTY_ACTIVITY);
+
+  setDrawerOpen(false);
+};
   const submit = async (e) => {
-    e.preventDefault();
-    if (!hasAnyMl(form.title)) {
-      toast.error("Title is required in at least one language.");
-      return;
-    }
-    if (!form.activityDate) {
-      toast.error("Activity date is required.");
-      return;
+  e.preventDefault();
+
+  if (!hasAnyMl(form.title)) {
+    toast.error("Title is required in at least one language.");
+    return;
+  }
+
+  if (!form.activityDate) {
+    toast.error("Activity date is required.");
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    let uploadedImages = [...form.images];
+
+    // ✅ upload all selected images
+    if (imageFiles.length > 0) {
+      const uploaded = await Promise.all(
+        imageFiles.map((file) => uploadImage(file))
+      );
+
+      uploadedImages = uploaded;
     }
 
-    setSaving(true);
     const payload = {
       ...form,
-      images: form.images.filter((u) => u && u.trim()),
+      images: uploadedImages.filter(Boolean),
     };
 
-    try {
-      if (editing) {
-        await api.patch(`/activities/${editing._id}`, payload);
-        toast.success("Activity updated");
-      } else {
-        await api.post("/activities", payload);
-        toast.success("Activity created");
-      }
-      setDrawerOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
+    if (editing) {
+      await api.patch(`/activities/${editing._id}`, payload);
+      toast.success("Activity updated");
+    } else {
+      await api.post("/activities", payload);
+      toast.success("Activity created");
     }
-  };
+
+    setDrawerOpen(false);
+    setImageFiles([]);
+    await load();
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   const togglePublish = async (row) => {
     try {
@@ -141,25 +170,31 @@ export default function AdminActivities() {
 
   const columns = [
     {
-      key: "thumb",
-      header: "",
-      width: "64px",
-      render: (r) => {
-        const first = Array.isArray(r.images) ? r.images[0] : null;
-        return first ? (
-          <img
-            src={first}
-            alt=""
-            className="w-12 h-12 rounded-md object-cover border border-brand-border"
-            onError={(e) => (e.target.style.display = "none")}
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
-            <ImageOff size={16} />
-          </div>
-        );
-      },
-    },
+  key: "thumb",
+  header: "",
+  width: "64px",
+  render: (r) => {
+    const first = Array.isArray(r.images) ? r.images[0] : null;
+
+    return first ? (
+      <img
+        src={first}
+        alt={mlDisplay(r.title) || "activity"}
+        className="w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100"
+        loading="lazy"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src =
+            "https://via.placeholder.com/150?text=No+Image";
+        }}
+      />
+    ) : (
+      <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
+        <ImageOff size={16} />
+      </div>
+    );
+  },
+},
     {
       key: "title",
       header: "Title",
@@ -298,11 +333,37 @@ export default function AdminActivities() {
             />
           </Field>
 
-          <ImageUrlListInput
-            label="Images"
-            value={form.images}
-            onChange={(v) => setForm({ ...form, images: v })}
-          />
+          <Field label="Activity images">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setImageFiles(Array.from(e.target.files))}
+            />
+          </Field>
+          {/* Preview selected images OR existing images */}
+<div className="flex flex-wrap gap-3 mt-2">
+  {imageFiles.length > 0
+    ? imageFiles.map((file, index) => (
+        <img
+          key={index}
+          src={URL.createObjectURL(file)}
+          alt={`preview-${index}`}
+          className="w-24 h-24 rounded-lg object-cover border"
+        />
+      ))
+    : form.images?.map((img, index) => (
+        <img
+          key={index}
+          src={img}
+          alt={`activity-${index}`}
+          className="w-24 h-24 rounded-lg object-cover border"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ))}
+</div>
 
           <div className="grid grid-cols-2 gap-3 items-end">
             <Field label="Status">

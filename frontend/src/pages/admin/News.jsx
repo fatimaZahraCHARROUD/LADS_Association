@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { ImageOff } from "lucide-react";
 import { api } from "../../services/api";
 import { EMPTY_ML, ml, mlDisplay, hasAnyMl } from "../../utils/i18n";
+import { uploadImage } from "../../services/upload";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -31,6 +32,7 @@ export default function AdminNews() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const [imageFile, setImageFile] = useState(null);
 
   const load = async () => {
     try {
@@ -66,18 +68,28 @@ export default function AdminNews() {
 
   const closeDrawer = () => { if (!saving) setDrawerOpen(false); };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!hasAnyMl(form.title)) {
-      toast.error("Title is required in at least one language.");
-      return;
+ const submit = async (e) => {
+  e.preventDefault();
+
+  if (!hasAnyMl(form.title)) {
+    toast.error("Title is required in at least one language.");
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    let thumbnailUrl = form.thumbnail;
+
+    // ✅ upload image if selected
+    if (imageFile) {
+      thumbnailUrl = await uploadImage(imageFile);
     }
 
-    setSaving(true);
     const payload = {
       title: form.title,
       content: form.content,
-      thumbnail: form.thumbnail,
+      thumbnail: thumbnailUrl,
       isPublished: form.isPublished,
       tags: form.tagsInput
         .split(",")
@@ -85,22 +97,23 @@ export default function AdminNews() {
         .filter(Boolean),
     };
 
-    try {
-      if (editing) {
-        await api.patch(`/news/${editing._id}`, payload);
-        toast.success("Article updated");
-      } else {
-        await api.post("/news", payload);
-        toast.success("Article created");
-      }
-      setDrawerOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
+    if (editing) {
+      await api.patch(`/news/${editing._id}`, payload);
+      toast.success("Article updated");
+    } else {
+      await api.post("/news", payload);
+      toast.success("Article created");
     }
-  };
+
+    setDrawerOpen(false);
+    setImageFile(null);
+    await load();
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const togglePublish = async (row) => {
     try {
@@ -128,24 +141,29 @@ export default function AdminNews() {
   };
 
   const columns = [
-    {
-      key: "thumbnail",
-      header: "",
-      width: "64px",
-      render: (r) =>
-        r.thumbnail ? (
-          <img
-            src={r.thumbnail}
-            alt=""
-            className="w-12 h-12 rounded-md object-cover border border-brand-border"
-            onError={(e) => (e.target.style.display = "none")}
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
-            <ImageOff size={16} />
-          </div>
-        ),
-    },
+   {
+  key: "thumbnail",
+  header: "",
+  width: "64px",
+  render: (r) =>
+    r.thumbnail ? (
+      <img
+        src={r.thumbnail}
+        alt={mlDisplay(r.title) || "news"}
+        className="w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100"
+        loading="lazy"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src =
+            "https://via.placeholder.com/150?text=No+Image";
+        }}
+      />
+    ) : (
+      <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
+        <ImageOff size={16} />
+      </div>
+    ),
+},
     {
       key: "title",
       header: "Title",
@@ -270,11 +288,27 @@ export default function AdminNews() {
             onChange={(v) => setForm({ ...form, content: v })}
           />
 
-          <ImageUrlInput
-            label="Thumbnail URL"
-            value={form.thumbnail}
-            onChange={(v) => setForm({ ...form, thumbnail: v })}
+          <Field label="Thumbnail">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files[0])}
+            />
+          </Field>
+         {(imageFile || form.thumbnail) && (
+          <img
+            src={
+              imageFile
+                ? URL.createObjectURL(imageFile)
+                : form.thumbnail
+            }
+            alt="thumbnail preview"
+            className="w-32 h-32 rounded-lg object-cover border mt-2"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
+        )}
 
           <Field label="Tags" hint="Comma-separated. E.g. announcement, partnership">
             <TextInput
