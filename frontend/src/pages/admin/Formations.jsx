@@ -20,6 +20,7 @@ const EMPTY_FORMATION = {
   title: { ...EMPTY_ML },
   description: { ...EMPTY_ML },
   imgUrl: "",
+  coverImagePublicId: "",
   date: "",
   heure: "",
   category: "",
@@ -79,6 +80,7 @@ const [imageFile, setImageFile] = useState(null);
     title: ml(row.title),
     description: ml(row.description),
     imgUrl: row.imgUrl || "",
+        coverImagePublicId: row.coverImagePublicId || "",
     date: toFormDate(row.date),
     heure: row.heure || "",
     category: row.category || "",
@@ -114,15 +116,23 @@ const [imageFile, setImageFile] = useState(null);
 
   try {
     let imageUrl = form.imgUrl;
+    let coverImagePublicId = form.coverImagePublicId;
 
     // upload new image if selected
     if (imageFile) {
-      imageUrl = await uploadImage(imageFile);
+      const uploaded = await uploadImage(imageFile);
+
+      imageUrl = uploaded.url;
+      coverImagePublicId = uploaded.public_id;
+
+    
     }
 
     const payload = {
       ...form,
       imgUrl: imageUrl,
+      coverImagePublicId,
+
     };
 
     if (editing) {

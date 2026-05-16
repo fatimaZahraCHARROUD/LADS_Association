@@ -8,6 +8,8 @@ export class CreateFormationDto {
   title!: LocalizedStringDto;
   description!: LocalizedStringDto;
   imgUrl?: string;
+    coverImagePublicId?: string;
+
   date!: string;
   heure?: string;
   category?: string;

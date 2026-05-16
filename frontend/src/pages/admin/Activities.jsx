@@ -23,7 +23,8 @@ const EMPTY_ACTIVITY = {
   activityDate: "",
   location: "",
   categorie: "",
-  images: [],
+  image: "",
+  coverImagePublicId: "",
   status: "upcoming",
   isPublished: false,
 };
@@ -43,7 +44,7 @@ export default function AdminActivities() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-const [imageFiles, setImageFiles] = useState([]);
+const [imageFile, setImageFile] = useState(null);
 
   const load = async () => {
     try {
@@ -61,13 +62,13 @@ const [imageFiles, setImageFiles] = useState([]);
 
 const openCreate = () => {
   setEditing(null);
-  setImageFiles([]);
+  setImageFile(null);
   setForm(EMPTY_ACTIVITY);
   setDrawerOpen(true);
 };
 
   const openEdit = (row) => {
-  setImageFiles([]);
+  setImageFile(null);
 
   setEditing(row);
   setForm({
@@ -76,7 +77,8 @@ const openCreate = () => {
     activityDate: toFormDate(row.activityDate),
     location: row.location || "",
     categorie: row.categorie || "",
-    images: Array.isArray(row.images) ? [...row.images] : [],
+    image: row.image || "",
+    coverImagePublicId: row.coverImagePublicId || "",
     status: row.status || "upcoming",
     isPublished: !!row.isPublished,
   });
@@ -87,7 +89,7 @@ const openCreate = () => {
 const closeDrawer = () => {
   if (saving) return;
 
-  setImageFiles([]);
+  setImageFile(null);
   setForm(EMPTY_ACTIVITY);
 
   setDrawerOpen(false);
@@ -108,21 +110,21 @@ const closeDrawer = () => {
   setSaving(true);
 
   try {
-    let uploadedImages = [...form.images];
+ 
+  let image = form.image;
+let coverImagePublicId = form.coverImagePublicId;
 
-    // ✅ upload all selected images
-    if (imageFiles.length > 0) {
-      const uploaded = await Promise.all(
-        imageFiles.map((file) => uploadImage(file))
-      );
+if (imageFile) {
+  const uploaded = await uploadImage(imageFile);
 
-      uploadedImages = uploaded;
-    }
+  image = uploaded.url;
+  coverImagePublicId = uploaded.public_id;
+}
 
     const payload = {
       ...form,
-      images: uploadedImages.filter(Boolean),
-    };
+      image,
+      coverImagePublicId,    };
 
     if (editing) {
       await api.patch(`/activities/${editing._id}`, payload);
@@ -133,7 +135,7 @@ const closeDrawer = () => {
     }
 
     setDrawerOpen(false);
-    setImageFiles([]);
+    setImageFile(null);
     await load();
   } catch (err) {
     toast.error(err.message);
@@ -170,16 +172,14 @@ const closeDrawer = () => {
 
   const columns = [
     {
-  key: "thumb",
+  key: "image",
   header: "",
   width: "64px",
-  render: (r) => {
-    const first = Array.isArray(r.images) ? r.images[0] : null;
-
-    return first ? (
+  render: (r) =>
+    r.image ? (
       <img
-        src={first}
-        alt={mlDisplay(r.title) || "activity"}
+        src={r.image}
+        alt={mlDisplay(r.title) || "formation"}
         className="w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100"
         loading="lazy"
         onError={(e) => {
@@ -192,8 +192,7 @@ const closeDrawer = () => {
       <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
         <ImageOff size={16} />
       </div>
-    );
-  },
+    ),
 },
     {
       key: "title",
@@ -338,31 +337,22 @@ const closeDrawer = () => {
               type="file"
               accept="image/*"
               multiple
-              onChange={(e) => setImageFiles(Array.from(e.target.files))}
+              onChange={(e) => setImageFile(e.target.files[0])}
             />
           </Field>
           {/* Preview selected images OR existing images */}
 <div className="flex flex-wrap gap-3 mt-2">
-  {imageFiles.length > 0
-    ? imageFiles.map((file, index) => (
-        <img
-          key={index}
-          src={URL.createObjectURL(file)}
-          alt={`preview-${index}`}
-          className="w-24 h-24 rounded-lg object-cover border"
-        />
-      ))
-    : form.images?.map((img, index) => (
-        <img
-          key={index}
-          src={img}
-          alt={`activity-${index}`}
-          className="w-24 h-24 rounded-lg object-cover border"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-      ))}
+ {imageFile || form.image ? (
+  <img
+    src={
+      imageFile
+        ? URL.createObjectURL(imageFile)
+        : form.image
+    }
+    alt="activity preview"
+    className="w-32 h-32 rounded-lg object-cover border mt-2"
+  />
+) : null}
 </div>
 
           <div className="grid grid-cols-2 gap-3 items-end">

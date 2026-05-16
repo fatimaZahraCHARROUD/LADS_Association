@@ -13,6 +13,7 @@ export class CreateEventDto {
   location?: string;
   maxParticipants?: number;
   coverImage?: string;
+  coverImagePublicId?: string;
   registerLink?: string;
   status?: 'upcoming' | 'past';
   isPublished?: boolean;

@@ -15,5 +15,5 @@ export const uploadImage = async (file) => {
 
   const data = await res.json();
 
-  return data.url; // Cloudinary secure_url from backend
+  return data; // Cloudinary secure_url from backend
 };

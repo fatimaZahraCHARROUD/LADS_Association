@@ -19,6 +19,7 @@ const EMPTY_NEWS = {
   title: { ...EMPTY_ML },
   content: { ...EMPTY_ML },
   thumbnail: "",
+  coverImagePublicId: "",
   tagsInput: "",
   isPublished: false,
 };
@@ -60,6 +61,7 @@ const [imageFile, setImageFile] = useState(null);
       title: ml(row.title),
       content: ml(row.content),
       thumbnail: row.thumbnail || "",
+      coverImagePublicId: row.coverImagePublicId || "",
       tagsInput: Array.isArray(row.tags) ? row.tags.join(", ") : "",
       isPublished: !!row.isPublished,
     });
@@ -80,16 +82,23 @@ const [imageFile, setImageFile] = useState(null);
 
   try {
     let thumbnailUrl = form.thumbnail;
+    let coverImagePublicId = form.coverImagePublicId;
 
     // ✅ upload image if selected
     if (imageFile) {
-      thumbnailUrl = await uploadImage(imageFile);
+      const uploaded = await uploadImage(imageFile);
+
+      thumbnailUrl = uploaded.url;
+   
+         coverImagePublicId = uploaded.public_id;
+
     }
 
     const payload = {
       title: form.title,
       content: form.content,
       thumbnail: thumbnailUrl,
+      coverImagePublicId:coverImagePublicId,
       isPublished: form.isPublished,
       tags: form.tagsInput
         .split(",")

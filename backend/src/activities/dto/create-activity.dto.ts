@@ -5,7 +5,8 @@ export class CreateActivityDto {
   description!: LocalizedStringDto;
   activityDate!: string;
   location?: string;
-  images?: string[];
+  image?: string;
+  coverImagePublicId?: string;
   categorie?: string;
   status?: 'upcoming' | 'completed';
   isPublished?: boolean;

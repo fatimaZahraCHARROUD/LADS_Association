@@ -35,6 +35,9 @@ export class Event {
   @Prop({ default: '' })
   coverImage!: string;
 
+   @Prop({ default: '' })
+  coverImagePublicId!: string;
+  
   @Prop({ default: '' })
   registerLink!: string;
 

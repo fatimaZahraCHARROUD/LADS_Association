@@ -12,31 +12,34 @@ const localizedString = {
 @Schema({ timestamps: true })
 export class Activity {
   @Prop({ type: localizedString, _id: false, required: true })
-  title: { en: string; fr: string; ar: string };
+  title!: { en: string; fr: string; ar: string };
 
   @Prop({ type: localizedString, _id: false, required: true })
-  description: { en: string; fr: string; ar: string };
+  description!: { en: string; fr: string; ar: string };
 
   @Prop({ required: true })
-  activityDate: string;
+  activityDate!: string;
 
   @Prop({ default: '' })
-  location: string;
+  location!: string;
 
-  @Prop({ type: [String], default: [] })
-  images: string[];
+  @Prop({ default:'' })
+  image!: string;
 
   @Prop({ default: '' })
-  categorie: string;
+  coverImagePublicId!: string;
+
+  @Prop({ default: '' })
+  categorie!: string;
 
   @Prop({ enum: ['upcoming', 'completed'], default: 'upcoming' })
-  status: string;
+  status!: string;
 
   @Prop({ default: false })
-  isPublished: boolean;
+  isPublished!: boolean;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  createdBy: Types.ObjectId;
+  createdBy!: Types.ObjectId;
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);

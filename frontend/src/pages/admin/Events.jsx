@@ -26,6 +26,7 @@ const EMPTY_EVENT = {
   location: "",
   maxParticipants: 0,
   coverImage: "",
+  coverImagePublicId: "",
   registerLink: "",
   status: "upcoming",
   isPublished: false,
@@ -70,6 +71,8 @@ const openCreate = () => {
   setForm({
     ...EMPTY_EVENT,
     coverImage: "",
+    coverImagePublicId: "",
+
   });
 
   setDrawerOpen(true);
@@ -86,6 +89,7 @@ const openCreate = () => {
       location: row.location || "",
       maxParticipants: row.maxParticipants ?? 0,
       coverImage: row.coverImage || "",
+      coverImagePublicId: row.coverImagePublicId || "",
       registerLink: row.registerLink || "",
       status: row.status || "upcoming",
       isPublished: !!row.isPublished,
@@ -116,15 +120,20 @@ const openCreate = () => {
 
   try {
     let imageUrl = form.coverImage;
+    let imagePublicId = form.coverImagePublicId;
 
     // ✅ upload file if selected
     if (imageFile) {
-      imageUrl = await uploadImage(imageFile);
+         const uploaded = await uploadImage(imageFile);
+
+        imageUrl = uploaded.url;
+        imagePublicId = uploaded.public_id;      
     }
 
     const payload = {
       ...form,
       coverImage: imageUrl,
+      coverImagePublicId: imagePublicId,
       maxParticipants: Number(form.maxParticipants) || 0,
     };
 
@@ -366,6 +375,9 @@ const openCreate = () => {
     }
     alt="cover preview"
     className="w-32 h-32 rounded-lg object-cover border mt-2"
+    onError={(e) => {
+        e.currentTarget.style.display = "none";
+      }}
   />
 )}
 

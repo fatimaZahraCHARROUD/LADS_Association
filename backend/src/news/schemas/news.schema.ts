@@ -12,25 +12,28 @@ const localizedString = {
 @Schema({ timestamps: true })
 export class News {
   @Prop({ type: localizedString, _id: false, required: true })
-  title: { en: string; fr: string; ar: string };
+  title!: { en: string; fr: string; ar: string };
 
   @Prop({ type: localizedString, _id: false, required: true })
-  content: { en: string; fr: string; ar: string };
+  content!: { en: string; fr: string; ar: string };
 
   @Prop({ default: '' })
-  thumbnail: string;
+  thumbnail!: string;
+
+   @Prop({ default: '' })
+  coverImagePublicId!: string;
 
   @Prop({ type: [String], default: [] })
-  tags: string[];
+  tags!: string[];
 
   @Prop({ default: false })
-  isPublished: boolean;
+  isPublished!: boolean;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  authorId: Types.ObjectId;
+  authorId!: Types.ObjectId;
 
   @Prop({ type: Date })
-  publishedAt: Date;
+  publishedAt!: Date;
 }
 
 export const NewsSchema = SchemaFactory.createForClass(News);
