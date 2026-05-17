@@ -1,86 +1,93 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Search, Inbox } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, ChevronsUpDown, Inbox,
+} from "lucide-react";
+import { useTopSearch } from "../../contexts/TopSearchContext";
 
 const PAGE_SIZE = 10;
+
+function buildPager(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const range = [1];
+  if (current > 3) range.push("…");
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    range.push(i);
+  }
+  if (current < total - 2) range.push("…");
+  range.push(total);
+  return range;
+}
+
+function pad(n, total) {
+  return total <= 99 ? String(n).padStart(2, "0") : String(n);
+}
 
 export default function DataTable({
   columns,
   rows,
   loading = false,
-  searchable = true,
-  searchPlaceholder = "Search...",
   searchFn,
   emptyMessage = "No records yet.",
   rowKey = "_id",
 }) {
-  const [query, setQuery] = useState("");
+  const { query: topQuery } = useTopSearch();
   const [page, setPage] = useState(1);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [topQuery]);
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return rows;
-    const q = query.trim().toLowerCase();
+    const q = (topQuery || "").trim().toLowerCase();
+    if (!q) return rows;
     if (searchFn) return rows.filter((r) => searchFn(r, q));
-    return rows.filter((r) =>
-      JSON.stringify(r).toLowerCase().includes(q)
-    );
-  }, [rows, query, searchFn]);
+    return rows.filter((r) => JSON.stringify(r).toLowerCase().includes(q));
+  }, [rows, topQuery, searchFn]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pager = buildPager(safePage, totalPages);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-brand-border overflow-hidden">
-      {searchable && (
-        <div className="px-4 py-3 border-b border-brand-border bg-gray-50/60 flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted"
-            />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              placeholder={searchPlaceholder}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-            />
-          </div>
-          <span className="text-xs text-brand-muted ml-auto">
-            Showing {pageRows.length} of {filtered.length}
-          </span>
-        </div>
-      )}
-
+    <div className="bg-white rounded-2xl shadow-sm border border-brand-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-brand-muted">
-            <tr>
-              {columns.map((c) => (
-                <th
-                  key={c.key}
-                  className={`px-4 py-3 text-left font-medium uppercase text-xs tracking-wide ${c.thClassName || ""}`}
-                  style={c.width ? { width: c.width } : undefined}
-                >
-                  {c.header}
-                </th>
-              ))}
+          <thead>
+            <tr className="text-brand-muted">
+              {columns.map((c) => {
+                const showSort = !!c.header && c.sortable !== false;
+                return (
+                  <th
+                    key={c.key}
+                    className={`px-6 py-5 text-left font-semibold text-xs uppercase tracking-wide ${c.thClassName || ""}`}
+                    style={c.width ? { width: c.width } : undefined}
+                  >
+                    {showSort ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {c.header}
+                        <ChevronsUpDown size={12} className="opacity-50" />
+                      </span>
+                    ) : (
+                      c.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border">
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-brand-muted">
+                <td colSpan={columns.length} className="px-6 py-14 text-center text-brand-muted">
                   Loading...
                 </td>
               </tr>
             ) : pageRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-brand-muted">
+                <td colSpan={columns.length} className="px-6 py-16 text-center text-brand-muted">
                   <div className="flex flex-col items-center gap-2">
                     <Inbox size={28} className="text-gray-300" />
                     <span>{emptyMessage}</span>
@@ -102,7 +109,7 @@ export default function DataTable({
                     {columns.map((c) => (
                       <td
                         key={c.key}
-                        className={`px-4 py-3 text-brand-text align-middle ${c.tdClassName || ""}`}
+                        className={`px-6 py-5 text-brand-text align-middle ${c.tdClassName || ""}`}
                       >
                         {c.render ? c.render(row) : row[c.key] ?? "—"}
                       </td>
@@ -116,26 +123,44 @@ export default function DataTable({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-brand-border text-sm">
-          <span className="text-brand-muted">
-            Page {safePage} of {totalPages}
-          </span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage === 1}
-              className="p-1.5 rounded-md text-brand-text hover:bg-gray-100 disabled:opacity-40"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage === totalPages}
-              className="p-1.5 rounded-md text-brand-text hover:bg-gray-100 disabled:opacity-40"
-            >
-              <ChevronRight size={16} />
-            </button>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-5 border-t border-brand-border text-sm">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+            className="flex items-center gap-1 text-brand-muted hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+
+          <div className="flex items-center gap-1">
+            {pager.map((p, i) =>
+              p === "…" ? (
+                <span key={`gap-${i}`} className="px-2 text-brand-muted">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`min-w-[34px] h-9 px-2 rounded-lg text-xs font-medium transition-colors ${
+                    p === safePage
+                      ? "bg-brand-primary text-white shadow-sm"
+                      : "text-brand-muted hover:bg-gray-100"
+                  }`}
+                >
+                  {pad(p, totalPages)}
+                </button>
+              )
+            )}
           </div>
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+            className="flex items-center gap-1 text-brand-muted hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
     </div>

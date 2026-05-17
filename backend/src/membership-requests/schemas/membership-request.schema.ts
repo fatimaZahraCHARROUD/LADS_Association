@@ -16,6 +16,9 @@ export class MembershipRequest {
 
   @Prop({ default: '' })
   city: string;
+
+  @Prop({ default: '' })
+  motivation: string;
 }
 
 export const MembershipRequestSchema = SchemaFactory.createForClass(MembershipRequest);
