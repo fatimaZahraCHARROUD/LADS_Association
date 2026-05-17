@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+
 import {
   Target,
   Eye,
@@ -8,219 +9,366 @@ import {
   HeartHandshake,
 } from "lucide-react";
 
+import { useTranslation } from "react-i18next";
+
 import "../../Styles/About.css";
 
+import { api } from "../../services/api";
+
+import { mlDisplay } from "../../utils/i18n";
+
 export default function About() {
+
+  const { t } = useTranslation();
+
+  const [info, setInfo] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
+  /* =========================
+      FETCH DATA
+  ========================= */
+  useEffect(() => {
+
+    const fetchData = async () => {
+
+      try {
+
+        const data =
+          await api.get("/lads-info");
+
+        setInfo(
+          Array.isArray(data)
+            ? data
+            : []
+        );
+
+      } catch (err) {
+
+        console.error(
+          "LADS INFO ERROR:",
+          err
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+    };
+
+    fetchData();
+
+  }, []);
+
+  /* =========================
+      HELPERS
+  ========================= */
+  const getByKey = (key) =>
+    info.find(
+      (i) =>
+        i.title?.en?.toLowerCase() === key
+    );
+
+  const story =
+    getByKey("story");
+
+  const mission =
+    getByKey("mission");
+
+  const vision =
+    getByKey("vision");
+
+  /* =========================
+      OBJECTIVES
+  ========================= */
   const objectives = [
-    "Empowering and training young people",
-    "Building leadership and innovation skills",
-    "Creating sustainable social impact",
-    "Encouraging citizenship and responsibility",
+
+    t("about.objectives.items.0"),
+
+    t("about.objectives.items.1"),
+
+    t("about.objectives.items.2"),
+
+    t("about.objectives.items.3"),
   ];
 
+  /* =========================
+      DEPARTMENTS
+  ========================= */
   const departments = [
+
     {
       icon: <Users size={28} />,
-      title: "Human Development",
-      text: "Leadership programs and youth empowerment.",
+      title: t("about.departments.items.0.title"),
+      text: t("about.departments.items.0.text"),
     },
 
     {
       icon: <Lightbulb size={28} />,
-      title: "Innovation & Skills",
-      text: "Developing creativity and future skills.",
+      title: t("about.departments.items.1.title"),
+      text: t("about.departments.items.1.text"),
     },
 
     {
       icon: <Briefcase size={28} />,
-      title: "Social Entrepreneurship",
-      text: "Turning ideas into impactful projects.",
+      title: t("about.departments.items.2.title"),
+      text: t("about.departments.items.2.text"),
     },
 
     {
       icon: <HeartHandshake size={28} />,
-      title: "Social Action",
-      text: "Community service and volunteering initiatives.",
+      title: t("about.departments.items.3.title"),
+      text: t("about.departments.items.3.text"),
     },
   ];
 
+  /* =========================
+      TEAM
+  ========================= */
   const team = [
+
     {
       name: "Fatima Zahra",
-      role: "Communication Manager",
+      role: t("about.team.roles.communication"),
       image:
         "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400&auto=format&fit=crop",
     },
 
     {
       name: "Ayoub",
-      role: "Project Coordinator",
+      role: t("about.team.roles.coordinator"),
       image:
         "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&auto=format&fit=crop",
     },
 
     {
       name: "Duaa",
-      role: "Social Media Manager",
+      role: t("about.team.roles.social"),
       image:
         "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=400&auto=format&fit=crop",
     },
   ];
 
+  /* =========================
+      LOADING
+  ========================= */
+  if (loading) {
+
+    return (
+
+      <section className="about-page">
+
+        <div className="container">
+
+          <p>
+            {t("about.loading")}
+          </p>
+
+        </div>
+
+      </section>
+
+    );
+  }
+
   return (
+
     <section className="about-page">
+
       {/* HERO */}
       <div className="about-hero">
+
         <div className="container hero-content">
-          <span className="hero-badge">About L.A.D.S</span>
+
+          <span className="hero-badge">
+            {t("about.hero.badge")}
+          </span>
 
           <h1>
-            Building Future <span>Leaders</span>
+            {t("about.hero.title")}
           </h1>
 
           <p>
-            A youth association focused on leadership,
-            innovation, social entrepreneurship, and human
-            development.
+            {t("about.hero.desc")}
           </p>
+
         </div>
+
       </div>
 
       <div className="container">
+
         {/* STORY */}
         <section className="story-section">
+
           <div className="story-image">
+
             <img
-              src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1200&auto=format&fit=crop"
+              src="images/lads.png"
               alt="LADS Team"
             />
+
           </div>
 
           <div className="story-content">
+
             <span className="section-tag">
-              Association Story
+              {t("about.story")}
             </span>
 
-            <h2>Our Story</h2>
+            <h2>
+              {
+                mlDisplay(story?.title)
+                ||
+                t("about.story_title")
+              }
+            </h2>
 
             <p>
-              L.A.D.S was founded to empower youth and help
-              them transform ideas into impactful social
-              projects. Inspired by leadership, volunteering,
-              and innovation, the association creates a space
-              where young people can learn, grow, and lead
-              positive change.
+              {mlDisplay(story?.content)}
             </p>
 
-            <p>
-              Through workshops, mentorship, and community
-              initiatives, we aim to build a generation capable
-              of creating sustainable impact.
-            </p>
           </div>
+
         </section>
 
-        {/* MISSION VISION */}
+        {/* MISSION / VISION */}
         <section className="mission-grid">
+
           <div className="mission-card">
+
             <div className="mission-icon">
               <Target size={30} />
             </div>
 
-            <h3>Our Mission</h3>
+            <h3>
+              {
+                mlDisplay(mission?.title)
+                ||
+                t("about.mission")
+              }
+            </h3>
 
             <p>
-              Empowering youth through leadership,
-              entrepreneurship, and social innovation.
+              {mlDisplay(mission?.content)}
             </p>
+
           </div>
 
           <div className="mission-card">
+
             <div className="mission-icon">
               <Eye size={30} />
             </div>
 
-            <h3>Our Vision</h3>
+            <h3>
+              {
+                mlDisplay(vision?.title)
+                ||
+                t("about.vision")
+              }
+            </h3>
 
             <p>
-              Creating a generation of young leaders capable
-              of building sustainable positive impact.
+              {mlDisplay(vision?.content)}
             </p>
+
           </div>
+
         </section>
 
         {/* OBJECTIVES */}
         <section className="objectives-section">
+
           <div className="section-header">
+
             <span className="section-tag">
-              Strategic Objectives
+              {t("about.objectives.tag")}
             </span>
 
-            <h2>What We Focus On</h2>
+            <h2>
+              {t("about.objectives.title")}
+            </h2>
+
           </div>
 
           <div className="objectives-grid">
-            {objectives.map((item, index) => (
-              <div className="objective-card" key={index}>
-                <span>0{index + 1}</span>
-                <p>{item}</p>
-              </div>
-            ))}
+
+            {
+              objectives.map((item, index) => (
+
+                <div
+                  className="objective-card"
+                  key={index}
+                >
+
+                  <span>
+                    0{index + 1}
+                  </span>
+
+                  <p>{item}</p>
+
+                </div>
+
+              ))
+            }
+
           </div>
+
         </section>
 
         {/* DEPARTMENTS */}
         <section className="departments-section">
+
           <div className="section-header">
+
             <span className="section-tag">
-              Departments Overview
+              {t("about.departments.tag")}
             </span>
 
-            <h2>Our Main Departments</h2>
+            <h2>
+              {t("about.departments.title")}
+            </h2>
+
           </div>
 
           <div className="departments-grid">
-            {departments.map((dept, index) => (
-              <div className="department-card" key={index}>
-                <div className="department-icon">
-                  {dept.icon}
+
+            {
+              departments.map((dept, index) => (
+
+                <div
+                  className="department-card"
+                  key={index}
+                >
+
+                  <div className="department-icon">
+                    {dept.icon}
+                  </div>
+
+                  <h3>
+                    {dept.title}
+                  </h3>
+
+                  <p>
+                    {dept.text}
+                  </p>
+
                 </div>
 
-                <h3>{dept.title}</h3>
+              ))
+            }
 
-                <p>{dept.text}</p>
-              </div>
-            ))}
           </div>
+
         </section>
 
-        {/* TEAM */}
-        <section className="team-section">
-          <div className="section-header">
-            <span className="section-tag">
-              Team Members
-            </span>
+       
 
-            <h2>Meet Our Team</h2>
-          </div>
-
-          <div className="team-grid">
-            {team.map((member, index) => (
-              <div className="team-card" key={index}>
-                <img
-                  src={member.image}
-                  alt={member.name}
-                />
-
-                <div className="team-info">
-                  <h3>{member.name}</h3>
-                  <p>{member.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
+
     </section>
+
   );
 }

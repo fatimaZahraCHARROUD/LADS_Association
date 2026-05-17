@@ -12,13 +12,13 @@ const localizedString = {
 @Schema({ timestamps: true })
 export class LadsInfo {
   @Prop({ type: localizedString, _id: false, required: true })
-  title: { en: string; fr: string; ar: string };
+  title!: { en: string; fr: string; ar: string };
 
   @Prop({ type: localizedString, _id: false, required: true })
-  content: { en: string; fr: string; ar: string };
+  content!: { en: string; fr: string; ar: string };
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  updatedBy: Types.ObjectId;
+  updatedBy!: Types.ObjectId;
 }
 
 export const LadsInfoSchema = SchemaFactory.createForClass(LadsInfo);

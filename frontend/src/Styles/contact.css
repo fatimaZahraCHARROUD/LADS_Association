@@ -19,7 +19,7 @@
       rgba(5, 20, 50, 0.82),
       rgba(5, 20, 50, 0.88)
     ),
-    url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1600&auto=format&fit=crop")
+    url("images/home.png")
       center/cover no-repeat;
 
   display: flex;
@@ -240,7 +240,7 @@
       rgba(5, 20, 50, 0.82),
       rgba(5, 20, 50, 0.88)
     ),
-    url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1600&auto=format&fit=crop")
+    url("images/home.png")
       center/cover no-repeat;
 
   display: flex;

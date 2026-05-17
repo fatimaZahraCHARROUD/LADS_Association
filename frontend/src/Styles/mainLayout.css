@@ -59,51 +59,11 @@
   transform: translateY(-2px);
 }
 
-/* =========================
-   LANGUAGE
-========================= */
 
-.lang-wrapper {
-  position: relative;
-}
 
-.lang-btn {
-  border: none;
-  background: transparent;
-  color: white;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-}
 
-.lang-dropdown {
-  position: absolute;
-  top: 38px;
-  right: 0;
-  background: white;
-  width: 110px;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-  z-index: 100;
-}
 
-.lang-dropdown button {
-  width: 100%;
-  border: none;
-  background: white;
-  padding: 12px;
-  cursor: pointer;
-  transition: 0.3s;
-  font-weight: 600;
-}
 
-.lang-dropdown button:hover {
-  background: #eef2ff;
-}
 
 /* =========================
    NAVBAR
@@ -414,4 +374,134 @@
 .login-btn:hover {
   background: #0b2c4d;
   color: white;
+}
+
+
+/* =========================
+   LANGUAGE DROPDOWN
+========================= */
+
+.lang-dropdown {
+  position: relative;
+}
+
+/* BUTTON */
+.lang-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  min-width: 150px;
+  height: 42px;
+
+  padding: 0 14px;
+
+  border: 1px solid rgba(255,255,255,0.18);
+
+  background: rgba(255,255,255,0.08);
+
+  color: white;
+
+  border-radius: 14px;
+
+  cursor: pointer;
+
+  transition: 0.3s ease;
+}
+
+.lang-trigger:hover {
+  background: rgba(255,255,255,0.16);
+}
+
+.lang-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.rotate {
+  transform: rotate(180deg);
+  transition: 0.3s ease;
+}
+
+/* DRAWER */
+.lang-drawer {
+  position: absolute;
+
+  top: calc(100% + 10px);
+  right: 0;
+
+  width: 190px;
+
+  background: white;
+
+  border-radius: 18px;
+
+  padding: 10px;
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,0.12);
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  z-index: 9999;
+
+  animation: langFade 0.2s ease;
+}
+
+/* ITEMS */
+.lang-drawer button {
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  padding: 12px 14px;
+
+  border-radius: 12px;
+
+  text-align: left;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition: 0.25s ease;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #1e293b;
+
+  width: 100%;
+}
+
+.lang-drawer button:hover {
+  background: #f1f5f9;
+}
+
+.lang-drawer button.active {
+  background: #0b2c4d;
+  color: white;
+}
+
+/* ANIMATION */
+@keyframes langFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

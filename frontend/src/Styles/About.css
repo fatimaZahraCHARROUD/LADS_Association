@@ -19,7 +19,7 @@
       rgba(5, 20, 50, 0.82),
       rgba(5, 20, 50, 0.88)
     ),
-    url("https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1600&auto=format&fit=crop")
+    url("images/about.png")
       center/cover no-repeat;
 
   display: flex;
@@ -299,3 +299,4 @@
     font-size: 34px;
   }
 }
+

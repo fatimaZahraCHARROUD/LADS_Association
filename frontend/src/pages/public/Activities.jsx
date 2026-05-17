@@ -1,106 +1,181 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
 import {
   Search,
   CalendarDays,
   MapPin,
   ArrowRight,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import "../../Styles/activities.css";
 
+import { api } from "../../services/api";
+
+import { mlDisplay } from "../../utils/i18n";
+
 export default function Activities() {
+
+const { t, i18n } = useTranslation();
+const navigate=useNavigate();
   const [activeFilter, setActiveFilter] =
     useState("all");
 
-  const activities = [
-    {
-      id: 1,
-      title: "Youth Leadership Training",
-      category: "upcoming",
-      date: "18 May 2026",
-      location: "Berkane",
-      image:
-        "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop",
-      description:
-        "Interactive leadership activities designed for young future leaders.",
-    },
+  const [search, setSearch] =
+    useState("");
 
-    {
-      id: 2,
-      title: "Community Volunteering Day",
-      category: "past",
-      date: "12 April 2026",
-      location: "Oujda",
-      image:
-        "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=1200&auto=format&fit=crop",
-      description:
-        "Social volunteering initiative supporting local communities.",
-    },
+  const [activities, setActivities] =
+    useState([]);
 
-    {
-      id: 3,
-      title: "Innovation & Startup Workshop",
-      category: "upcoming",
-      date: "28 May 2026",
-      location: "Nador",
-      image:
-        "https://images.unsplash.com/photo-1515169067868-5387ec356754?q=80&w=1200&auto=format&fit=crop",
-      description:
-        "Hands-on activities focused on entrepreneurship and innovation.",
-    },
-  ];
+  const [loading, setLoading] =
+    useState(true);
+  const [selectedImage, setSelectedImage] =
+  useState(null);
+  /* =========================
+      FETCH DATA
+  ========================= */
+  useEffect(() => {
 
-  const filteredActivities =
-    activeFilter === "all"
-      ? activities
-      : activities.filter(
-          (activity) =>
-            activity.category === activeFilter
+    const fetchData = async () => {
+
+      try {
+
+        const res =
+          await api.get("/activities?isPublished=true");
+
+        const data =
+          Array.isArray(res)
+            ? res
+            : res?.data || [];
+
+        setActivities(data);
+
+      } catch (err) {
+
+        console.error(
+          "Activities error:",
+          err
         );
 
+      } finally {
+
+        setLoading(false);
+
+      }
+    };
+
+    fetchData();
+
+  }, []);
+
+  /* =========================
+      FILTER
+  ========================= */
+  const filteredActivities = activities
+
+    .filter((a) => {
+
+      if (activeFilter === "all")
+        return true;
+
+      if (activeFilter === "past")
+        return a.status === "completed";
+
+      if (activeFilter === "upcoming")
+        return a.status === "upcoming";
+
+      return true;
+
+    })
+
+    .filter((a) => {
+
+      const q =
+        search.toLowerCase();
+
+      return (
+
+        mlDisplay(a.title, i18n.language)
+          .toLowerCase()
+          .includes(q)
+
+        ||
+
+        mlDisplay(a.description, i18n.language)
+          .toLowerCase()
+          .includes(q)
+
+        ||
+
+        (a.location || "")
+          .toLowerCase()
+          .includes(q)
+
+      );
+
+    });
+
   return (
+
     <section className="activities-page">
+
       {/* HERO */}
       <div className="activities-hero">
+
         <div className="container hero-content">
+
           <span className="hero-badge">
-            L.A.D.S Activities
+            {t("activities.hero.badge")}
           </span>
 
           <h1>
-            Our <span>Activities</span>
+            {t("activities.hero.title")}
           </h1>
 
           <p>
-            Discover our educational, social, and leadership
-            activities designed to empower youth and create
-            positive impact.
+            {t("activities.hero.desc")}
           </p>
+
         </div>
+
       </div>
 
       <div className="container">
+
         {/* TOP BAR */}
         <div className="activities-topbar">
+
           {/* SEARCH */}
           <div className="search-box">
+
             <Search size={18} />
 
             <input
               type="text"
-              placeholder="Search activities..."
+              placeholder={t("activities.search")}
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
             />
+
           </div>
 
           {/* FILTERS */}
           <div className="filters">
+
             <button
               className={
-                activeFilter === "all" ? "active" : ""
+                activeFilter === "all"
+                  ? "active"
+                  : ""
               }
-              onClick={() => setActiveFilter("all")}
+              onClick={() =>
+                setActiveFilter("all")
+              }
             >
-              All
+              {t("activities.filters.all")}
             </button>
 
             <button
@@ -113,64 +188,149 @@ export default function Activities() {
                 setActiveFilter("upcoming")
               }
             >
-              Upcoming
+              {t("activities.filters.upcoming")}
             </button>
 
             <button
               className={
-                activeFilter === "past" ? "active" : ""
+                activeFilter === "past"
+                  ? "active"
+                  : ""
               }
-              onClick={() => setActiveFilter("past")}
+              onClick={() =>
+                setActiveFilter("past")
+              }
             >
-              Past
+              {t("activities.filters.past")}
             </button>
+
           </div>
+
         </div>
 
-        {/* ACTIVITIES GRID */}
+        {/* GRID */}
         <div className="activities-grid">
-          {filteredActivities.map((activity) => (
-            <div
-              className="activity-card"
-              key={activity.id}
-            >
-              <div className="activity-image">
-                <img
-                  src={activity.image}
-                  alt={activity.title}
-                />
 
-                <span className={activity.category}>
-                  {activity.category}
-                </span>
-              </div>
+          {
+            filteredActivities.map((activity) => (
 
-              <div className="activity-content">
-                <h3>{activity.title}</h3>
+              <div
+                className="activity-card"
+                key={activity._id}
+              >
 
-                <p>{activity.description}</p>
+                {/* IMAGE */}
+                <div className="activity-image"   onClick={() => setSelectedImage(activity.image)}>
 
-                <div className="activity-info">
-                  <span>
-                    <CalendarDays size={16} />
-                    {activity.date}
-                  </span>
+                  <img
+                    src={activity.image}
+                    alt={mlDisplay(activity.title, i18n.language)}
+                  />
 
-                  <span>
-                    <MapPin size={16} />
-                    {activity.location}
-                  </span>
+                  {/* <span className={activity.status}>
+
+                    {
+                      activity.status === "upcoming"
+                        ? t("activities.status.upcoming")
+                        : t("activities.status.past")
+                    }
+
+                  </span> */}
+
                 </div>
 
-                <button className="details-btn">
-                  View Details
-                  <ArrowRight size={18} />
-                </button>
+                {/* CONTENT */}
+                <div className="activity-content">
+
+                  <h3>
+                    {mlDisplay(activity.title, i18n.language)}
+                  </h3>
+
+                  <p>
+                    {mlDisplay(activity.description, i18n.language)}
+                  </p>
+
+                  <div className="activity-info">
+
+                    <span>
+                      <CalendarDays size={16} />
+                      {activity.activityDate}
+                    </span>
+
+                    <span>
+                      <MapPin size={16} />
+                      {activity.location}
+                    </span>
+
+                  </div>
+
+                     <button className="join-btn" onClick={()=> navigate("/membership")}>
+                      {t("formations.buttons.join")}
+                    </button>
+                  {/* <button className="details-btn">
+
+                    {t("activities.buttons.details")}
+
+                    <ArrowRight size={18} />
+
+                  </button> */}
+
+                </div>
+
               </div>
-            </div>
-          ))}
+
+            ))
+          }
+
         </div>
+
+        {/* EMPTY */}
+        {
+          !loading &&
+          filteredActivities.length === 0 && (
+
+            <p>
+              {t("activities.empty")}
+            </p>
+
+          )
+        }
+
       </div>
+
+{/* IMAGE MODAL */}
+{
+  selectedImage && (
+
+    <div
+      className="image-modal"
+      onClick={() => setSelectedImage(null)}
+    >
+
+      <div
+        className="image-modal-content"
+        onClick={(e) => e.stopPropagation()}
+      >
+
+        <button
+          className="close-modal"
+          onClick={() => setSelectedImage(null)}
+        >
+          ✕
+        </button>
+
+        <img
+          src={selectedImage}
+          alt="Formation"
+        />
+
+      </div>
+
+    </div>
+
+  )
+}
     </section>
+
   );
 }

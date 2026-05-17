@@ -1,12 +1,14 @@
-// src/pages/Login.jsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import "../../Styles/login.css"
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
+import "../../Styles/login.css";
+
 async function login(email, password) {
-  const res = await fetch('http://localhost:3000/auth/login', {
-    method: 'POST',
+  const res = await fetch("http://localhost:3000/auth/login", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, password }),
   });
@@ -14,53 +16,54 @@ async function login(email, password) {
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.message || 'Login failed');
+    throw new Error(data.message || "Login failed");
   }
 
-  localStorage.setItem('token', data.access_token);
+  localStorage.setItem("token", data.access_token);
 
   return data;
 }
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { t } = useTranslation();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
       await login(email, password);
 
-      // redirect after login
-      navigate('/admin');
+      navigate("/admin");
     } catch (err) {
       setError(err.message);
     }
   };
 
- return (
+  return (
     <div className="login-page">
       <div className="login-card">
 
-        <h2>Welcome Back</h2>
+        <h2>{t("login.title")}</h2>
 
-        {/* NEW MESSAGE */}
         <p className="login-message">
-          If you are a member, please login to access your dashboard.  
-          Not a member yet?{" "}
+          {t("login.message")}{" "}
           <span onClick={() => navigate("/membership")}>
-            Join us here
+            {t("login.join_link")}
           </span>
         </p>
 
         <form onSubmit={handleSubmit} className="login-form">
+
           <input
             type="email"
-            placeholder="Email address"
+            placeholder={t("login.email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -68,16 +71,24 @@ export default function Login() {
 
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t("login.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
-          <button type="submit">Login</button>
+          <button type="submit">
+            {t("login.button")}
+          </button>
 
-          {error && <span className="error">{error}</span>}
+          {error && (
+            <span className="error">
+              {error}
+            </span>
+          )}
+
         </form>
+
       </div>
     </div>
   );

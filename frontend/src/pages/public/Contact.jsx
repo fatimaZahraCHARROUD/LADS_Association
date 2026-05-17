@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+
 import {
   Mail,
   Phone,
@@ -11,14 +12,21 @@ import {
   FaInstagram,
   FaLinkedinIn,
   FaWhatsapp,
-  FaFacebookF,
 } from "react-icons/fa";
 
+import { useTranslation } from "react-i18next";
+
+import { api } from "../../services/api";
 import "../../Styles/contact.css";
 
 const API_URL = "http://localhost:3000/contact-messages";
 
 export default function Contact() {
+
+  const { t } = useTranslation();
+
+  const [ladsInfo, setLadsInfo] = useState([]);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -29,10 +37,55 @@ export default function Contact() {
   });
 
   const [loading, setLoading] = useState(false);
-
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
+  /* ================= LOAD INFO ================= */
+  useEffect(() => {
+
+    const load = async () => {
+      try {
+
+        const data = await api.get("/lads-info");
+
+        setLadsInfo(Array.isArray(data) ? data : []);
+
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    load();
+
+  }, []);
+
+  /* ================= MAP INFO ================= */
+  const infoMap = Object.fromEntries(
+    ladsInfo.map((i) => [
+      i.title?.en?.toLowerCase(),
+      i.content?.en,
+    ])
+  );
+
+  const phone =
+    infoMap.phone || "+212 6 00 00 00 00";
+
+  const email =
+    infoMap.email || "contact@lads.org";
+
+  const address =
+    infoMap.address || "Berkane, Morocco";
+
+  const instagram =
+    infoMap.instagram || "#";
+
+  const linkedin =
+    infoMap.linkedin || "#";
+
+  const whatsappNumber =
+    phone.replace(/\D/g, "");
+
+  /* ================= FORM ================= */
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -42,21 +95,16 @@ export default function Contact() {
 
   const showError = (msg) => {
     setError(msg);
-
-    setTimeout(() => {
-      setError("");
-    }, 2000);
+    setTimeout(() => setError(""), 2000);
   };
 
   const showSuccess = (msg) => {
     setSuccess(msg);
-
-    setTimeout(() => {
-      setSuccess("");
-    }, 2000);
+    setTimeout(() => setSuccess(""), 2000);
   };
 
   const validateForm = () => {
+
     const {
       firstName,
       lastName,
@@ -66,40 +114,36 @@ export default function Contact() {
       message,
     } = formData;
 
-    // ALL REQUIRED
     if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !email.trim() ||
-      !phone.trim() ||
-      !subject.trim() ||
-      !message.trim()
+      !firstName ||
+      !lastName ||
+      !email ||
+      !phone ||
+      !subject ||
+      !message
     ) {
-      showError("All fields are required");
+      showError(t("contact.errors.required"));
       return false;
     }
 
-    // EMAIL VALIDATION
     const emailRegex =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
-      showError("Invalid email address");
+      showError(t("contact.errors.email"));
       return false;
     }
 
-    // PHONE VALIDATION
-const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
-      if (!phoneRegex.test(phone)) {
-      showError("Invalid phone number");
+    const phoneRegex =
+      /^(?:\+|00|0)?[1-9]\d{7,14}$/;
+
+    if (!phoneRegex.test(phone)) {
+      showError(t("contact.errors.phone"));
       return false;
     }
 
-    // MESSAGE LENGTH
-    if (message.trim().length < 10) {
-      showError(
-        "Message must contain at least 10 characters"
-      );
+    if (message.length < 10) {
+      showError(t("contact.errors.message"));
       return false;
     }
 
@@ -107,18 +151,21 @@ const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
   };
 
   const handleSubmit = async (e) => {
+
     e.preventDefault();
 
-    setSuccess("");
     setError("");
+    setSuccess("");
 
     if (!validateForm()) return;
 
     setLoading(true);
 
     try {
+
       const payload = {
-        fullName: `${formData.firstName} ${formData.lastName}`,
+        fullName:
+          `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
         phone: formData.phone,
         subject: formData.subject,
@@ -136,15 +183,11 @@ const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to send message"
-        );
-      }
+      if (!res.ok)
+        throw new Error(data.message);
 
       showSuccess(
-        "Message sent successfully!"
+        t("contact.success")
       );
 
       setFormData({
@@ -155,74 +198,79 @@ const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
         subject: "",
         message: "",
       });
+
     } catch (err) {
+
       showError(
-        err.message || "Something went wrong"
+        err.message ||
+          t("contact.errors.generic")
       );
+
     } finally {
       setLoading(false);
     }
   };
 
   return (
+
     <section className="contact-page">
+
       {/* HERO */}
       <div className="contact-hero">
+
         <div className="container hero-content">
+
           <span className="hero-badge">
-            L.A.D.S Association
+            {t("contact.hero.badge")}
           </span>
 
           <h1>
-            Contact <span>Us</span>
+            {t("contact.hero.title")}
           </h1>
 
           <p>
-            Empowering youth through leadership,
-            innovation, and social entrepreneurship.
+            {t("contact.hero.desc")}
           </p>
+
         </div>
+
       </div>
 
-      {/* CONTACT CARD */}
       <div className="container">
+
         <div className="contact-card">
-          {/* LEFT SIDE */}
+
+          {/* INFO */}
           <div className="contact-info">
-            <h2>Let’s Connect</h2>
+
+            <h2>
+              {t("contact.info.title")}
+            </h2>
 
             <p>
-              Have questions, ideas, or want to
-              collaborate with L.A.D.S? Feel free
-              to contact us anytime.
+              {t("contact.info.desc")}
             </p>
 
             <div className="info-item">
               <Mail size={20} />
-              <span>contact@lads.org</span>
+              <span>{email}</span>
             </div>
 
             <div className="info-item">
               <Phone size={20} />
-              <span>+212 6 00 00 00 00</span>
+              <span>{phone}</span>
             </div>
 
             <div className="info-item">
               <MapPin size={20} />
-              <span>Berkane, Morocco</span>
+              <span>{address}</span>
             </div>
 
+            {/* SOCIAL */}
             <div className="social-icons">
-              <a
-                href="#"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <FaFacebookF />
-              </a>
 
               <a
-                href="#"
+                href={instagram}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -230,7 +278,7 @@ const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
               </a>
 
               <a
-                href="#"
+                href={linkedin}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -238,69 +286,72 @@ const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
               </a>
 
               <a
-                href="#"
+                href={`https://wa.me/${whatsappNumber}`}
                 target="_blank"
                 rel="noreferrer"
               >
                 <FaWhatsapp />
               </a>
+
             </div>
+
           </div>
 
-          {/* RIGHT SIDE */}
+          {/* FORM */}
           <div className="contact-form">
-            <h2>Send Message</h2>
+
+            <h2>
+              {t("contact.form.title")}
+            </h2>
 
             <form onSubmit={handleSubmit}>
+
               <div className="form-row">
+
                 <input
-                  type="text"
                   name="firstName"
-                  placeholder="First Name"
+                  placeholder={t("contact.form.first")}
                   value={formData.firstName}
                   onChange={handleChange}
                 />
 
                 <input
-                  type="text"
                   name="lastName"
-                  placeholder="Last Name"
+                  placeholder={t("contact.form.last")}
                   value={formData.lastName}
                   onChange={handleChange}
                 />
+
               </div>
 
               <input
-                type="email"
                 name="email"
-                placeholder="Email Address"
+                placeholder={t("contact.form.email")}
                 value={formData.email}
                 onChange={handleChange}
               />
 
               <input
-                type="text"
                 name="phone"
-                placeholder="Phone Number"
+                placeholder={t("contact.form.phone")}
                 value={formData.phone}
                 onChange={handleChange}
               />
 
               <input
-                type="text"
                 name="subject"
-                placeholder="Subject"
+                placeholder={t("contact.form.subject")}
                 value={formData.subject}
                 onChange={handleChange}
               />
 
               <textarea
-                rows="6"
                 name="message"
-                placeholder="Write your message..."
+                rows="6"
+                placeholder={t("contact.form.message")}
                 value={formData.message}
                 onChange={handleChange}
-              ></textarea>
+              />
 
               {success && (
                 <p className="success-message">
@@ -318,25 +369,23 @@ const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
                 type="submit"
                 disabled={loading}
               >
-                {loading ? (
-                  <>
-                    Sending...
-                    <Loader2
-                      size={18}
-                      className="spin"
-                    />
-                  </>
-                ) : (
-                  <>
-                    Send Message
-                    <Send size={18} />
-                  </>
-                )}
+                {loading
+                  ? t("contact.sending")
+                  : t("contact.send")}
+
+                <Send size={18} />
+
               </button>
+
             </form>
+
           </div>
+
         </div>
+
       </div>
+
     </section>
+
   );
 }

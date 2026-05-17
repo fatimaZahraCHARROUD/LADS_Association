@@ -30,8 +30,16 @@ import Info from "./pages/admin/Info";
 import MainLayout from "./Layouts/MainLayout";
 import AdminLayout from "./Layouts/AdminLayout";
 import FormationsPage from "./pages/public/Formations";
+import { useEffect } from "react";
+import i18n from "./utils/tr";
 
 function App() {
+
+   useEffect(() => {
+    document.documentElement.dir =
+      i18n.language === "ar" ? "rtl" : "ltr";
+  }, [i18n.language]);
+
   return (
     <Router>
       <Toaster
@@ -67,7 +75,7 @@ function App() {
           <Route path="/activities" element={<Activities />} />
           <Route path="/activities/:id" element={<ActivitiesDetails />} />
 
-          {/* Activities */}
+          {/* Formation */}
           <Route path="/formations" element={<FormationsPage />} />
 
 

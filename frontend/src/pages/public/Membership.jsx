@@ -1,46 +1,47 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import {
   Users,
   GraduationCap,
   Briefcase,
   HeartHandshake,
-  Send,  Loader2,
+  Send,
+  Loader2,
   CheckCircle2,
 } from "lucide-react";
 
+import { useTranslation } from "react-i18next";
+
 import "../../Styles/membership.css";
 
-const API_URL =
-  "http://localhost:3000/membership-requests";
+const API_URL = "http://localhost:3000/membership-requests";
 
 export default function Membership() {
+  const { t } = useTranslation();
+
   const benefits = [
     {
       icon: <GraduationCap size={28} />,
-      title: "Training Programs",
-      text: "Access workshops, formations, and leadership sessions.",
+      title: t("membership.benefits.training.title"),
+      text: t("membership.benefits.training.text"),
     },
-
     {
       icon: <Users size={28} />,
-      title: "Networking",
-      text: "Connect with ambitious youth and inspiring leaders.",
+      title: t("membership.benefits.networking.title"),
+      text: t("membership.benefits.networking.text"),
     },
-
     {
       icon: <Briefcase size={28} />,
-      title: "Project Opportunities",
-      text: "Participate in impactful social and entrepreneurial projects.",
+      title: t("membership.benefits.projects.title"),
+      text: t("membership.benefits.projects.text"),
     },
-
     {
       icon: <HeartHandshake size={28} />,
-      title: "Community Impact",
-      text: "Contribute to initiatives that create positive change.",
+      title: t("membership.benefits.impact.title"),
+      text: t("membership.benefits.impact.text"),
     },
   ];
 
-   const [form, setForm] = useState({
+  const [form, setForm] = useState({
     fullName: "",
     email: "",
     phone: "",
@@ -53,42 +54,35 @@ export default function Membership() {
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const validate = () => {
     if (
-      !form.fullName.trim() ||
-      !form.email.trim() ||
-      !form.phone.trim() ||
-      !form.city.trim() ||
-      !form.motivation.trim()
+      !form.fullName ||
+      !form.email ||
+      !form.phone ||
+      !form.city ||
+      !form.motivation
     ) {
-      setError("All fields are required");
+      setError(t("membership.errors.required"));
       setTimeout(() => setError(""), 2000);
       return false;
     }
 
-    const phoneRegex =  /^(?:\+|00|0)?[1-9]\d{7,14}$/;
-
+    const phoneRegex = /^(?:\+|00|0)?[1-9]\d{7,14}$/;
 
     if (!phoneRegex.test(form.phone)) {
-      setError("Invalid phone number");
+      setError(t("membership.errors.phone"));
       setTimeout(() => setError(""), 2000);
       return false;
     }
 
-    // motivation LENGTH
     if (form.motivation.trim().length < 10) {
-      setError(
-        "motivation must contain at least 10 characters"
-      );
+      setError(t("membership.errors.motivation"));
+      setTimeout(() => setError(""), 2000);
       return false;
     }
-
 
     return true;
   };
@@ -106,21 +100,15 @@ export default function Membership() {
     try {
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(
-          data.message || "Request failed"
-        );
-      }
+      if (!res.ok) throw new Error(data.message);
 
-      setMsg("Request sent successfully!");
+      setMsg(t("membership.success"));
 
       setForm({
         fullName: "",
@@ -139,146 +127,165 @@ export default function Membership() {
     }
   };
 
-  
   return (
     <section className="membership-page">
+
       {/* HERO */}
       <div className="membership-hero">
         <div className="container hero-content">
+
           <span className="hero-badge">
-            Join L.A.D.S
+            {t("membership.hero.badge")}
           </span>
 
           <h1>
-            Become a <span>Member</span>
+            {t("membership.hero.title")}
           </h1>
 
           <p>
-            Join a community of young leaders passionate
-            about innovation, leadership, and social impact.
+            {t("membership.hero.desc")}
           </p>
+
         </div>
       </div>
 
       <div className="container">
-        {/* WHY JOIN */}
+
+        {/* WHY */}
         <section className="why-section">
+
           <div className="why-content">
+
             <span className="section-tag">
-              Why Join Us
+              {t("membership.why.tag")}
             </span>
 
-            <h2>Grow, Lead & Create Impact</h2>
+            <h2>
+              {t("membership.why.title")}
+            </h2>
 
             <p>
-              L.A.D.S provides young people with the
-              environment, mentorship, and opportunities to
-              develop their skills and turn ideas into real
-              impact.
+              {t("membership.why.desc")}
             </p>
 
             <div className="why-list">
+
               <div>
                 <CheckCircle2 size={20} />
-                Leadership development opportunities
+                {t("membership.why.points.p1")}
               </div>
 
               <div>
                 <CheckCircle2 size={20} />
-                Real social and entrepreneurial projects
+                {t("membership.why.points.p2")}
               </div>
 
               <div>
                 <CheckCircle2 size={20} />
-                Professional networking & teamwork
+                {t("membership.why.points.p3")}
               </div>
 
               <div>
                 <CheckCircle2 size={20} />
-                Workshops, activities, and events
+                {t("membership.why.points.p4")}
               </div>
+
             </div>
+
           </div>
 
           <div className="why-image">
             <img
-              src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1400&auto=format&fit=crop"
-              alt="Membership"
+              src="images/home.png"
+              alt="membership"
             />
           </div>
+
         </section>
 
         {/* BENEFITS */}
         <section className="benefits-section">
+
           <div className="section-header">
+
             <span className="section-tag">
-              Membership Benefits
+              {t("membership.benefits.tag")}
             </span>
 
-            <h2>What You Will Get</h2>
+            <h2>
+              {t("membership.benefits.title")}
+            </h2>
+
           </div>
 
           <div className="benefits-grid">
-            {benefits.map((item, index) => (
-              <div
-                className="benefit-card"
-                key={index}
-              >
+
+            {benefits.map((b, i) => (
+              <div className="benefit-card" key={i}>
                 <div className="benefit-icon">
-                  {item.icon}
+                  {b.icon}
                 </div>
-
-                <h3>{item.title}</h3>
-
-                <p>{item.text}</p>
+                <h3>{b.title}</h3>
+                <p>{b.text}</p>
               </div>
             ))}
+
           </div>
+
         </section>
 
         {/* FORM */}
         <section className="membership-form-section">
+
           <div className="form-card">
+
             <div className="section-header">
+
               <span className="section-tag">
-                Membership Request
+                {t("membership.form.tag")}
               </span>
 
-              <h2>Apply Now</h2>
+              <h2>
+                {t("membership.form.title")}
+              </h2>
+
             </div>
 
             <form
               className="membership-form"
               onSubmit={handleSubmit}
             >
-                <input
-                  name="fullName"
-                  value={form.fullName}
-                  onChange={handleChange}
-                  placeholder="Full Name"
-                />
-           
+
+              <input
+                name="fullName"
+                value={form.fullName}
+                onChange={handleChange}
+                placeholder={t("membership.form.fullName")}
+              />
 
               <div className="form-row">
+
                 <input
                   name="email"
                   value={form.email}
                   onChange={handleChange}
-                  placeholder="Email Address"
+                  placeholder={t("membership.form.email")}
                 />
+
                 <input
                   name="phone"
                   value={form.phone}
                   onChange={handleChange}
-                  placeholder="Phone Number"
+                  placeholder={t("membership.form.phone")}
                 />
+
               </div>
 
               <input
                 name="city"
                 value={form.city}
                 onChange={handleChange}
-                placeholder="City"
+                placeholder={t("membership.form.city")}
               />
 
               <textarea
@@ -286,43 +293,39 @@ export default function Membership() {
                 value={form.motivation}
                 onChange={handleChange}
                 rows="6"
-                placeholder="Tell us why you want to join..."
+                placeholder={t("membership.form.motivation")}
               />
 
               {msg && (
-                <p className="success-message">
-                  {msg}
-                </p>
+                <p className="success-message">{msg}</p>
               )}
 
               {error && (
-                <p className="error-message">
-                  {error}
-                </p>
+                <p className="error-message">{error}</p>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-              >
+              <button type="submit" disabled={loading}>
+
                 {loading ? (
                   <>
-                    Sending...
-                    <Loader2
-                      size={18}
-                      className="spin"
-                    />
+                    {t("membership.form.sending")}
+                    <Loader2 size={18} className="spin" />
                   </>
                 ) : (
                   <>
-                    Submit Request
+                    {t("membership.form.submit")}
                     <Send size={18} />
                   </>
                 )}
+
               </button>
+
             </form>
+
           </div>
+
         </section>
+
       </div>
     </section>
   );

@@ -11,77 +11,82 @@ import {
   Globe,
   Briefcase,
   GraduationCap,
-  HeartHandshake,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import "../../Styles/home.css";
 
 export default function Home() {
+  const { t } = useTranslation();
+const navigate = useNavigate();
   return (
     <div className="home-page">
-{/* HERO */}
-<section className="hero">
-  <div className="hero-overlay"></div>
 
-  <div className="container hero-wrapper">
-    <div className="hero-content">
+      {/* HERO */}
+      <section className="hero">
+        <div className="hero-overlay"></div>
 
-    
+        <div className="container hero-wrapper">
+          <div className="hero-content">
 
-      <h1>
-        Empowering Youth to Become
-        <span> Leaders of Change</span>
-      </h1>
+            <h1>
+              {t("home.hero.title")}
+            </h1>
 
-      <p>
-        L.A.D.S is a youth association dedicated to leadership,
-        entrepreneurship, and social innovation — turning ideas into
-        real-world impact projects.
-      </p> <br /> <br /> <br />
+            <p>
+              {t("home.hero.desc")}
+            </p>
 
-      {/* <div className="hero-buttons">
-        <button className="primary-btn">
-          Join L.A.D.S
-          <ArrowRight size={18} />
-        </button>
+            <br />
+            <br />
+            <br />
 
-        <button className="secondary-btn">
-          Explore Activities
-        </button>
-      </div> */}
+            {/* <div className="hero-buttons">
 
-    </div>
-  </div>
+              <button className="primary-btn">
+                {t("home.cta.button")}
+                <ArrowRight size={18} />
+              </button>
 
-  {/* STATS */}
-  <div className="hero-stats-wrapper">
-    <div className="container">
-      <div className="hero-stats-bar">
+              <button className="secondary-btn">
+                {t("home.activities.activities.button")}
+              </button>
 
-        <div className="stat-item">
-          <h2>200+</h2>
-          <p>Active Members</p>
+            </div> */}
+
+          </div>
         </div>
 
-        <div className="stat-item">
-          <h2>50+</h2>
-          <p>Events</p>
-        </div>
+        {/* STATS */}
+        <div className="hero-stats-wrapper">
+          <div className="container">
+            <div className="hero-stats-bar">
 
-        <div className="stat-item">
-          <h2>30+</h2>
-          <p>Projects</p>
-        </div>
+              <div className="stat-item">
+                <h2>30+</h2>
+                <p>{t("home.stats.members")}</p>
+              </div>
 
-        <div className="stat-item">
-          <h2>10+</h2>
-          <p>Partners</p>
-        </div>
+              <div className="stat-item">
+                <h2>15+</h2>
+                <p>{t("home.stats.events")}</p>
+              </div>
 
-      </div>
-    </div>
-  </div>
-</section>
+              <div className="stat-item">
+                <h2>10+</h2>
+                <p>{t("home.stats.formations")}</p>
+              </div>
+
+              <div className="stat-item">
+                <h2>10+</h2>
+                <p>{t("home.stats.activites")}</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="container">
 
@@ -95,43 +100,45 @@ export default function Home() {
           <div className="about-content">
 
             <span className="section-tag">
-              About L.A.D.S
+              {t("home.about.tag")}
             </span>
 
             <h2>
-              Building Future Leaders &
-              Social Entrepreneurs
+              {t("home.about.title")}
             </h2>
 
             <p>
-              We believe youth are the driving force
-              of positive change. Through leadership
-              development, entrepreneurship, and
-              social innovation, we help young people
-              transform their ideas into impactful
-              initiatives.
+              {t("home.about.desc")}
             </p>
 
             <div className="about-features">
 
               <div>
                 <Sparkles />
-                <span>Innovation & Creativity</span>
+                <span>
+                  {t("home.about.features.innovation")}
+                </span>
               </div>
 
               <div>
                 <GraduationCap />
-                <span>Training & Mentorship</span>
+                <span>
+                  {t("home.about.features.training")}
+                </span>
               </div>
 
               <div>
                 <Globe />
-                <span>Community Development</span>
+                <span>
+                  {t("home.about.features.community")}
+                </span>
               </div>
 
               <div>
                 <Briefcase />
-                <span>Entrepreneurship</span>
+                <span>
+                  {t("home.about.features.entrepreneurship")}
+                </span>
               </div>
 
             </div>
@@ -144,293 +151,330 @@ export default function Home() {
         <section className="values-section">
 
           <div className="section-header">
+
             <span className="section-tag">
-              Our Values
+              {t("home.values.tag")}
             </span>
 
             <h2>
-              What Drives Our Mission
+              {t("home.values.title")}
             </h2>
 
             <p>
-              Core principles shaping our community
-              and initiatives.
+              {t("home.values.desc")}
             </p>
+
           </div>
 
           <div className="values-grid">
 
             <div className="value-card">
               <Lightbulb />
-              <h3>Innovation</h3>
+
+              <h3>
+                {t("home.values.innovation.title")}
+              </h3>
+
               <p>
-                Encouraging creative thinking and
-                problem-solving.
+                {t("home.values.innovation.desc")}
               </p>
             </div>
 
             <div className="value-card">
               <Users />
-              <h3>Leadership</h3>
+
+              <h3>
+                {t("home.values.leadership.title")}
+              </h3>
+
               <p>
-                Developing confident and responsible
-                leaders.
+                {t("home.values.leadership.desc")}
               </p>
             </div>
 
             <div className="value-card">
               <Target />
-              <h3>Impact</h3>
+
+              <h3>
+                {t("home.values.impact.title")}
+              </h3>
+
               <p>
-                Building sustainable social and
-                economic impact.
+                {t("home.values.impact.desc")}
               </p>
             </div>
 
             <div className="value-card">
               <TrendingUp />
-              <h3>Growth</h3>
+
+              <h3>
+                {t("home.values.growth.title")}
+              </h3>
+
               <p>
-                Empowering personal and professional
-                development.
+                {t("home.values.growth.desc")}
               </p>
             </div>
 
           </div>
+
         </section>
 
-      {/* MAIN ACTIVITIES */}
-<section className="programs-section">
+        {/* MAIN ACTIVITIES */}
+        <section className="programs-section">
 
-  <div className="section-header">
-    <span className="section-tag">
-      Main Activities
-    </span>
+          <div className="section-header">
 
-    <h2>
-      Explore Our Community
-    </h2>
+            <span className="section-tag">
+              {t("home.activities.tag")}
+            </span>
 
-    <p>
-      Discover the events, activities, and news
-      shaping the L.A.D.S community.
-    </p>
-  </div>
+            <h2>
+              {t("home.activities.title")}
+            </h2>
 
-  <div className="programs-grid">
+            <p>
+              {t("home.activities.desc")}
+            </p>
 
-    {/* EVENTS */}
-    <div className="activity-card">
+          </div>
 
-      <div
-        className="activity-image"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=1200&auto=format&fit=crop')",
-        }}
-      ></div>
+          <div className="programs-grid">
 
-      <div className="activity-content">
+            {/* EVENTS */}
+            <div className="activity-card">
 
-        <div className="activity-icon">
-          <CalendarDays size={22} />
-        </div>
+              <div
+                className="activity-image"
+                style={{
+                  backgroundImage:
+                    "url('https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=1200&auto=format&fit=crop')",
+                }}
+              ></div>
 
-        <h3>Events</h3>
+              <div className="activity-content">
 
-        <p>
-          Conferences, workshops, networking sessions,
-          and inspiring leadership events for youth.
-        </p>
+                <div className="activity-icon">
+                  <CalendarDays size={22} />
+                </div>
 
-        <button className="activity-btn">
-          View Events
-        </button>
+                <h3>
+                  {t("home.activities.events.title")}
+                </h3>
 
-      </div>
+                <p>
+                  {t("home.activities.events.desc")}
+                </p>
 
-    </div>
+                <button className="activity-btn"   onClick={() => navigate("/events")}>
+                  {t("home.activities.events.button")}
+                </button>
 
-    {/* ACTIVITIES */}
-    <div className="activity-card">
+              </div>
 
-      <div
-        className="activity-image"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1200&auto=format&fit=crop')",
-        }}
-      ></div>
+            </div>
 
-      <div className="activity-content">
+            {/* ACTIVITIES */}
+            <div className="activity-card">
 
-        <div className="activity-icon">
-          <Users size={22} />
-        </div>
+              <div
+                className="activity-image"
+                style={{
+                  backgroundImage:
+                    "url('images/home_act.png')",
+                }}
+              ></div>
 
-        <h3>Activities</h3>
+              <div className="activity-content">
 
-        <p>
-          Volunteer programs, social initiatives,
-          collaborative projects, and youth engagement.
-        </p>
+                <div className="activity-icon">
+                  <Users size={22} />
+                </div>
 
-        <button className="activity-btn">
-          Explore Activities
-        </button>
+                <h3>
+                  {t("home.activities.activities.title")}
+                </h3>
 
-      </div>
+                <p>
+                  {t("home.activities.activities.desc")}
+                </p>
 
-    </div>
+                <button className="activity-btn"   onClick={() => navigate("/activities")}>
+                  {t("home.activities.activities.button")}
+                </button>
 
-    {/* NEWS */}
-    <div className="activity-card">
+              </div>
 
-      <div
-        className="activity-image"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=1200&auto=format&fit=crop')",
-        }}
-      ></div>
+            </div>
 
-      <div className="activity-content">
+            {/* NEWS */}
+            <div className="activity-card">
 
-        <div className="activity-icon">
-          <Newspaper size={22} />
-        </div>
+              <div
+                className="activity-image"
+                style={{
+                  backgroundImage:
+                    "url('images/news.jpeg')",
+                }}
+              ></div>
 
-        <h3>News</h3>
+              <div className="activity-content">
 
-        <p>
-          Stay updated with the latest announcements,
-          achievements, stories, and association updates.
-        </p>
+                <div className="activity-icon">
+                  <Newspaper size={22} />
+                </div>
 
-        <button className="activity-btn">
-          Read News
-        </button>
+                <h3>
+                  {t("home.activities.news.title")}
+                </h3>
 
-      </div>
+                <p>
+                  {t("home.activities.news.desc")}
+                </p>
 
-    </div>
+                <button className="activity-btn"   onClick={() => navigate("/news")}>
+                  {t("home.activities.news.button")}
+                </button>
 
-  </div>
+              </div>
 
-</section>
+            </div>
 
-      {/* FORMATIONS SECTION */}
-<section className="formations-section">
+          </div>
 
-  <div className="section-header">
-    <span className="section-tag">
-      Our Formations
-    </span>
+        </section>
 
-    <h2>
-      Learn Through Modern Trainings
-    </h2>
+        {/* FORMATIONS */}
+        <section className="formations-section">
 
-    <p>
-      Leadership, entrepreneurship, innovation,
-      soft skills, and practical workshops
-      designed for ambitious youth.
-    </p>
-  </div>
+          <div className="section-header">
 
-  <div className="formations-slider">
+            <span className="section-tag">
+              {t("home.formations.tag")}
+            </span>
 
-    {/* LEFT IMAGE */}
-    <div
-      className="formation-card side-card"
-      style={{
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1200&auto=format&fit=crop')",
-      }}
-    >
-      <div className="formation-layer">
-        <h3>Entrepreneurship</h3>
-      </div>
-    </div>
+            <h2>
+              {t("home.formations.title")}
+            </h2>
 
-    {/* MAIN CENTER IMAGE */}
-    <div
-      className="formation-card main-card"
-      style={{
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop')",
-      }}
-    >
-      <div className="formation-layer">
-        <h3>Leadership & Soft Skills</h3>
-        <p>
-          Interactive workshops and real-world
-          learning experiences.
-        </p>
+            <p>
+              {t("home.formations.desc")}
+            </p>
 
-        <button className="primary-btn">
-          Explore Formations
-        </button>
-      </div>
-    </div>
+          </div>
 
-    {/* RIGHT IMAGE */}
-    <div
-      className="formation-card side-card"
-      style={{
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1200&auto=format&fit=crop')",
-      }}
-    >
-      <div className="formation-layer">
-        <h3>Innovation Training</h3>
-      </div>
-    </div>
+          <div className="formations-slider">
 
-  </div>
+            {/* LEFT */}
+            <div
+              className="formation-card side-card"
+              style={{
+                backgroundImage:
+                  "url('images/for_left.jpeg')",
+              }}
+            >
+              <div className="formation-layer">
+                <h3>
+                  {t("home.formations.entrepreneurship")}
+                </h3>
+              </div>
+            </div>
 
-</section>
+            {/* CENTER */}
+            <div
+              className="formation-card main-card"
+              style={{
+                backgroundImage:
+                  "url('images/leader.jpeg')",
+              }}
+            >
+              <div className="formation-layer">
+
+                <h3>
+                  {t("home.formations.leadership.title")}
+                </h3>
+
+                <p>
+                  {t("home.formations.leadership.desc")}
+                </p>
+
+                <button className="primary-btn"   onClick={() => navigate("/formations")}>
+                  {t("home.formations.button")}
+                </button>
+
+              </div>
+            </div>
+
+            {/* RIGHT */}
+            <div
+              className="formation-card side-card"
+              style={{
+                backgroundImage:
+                  "url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1200&auto=format&fit=crop')",
+              }}
+            >
+              <div className="formation-layer">
+                <h3>
+                  {t("home.formations.innovation")}
+                </h3>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
 
         {/* TESTIMONIALS */}
         <section className="testimonials">
 
           <div className="section-header">
+
             <span className="section-tag">
-              Testimonials
+              {t("home.testimonials.tag")}
             </span>
 
             <h2>
-              Voices From Our Community
+              {t("home.testimonials.title")}
             </h2>
+
           </div>
 
           <div className="testimonial-grid">
 
             <div className="testimonial-card">
+
               <p>
-                “L.A.D.S helped me improve my
-                confidence and leadership skills.”
+                “{t("home.testimonials.first.text")}”
               </p>
 
-              <h4>— Association Member</h4>
+              <h4>
+                — {t("home.testimonials.first.author")}
+              </h4>
+
             </div>
 
             <div className="testimonial-card">
+
               <p>
-                “The workshops and mentorship changed
-                the way I think about entrepreneurship.”
+                “{t("home.testimonials.second.text")}”
               </p>
 
-              <h4>— Young Entrepreneur</h4>
+              <h4>
+                — {t("home.testimonials.second.author")}
+              </h4>
+
             </div>
 
             <div className="testimonial-card">
+
               <p>
-                “An inspiring environment full of
-                ambitious and creative youth.”
+                “{t("home.testimonials.third.text")}”
               </p>
 
-              <h4>— Volunteer</h4>
+              <h4>
+                — {t("home.testimonials.third.author")}
+              </h4>
+
             </div>
 
           </div>
@@ -443,16 +487,15 @@ export default function Home() {
           <div className="cta-box">
 
             <h2>
-              Ready to Become a Future Leader?
+              {t("home.cta.title")}
             </h2>
 
             <p>
-              Join a community of ambitious young
-              people building impactful initiatives.
+              {t("home.cta.desc")}
             </p>
 
-            <button className="primary-btn">
-              Join L.A.D.S
+            <button className="primary-btn" onClick={()=>navigate("/membership")}>
+              {t("home.cta.button")}
               <ArrowRight size={18} />
             </button>
 
@@ -461,6 +504,7 @@ export default function Home() {
         </section>
 
       </div>
+
     </div>
   );
 }
