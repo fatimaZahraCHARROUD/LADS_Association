@@ -62,7 +62,7 @@ export default function DataTable({
                 return (
                   <th
                     key={c.key}
-                    className={`px-6 py-5 text-left font-semibold text-xs uppercase tracking-wide ${c.thClassName || ""}`}
+                    className={`px-6 py-3 text-left font-semibold text-xs uppercase tracking-wide ${c.thClassName || ""}`}
                     style={c.width ? { width: c.width } : undefined}
                   >
                     {showSort ? (
@@ -81,13 +81,13 @@ export default function DataTable({
           <tbody className="divide-y divide-brand-border">
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-14 text-center text-brand-muted">
+                <td colSpan={columns.length} className="px-6 py-10 text-center text-brand-muted">
                   Loading...
                 </td>
               </tr>
             ) : pageRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-16 text-center text-brand-muted">
+                <td colSpan={columns.length} className="px-6 py-12 text-center text-brand-muted">
                   <div className="flex flex-col items-center gap-2">
                     <Inbox size={28} className="text-gray-300" />
                     <span>{emptyMessage}</span>
@@ -109,7 +109,7 @@ export default function DataTable({
                     {columns.map((c) => (
                       <td
                         key={c.key}
-                        className={`px-6 py-5 text-brand-text align-middle ${c.tdClassName || ""}`}
+                        className={`px-6 py-3 text-brand-text align-middle ${c.tdClassName || ""}`}
                       >
                         {c.render ? c.render(row) : row[c.key] ?? "—"}
                       </td>
@@ -123,7 +123,7 @@ export default function DataTable({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-5 border-t border-brand-border text-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3 border-t border-brand-border text-sm">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={safePage === 1}

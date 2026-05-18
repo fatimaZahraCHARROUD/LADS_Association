@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 
 export default function PageHeader({ title, subtitle, onAdd, addLabel = "Add New", children }) {
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
+    <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-5">
       <div>
         <h1 className="text-3xl font-bold text-brand-text">{title}</h1>
         {subtitle && <p className="text-sm text-brand-muted mt-2">{subtitle}</p>}

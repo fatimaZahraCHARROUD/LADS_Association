@@ -1,6 +1,6 @@
  import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { ImageOff } from "lucide-react";
+import HoverImagePreview from "../../components/admin/HoverImagePreview";
 import { api } from "../../services/api";
 import { EMPTY_ML, ml, mlDisplay, hasAnyMl } from "../../utils/i18n";
 import { uploadImage } from "../../services/upload";
@@ -12,7 +12,6 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import StatusBadge from "../../components/admin/StatusBadge";
 import RowActions from "../../components/admin/RowActions";
 import MultilingualInput from "../../components/admin/MultilingualInput";
-import ImageUrlInput from "../../components/admin/ImageUrlInput";
 import {
   Field, TextInput, NumberInput, DateInput, TimeInput, UrlInput, Select, Toggle,
 } from "../../components/admin/FormField";
@@ -185,24 +184,9 @@ const openCreate = () => {
   key: "coverImage",
   header: "",
   width: "64px",
-  render: (r) =>
-    r.coverImage ? (
-      <img
-        src={r.coverImage}
-        alt={mlDisplay(r.title) || "event"}
-        className="w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100"
-        loading="lazy"
-        onError={(e) => {
-          e.currentTarget.onerror = null;
-          e.currentTarget.src =
-            "https://via.placeholder.com/150?text=No+Image";
-        }}
-      />
-    ) : (
-      <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center text-gray-300">
-        <ImageOff size={16} />
-      </div>
-    ),
+  render: (r) => (
+    <HoverImagePreview src={r.coverImage} alt={mlDisplay(r.title) || "event"} />
+  ),
 },
     {
       key: "title",
