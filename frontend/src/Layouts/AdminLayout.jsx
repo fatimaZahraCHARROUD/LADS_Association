@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Database,
@@ -12,163 +12,203 @@ import {
   Users,
   Settings,
   LogOut,
-  Menu,
   ChevronDown,
   ClipboardList,
+  X,
 } from "lucide-react";
+import Topbar from "../components/admin/Topbar";
+import { TopSearchProvider } from "../contexts/TopSearchContext";
 
 export default function AdminLayout() {
+  return (
+    <TopSearchProvider>
+      <AdminShell />
+    </TopSearchProvider>
+  );
+}
+
+function AdminShell() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [cmsOpen, setCmsOpen] = useState(true);
   const [msgOpen, setMsgOpen] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const logout = () => {
     localStorage.removeItem("token");
     navigate("/");
   };
 
-  const widthCls = collapsed ? "w-[72px]" : "w-64";
+  const sidebarBody = (
+    <SidebarBody
+      onCloseMobile={() => setMobileOpen(false)}
+      cmsOpen={cmsOpen}
+      setCmsOpen={setCmsOpen}
+      msgOpen={msgOpen}
+      setMsgOpen={setMsgOpen}
+      logout={logout}
+    />
+  );
 
   return (
-    <div className="flex h-screen bg-brand-bg">
-      {/* SIDEBAR */}
-      <aside
-        className={`${widthCls} bg-brand-primary text-white flex flex-col transition-[width] duration-200 ease-in-out shrink-0`}
-      >
-        {/* TOP */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
-          {!collapsed && (
-            <h2 className="text-lg font-bold tracking-wide">LADS Admin</h2>
-          )}
-          <button
-            className="p-1.5 rounded-md text-white/80 hover:bg-white/10 transition-colors"
-            onClick={() => setCollapsed(!collapsed)}
-            aria-label="Toggle sidebar"
-          >
-            <Menu size={18} />
-          </button>
-        </div>
-
-        {/* NAV */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          <SidebarLink to="/admin" end icon={LayoutDashboard} collapsed={collapsed}>
-            Dashboard
-          </SidebarLink>
-
-          <SidebarGroup
-            label="Content"
-            icon={Database}
-            collapsed={collapsed}
-            open={cmsOpen}
-            onToggle={() => {
-              if (collapsed) setCollapsed(false);
-              setCmsOpen((o) => !o);
-            }}
-          >
-            <SidebarLink to="/admin/events" icon={Calendar} collapsed={collapsed} nested>
-              Events
-            </SidebarLink>
-            <SidebarLink to="/admin/activities" icon={Activity} collapsed={collapsed} nested>
-              Activities
-            </SidebarLink>
-            <SidebarLink to="/admin/news" icon={Newspaper} collapsed={collapsed} nested>
-              News
-            </SidebarLink>
-            <SidebarLink to="/admin/formations" icon={GraduationCap} collapsed={collapsed} nested>
-              Formations
-            </SidebarLink>
-            <SidebarLink to="/admin/info" icon={Settings} collapsed={collapsed} nested>
-              LADS Info
-            </SidebarLink>
-          </SidebarGroup>
-
-          <SidebarGroup
-            label="Inbox"
-            icon={MessageSquare}
-            collapsed={collapsed}
-            open={msgOpen}
-            onToggle={() => {
-              if (collapsed) setCollapsed(false);
-              setMsgOpen((o) => !o);
-            }}
-          >
-            <SidebarLink to="/admin/contacts" icon={Mail} collapsed={collapsed} nested>
-              Contacts
-            </SidebarLink>
-            <SidebarLink to="/admin/membership" icon={Users} collapsed={collapsed} nested>
-              Membership
-            </SidebarLink>
-            <SidebarLink to="/admin/eventRegister" icon={ClipboardList} collapsed={collapsed} nested>
-              Registrations
-            </SidebarLink>
-          </SidebarGroup>
-        </nav>
-
-        {/* LOGOUT */}
-        <div className="border-t border-white/10 p-2">
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-200 hover:bg-red-500/20 transition-colors"
-          >
-            <LogOut size={18} />
-            {!collapsed && <span>Logout</span>}
-          </button>
-        </div>
+    <div className="flex h-screen bg-brand-bg overflow-hidden">
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden md:flex w-64 bg-white border-r border-brand-border flex-col shrink-0">
+        {sidebarBody}
       </aside>
 
-      {/* CONTENT */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <Outlet />
-        </div>
-      </main>
+      {/* MOBILE SIDEBAR + BACKDROP */}
+      {mobileOpen && (
+        <>
+          <div
+            className="md:hidden fixed inset-0 bg-black/40 z-30"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+          <aside className="md:hidden fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-brand-border flex flex-col">
+            {sidebarBody}
+          </aside>
+        </>
+      )}
+
+      {/* MAIN COLUMN */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar onOpenSidebar={() => setMobileOpen(true)} />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
-function SidebarLink({ to, end, icon: Icon, collapsed, nested, children }) {
+function SidebarBody({
+  onCloseMobile,
+  cmsOpen,
+  setCmsOpen,
+  msgOpen,
+  setMsgOpen,
+  logout,
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border">
+        <img
+          src="/logo.png"
+          alt="LADS"
+          className="h-12 w-auto object-contain"
+        />
+        <button
+          className="md:hidden p-1.5 rounded-md text-brand-muted hover:bg-gray-100 transition-colors"
+          onClick={onCloseMobile}
+          aria-label="Close sidebar"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5">
+        <SidebarLink to="/admin" end icon={LayoutDashboard}>
+          Dashboard
+        </SidebarLink>
+
+        <SidebarGroup
+          label="Content"
+          icon={Database}
+          open={cmsOpen}
+          onToggle={() => setCmsOpen((o) => !o)}
+        >
+          <SidebarLink to="/admin/events" icon={Calendar} nested>
+            Events
+          </SidebarLink>
+          <SidebarLink to="/admin/activities" icon={Activity} nested>
+            Activities
+          </SidebarLink>
+          <SidebarLink to="/admin/news" icon={Newspaper} nested>
+            News
+          </SidebarLink>
+          <SidebarLink to="/admin/formations" icon={GraduationCap} nested>
+            Formations
+          </SidebarLink>
+          <SidebarLink to="/admin/info" icon={Settings} nested>
+            LADS Info
+          </SidebarLink>
+        </SidebarGroup>
+
+        <SidebarGroup
+          label="Inbox"
+          icon={MessageSquare}
+          open={msgOpen}
+          onToggle={() => setMsgOpen((o) => !o)}
+        >
+          <SidebarLink to="/admin/contacts" icon={Mail} nested>
+            Contacts
+          </SidebarLink>
+          <SidebarLink to="/admin/membership" icon={Users} nested>
+            Membership
+          </SidebarLink>
+          <SidebarLink to="/admin/eventRegister" icon={ClipboardList} nested>
+            Registrations
+          </SidebarLink>
+        </SidebarGroup>
+      </nav>
+
+      <div className="p-4 border-t border-brand-border">
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-brand-muted hover:bg-red-50 hover:text-brand-danger transition-colors"
+        >
+          <LogOut size={18} />
+          <span>Log out</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+function SidebarLink({ to, end, icon: Icon, nested, children }) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-          nested ? "ml-2 text-white/80" : "text-white/90"
+        `flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
+          nested ? "ml-2" : ""
         } ${
           isActive
-            ? "bg-white/15 text-white font-medium"
-            : "hover:bg-white/10"
+            ? "bg-brand-primary text-white shadow-sm font-medium"
+            : "text-brand-muted hover:bg-gray-50 hover:text-brand-text"
         }`
       }
-      title={collapsed ? String(children) : undefined}
     >
       <Icon size={nested ? 16 : 18} />
-      {!collapsed && <span className="truncate">{children}</span>}
+      <span className="truncate">{children}</span>
     </NavLink>
   );
 }
 
-function SidebarGroup({ label, icon: Icon, open, onToggle, collapsed, children }) {
+function SidebarGroup({ label, icon: Icon, open, onToggle, children }) {
   return (
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/90 hover:bg-white/10 transition-colors"
-        title={collapsed ? label : undefined}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-brand-muted hover:bg-gray-50 hover:text-brand-text transition-colors"
       >
         <Icon size={18} />
-        {!collapsed && (
-          <>
-            <span className="flex-1 text-left">{label}</span>
-            <ChevronDown
-              size={14}
-              className={`transition-transform ${open ? "rotate-180" : ""}`}
-            />
-          </>
-        )}
+        <span className="flex-1 text-left">{label}</span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
-      {open && !collapsed && <div className="mt-0.5 space-y-0.5">{children}</div>}
+      {open && <div className="mt-1 space-y-0.5">{children}</div>}
     </div>
   );
 }

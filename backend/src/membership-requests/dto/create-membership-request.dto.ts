@@ -3,4 +3,5 @@ export class CreateMembershipRequestDto {
   email: string;
   phone?: string;
   city?: string;
+  motivation?: string;
 }

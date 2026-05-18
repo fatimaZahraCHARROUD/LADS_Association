@@ -24,5 +24,6 @@
     "noFallthroughCasesInSwitch": false,
      "noEmit": false
 
-  }
+  },
+  "exclude": ["node_modules", "dist", "scripts"]
 }

@@ -17,7 +17,7 @@ import {
 
 import { useTranslation } from "react-i18next";
 
-import "../styles/mainLayout.css";
+import "../Styles/mainLayout.css";
 
 export default function MainLayout() {
 

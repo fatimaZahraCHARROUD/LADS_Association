@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Mail, Phone, MapPin, Calendar } from "lucide-react";
 import { api } from "../../services/api";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
+import Drawer from "../../components/admin/Drawer";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import RowActions from "../../components/admin/RowActions";
 
 export default function AdminMembership() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewing, setViewing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -34,6 +37,7 @@ export default function AdminMembership() {
       await api.delete(`/membership-requests/${confirmDelete._id}`);
       toast.success("Request deleted");
       setConfirmDelete(null);
+      if (viewing && viewing._id === confirmDelete._id) setViewing(null);
       await load();
     } catch (err) {
       toast.error(err.message);
@@ -79,7 +83,10 @@ export default function AdminMembership() {
       header: "",
       tdClassName: "text-right",
       render: (r) => (
-        <RowActions onDelete={() => setConfirmDelete(r)} />
+        <RowActions
+          onView={() => setViewing(r)}
+          onDelete={() => setConfirmDelete(r)}
+        />
       ),
     },
   ];
@@ -99,10 +106,59 @@ export default function AdminMembership() {
         searchFn={(r, q) =>
           (r.fullName || "").toLowerCase().includes(q) ||
           (r.email || "").toLowerCase().includes(q) ||
-          (r.city || "").toLowerCase().includes(q)
+          (r.city || "").toLowerCase().includes(q) ||
+          (r.motivation || "").toLowerCase().includes(q)
         }
         emptyMessage="No membership requests yet."
       />
+
+      <Drawer
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        title={viewing?.fullName || "Request"}
+        subtitle={viewing?.email || "Membership request"}
+        footer={
+          viewing && (
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setViewing(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-brand-text bg-white border border-brand-border hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(viewing)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-danger hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          )
+        }
+      >
+        {viewing && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+              <Row icon={<Mail size={14} />} label="Email" value={viewing.email} />
+              <Row icon={<Phone size={14} />} label="Phone" value={viewing.phone || "—"} />
+              <Row icon={<MapPin size={14} />} label="City" value={viewing.city || "—"} />
+              <Row
+                icon={<Calendar size={14} />}
+                label="Received"
+                value={viewing.createdAt ? new Date(viewing.createdAt).toLocaleString() : "—"}
+              />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-brand-text mb-2">Motivation</h3>
+              <p className="whitespace-pre-wrap text-sm text-brand-text bg-white border border-brand-border rounded-lg p-3 leading-relaxed">
+                {viewing.motivation || <span className="text-brand-muted italic">No motivation provided.</span>}
+              </p>
+            </div>
+          </div>
+        )}
+      </Drawer>
 
       <ConfirmDialog
         open={!!confirmDelete}
@@ -117,5 +173,17 @@ export default function AdminMembership() {
         onCancel={() => !deleting && setConfirmDelete(null)}
       />
     </>
+  );
+}
+
+function Row({ icon, label, value }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-brand-muted w-20 shrink-0 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </span>
+      <span className="text-brand-text break-all">{value}</span>
+    </div>
   );
 }
