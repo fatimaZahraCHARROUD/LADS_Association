@@ -71,10 +71,10 @@ export default function MainLayout() {
   );
 
   const phone =
-    infoMap.phone || "+212 6 00 00 00 00";
+    infoMap.phone || "+212 656-731018";
 
   const email =
-    infoMap.email || "contact@lads.org";
+    infoMap.email || "lahdse@gmail.com";
 
   const instagram =
     infoMap.instagram || "#";
