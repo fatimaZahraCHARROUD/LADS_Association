@@ -1,10 +1,13 @@
-.main-layout,
-.main-layout *,
-.main-layout *::before,
-.main-layout *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Universal reset stays global (so html/body/etc. still reset) but lives
+   inside @layer base so it loses to Tailwind's @layer utilities on admin
+   pages. Public pages don't use Tailwind utilities for layout, so this
+   rule still resets browser defaults exactly as the public design expects. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 .main-layout {
