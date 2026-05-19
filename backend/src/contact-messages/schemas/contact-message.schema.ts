@@ -19,6 +19,9 @@ export class ContactMessage {
 
   @Prop({ required: true })
   message!: string;
+
+  @Prop({ type: Date, default: null })
+  readAt!: Date | null;
 }
 
 export const ContactMessageSchema = SchemaFactory.createForClass(ContactMessage);

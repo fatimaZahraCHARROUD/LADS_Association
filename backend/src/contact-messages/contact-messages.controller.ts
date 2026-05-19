@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ContactMessagesService } from './contact-messages.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
@@ -22,6 +22,12 @@ export class ContactMessagesController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.contactMessagesService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/read')
+  markRead(@Param('id') id: string) {
+    return this.contactMessagesService.markAsRead(id);
   }
 
   @UseGuards(JwtAuthGuard)
