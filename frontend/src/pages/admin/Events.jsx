@@ -183,7 +183,7 @@ const openCreate = () => {
    {
   key: "coverImage",
   header: "",
-  width: "64px",
+  width: "112px",
   render: (r) => (
     <HoverImagePreview src={r.coverImage} alt={mlDisplay(r.title) || "event"} />
   ),

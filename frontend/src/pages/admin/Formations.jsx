@@ -183,7 +183,7 @@ const [imageFile, setImageFile] = useState(null);
    {
   key: "imgUrl",
   header: "",
-  width: "64px",
+  width: "112px",
   render: (r) => (
     <HoverImagePreview src={r.imgUrl} alt={mlDisplay(r.title) || "formation"} />
   ),

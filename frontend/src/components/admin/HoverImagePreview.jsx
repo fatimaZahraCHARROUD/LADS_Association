@@ -3,13 +3,13 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ImageOff } from "lucide-react";
 
-const PREVIEW = 256;
+const PREVIEW = 336;
 const FALLBACK = "https://via.placeholder.com/150?text=No+Image";
 
 export default function HoverImagePreview({
   src,
   alt = "",
-  className = "w-12 h-12 rounded-md object-cover border border-brand-border bg-gray-100",
+  className = "w-20 aspect-square block rounded-lg object-cover border border-brand-border bg-gray-100",
 }) {
   const [hovered, setHovered] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
@@ -79,7 +79,7 @@ export default function HoverImagePreview({
               <img
                 src={src}
                 alt={alt}
-                className="w-64 h-64 rounded-2xl object-cover shadow-2xl ring-4 ring-white bg-white"
+                className="w-[336px] h-[336px] rounded-2xl object-cover shadow-2xl ring-4 ring-white bg-white"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = FALLBACK;
