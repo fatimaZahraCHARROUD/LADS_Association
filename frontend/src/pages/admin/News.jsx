@@ -152,7 +152,7 @@ const [imageFile, setImageFile] = useState(null);
    {
   key: "thumbnail",
   header: "",
-  width: "64px",
+  width: "112px",
   render: (r) => (
     <HoverImagePreview src={r.thumbnail} alt={mlDisplay(r.title) || "news"} />
   ),

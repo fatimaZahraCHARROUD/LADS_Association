@@ -173,7 +173,7 @@ if (imageFile) {
     {
   key: "image",
   header: "",
-  width: "64px",
+  width: "112px",
   render: (r) => (
     <HoverImagePreview src={r.image} alt={mlDisplay(r.title) || "activity"} />
   ),
