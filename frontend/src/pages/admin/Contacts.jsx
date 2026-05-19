@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Mail, Phone } from "lucide-react";
 import { api } from "../../services/api";
+import { useNotifications } from "../../contexts/NotificationsContext";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -15,6 +16,7 @@ export default function AdminContacts() {
   const [viewing, setViewing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const { setCounts } = useNotifications();
 
   const load = async () => {
     try {
@@ -31,19 +33,31 @@ export default function AdminContacts() {
   useEffect(() => { load(); }, []);
 
   const openView = async (row) => {
-    setViewing(row);
-    if (row.readAt) return;
-    try {
-      await api.patch(`/contact-messages/${row._id}/read`, {});
-      setRows((prev) =>
-        prev.map((r) =>
-          r._id === row._id ? { ...r, readAt: new Date().toISOString() } : r
-        )
-      );
-    } catch {
-      // non-critical
-    }
-  };
+  setViewing(row);
+
+  // already read
+  if (row.readAt) return;
+
+  // update notification badge instantly
+  setCounts((prev) => ({
+    ...prev,
+    contacts: Math.max(0, prev.contacts - 1),
+  }));
+
+  try {
+    await api.patch(`/contact-messages/${row._id}/read`, {});
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r._id === row._id
+          ? { ...r, readAt: new Date().toISOString() }
+          : r
+      )
+    );
+  } catch {
+    // non-critical
+  }
+};
 
   const remove = async () => {
     if (!confirmDelete) return;

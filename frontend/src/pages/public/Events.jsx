@@ -99,10 +99,16 @@ const handleSubmit = async () => {
   /* =========================
       FILTER EVENTS
   ========================= */
-  const isEventPast = (eventDate) => new Date(eventDate) < new Date();
- const isPast = (eventDate) => {
-  return new Date(eventDate) < new Date();
+const isPast = (eventDate) => {
+  const event = new Date(eventDate);
+
+  // keep event valid until end of day
+  event.setHours(23, 59, 59, 999);
+
+  return event < new Date();
 };
+
+const isEventPast = isPast;
 
 const filteredEvents = events
   .filter((e) => {
@@ -288,11 +294,18 @@ const filteredEvents = events
                     {/* <button className="details-btn">
                       {t("events.buttons.details")}
                     </button> */}
-                    {!past && 
-                     <button className="register-btn" 
-                     onClick={() => !past && setSelectedEvent(event)}>
-                      {t("events.buttons.register")}
-                    </button>}
+                   {!past && (
+  <button
+    type="button"
+    className="register-btn"
+    onClick={() => {
+      console.log("clicked");
+      setSelectedEvent(event);
+    }}
+  >
+    {t("events.buttons.register")}
+  </button>
+)}
                    
 
                   </div>

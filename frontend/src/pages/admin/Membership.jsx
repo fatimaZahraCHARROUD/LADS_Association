@@ -8,6 +8,7 @@ import DataTable from "../../components/admin/DataTable";
 import Drawer from "../../components/admin/Drawer";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import RowActions from "../../components/admin/RowActions";
+import { useNotifications } from "../../contexts/NotificationsContext";
 
 export default function AdminMembership() {
   const [rows, setRows] = useState([]);
@@ -15,6 +16,7 @@ export default function AdminMembership() {
   const [viewing, setViewing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const { setCounts } = useNotifications();
 
   const load = async () => {
     try {
@@ -30,20 +32,32 @@ export default function AdminMembership() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
 
-  const openView = async (row) => {
-    setViewing(row);
-    if (row.readAt) return;
-    try {
-      await api.patch(`/membership-requests/${row._id}/read`, {});
-      setRows((prev) =>
-        prev.map((r) =>
-          r._id === row._id ? { ...r, readAt: new Date().toISOString() } : r
-        )
-      );
-    } catch {
-      // non-critical
-    }
-  };
+ const openView = async (row) => {
+  setViewing(row);
+
+  // already read
+  if (row.readAt) return;
+
+  // update topbar instantly
+  setCounts((prev) => ({
+    ...prev,
+    memberships: Math.max(0, prev.memberships - 1),
+  }));
+
+  try {
+    await api.patch(`/membership-requests/${row._id}/read`, {});
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r._id === row._id
+          ? { ...r, readAt: new Date().toISOString() }
+          : r
+      )
+    );
+  } catch {
+    // non-critical
+  }
+};
 
   const remove = async () => {
     if (!confirmDelete) return;

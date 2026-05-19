@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { api } from "../../services/api";
 import { mlDisplay } from "../../utils/i18n";
+import { useNotifications } from "../../contexts/NotificationsContext";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -16,6 +17,7 @@ export default function AdminEventRegister() {
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+const { setCounts } = useNotifications();
 
   const load = useCallback(async () => {
     try {
@@ -45,19 +47,30 @@ export default function AdminEventRegister() {
   }, [events]);
 
   const markRead = async (row) => {
-    if (row.readAt) return;
-    try {
-      await api.patch(`/event-registrations/${row._id}/read`, {});
-      setRows((prev) =>
-        prev.map((r) =>
-          r._id === row._id ? { ...r, readAt: new Date().toISOString() } : r
-        )
-      );
-      toast.success("Marked as read");
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
+  if (row.readAt) return;
+
+  // update topbar instantly
+  setCounts((prev) => ({
+    ...prev,
+    registrations: Math.max(0, prev.registrations - 1),
+  }));
+
+  try {
+    await api.patch(`/event-registrations/${row._id}/read`, {});
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r._id === row._id
+          ? { ...r, readAt: new Date().toISOString() }
+          : r
+      )
+    );
+
+    toast.success("Marked as read");
+  } catch (err) {
+    toast.error(err.message);
+  }
+};
 
   const remove = async () => {
     if (!confirmDelete) return;

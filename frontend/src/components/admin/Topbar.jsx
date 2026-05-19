@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useTopSearch } from "../../contexts/TopSearchContext";
+import { useNotifications } from "../../contexts/NotificationsContext";
 
 function decodeJwt(token) {
   if (!token) return null;
@@ -29,8 +30,7 @@ export default function Topbar({ onOpenSidebar }) {
   const { pathname } = useLocation();
   const isDashboard = pathname === "/admin" || pathname === "/admin/";
   const { query, setQuery } = useTopSearch();
-  const [counts, setCounts] = useState({ contacts: 0, memberships: 0, registrations: 0 });
-  const [bellOpen, setBellOpen] = useState(false);
+const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen] = useState(false);
   const [mailOpen, setMailOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const bellRef = useRef(null);

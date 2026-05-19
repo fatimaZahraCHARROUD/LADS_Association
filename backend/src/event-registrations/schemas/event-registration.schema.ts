@@ -6,22 +6,22 @@ export type EventRegistrationDocument = EventRegistration & Document;
 @Schema({ timestamps: true })
 export class EventRegistration {
   @Prop({ type: Types.ObjectId, ref: 'Event', required: true })
-  eventId: Types.ObjectId;
+  eventId!: Types.ObjectId;
 
   @Prop({ required: true })
-  fullName: string;
+  fullName!: string;
 
   @Prop({ required: true })
-  email: string;
+  email!: string;
 
   @Prop({ default: '' })
-  phone: string;
+  phone!: string;
 
   @Prop({ type: Date, default: Date.now })
-  registrationDate: Date;
+  registrationDate!: Date;
 
   @Prop({ type: Date, default: null })
-  readAt: Date | null;
+  readAt!: Date | null;
 }
 
 export const EventRegistrationSchema = SchemaFactory.createForClass(EventRegistration);
