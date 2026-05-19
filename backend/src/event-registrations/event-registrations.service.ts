@@ -35,4 +35,12 @@ export class EventRegistrationsService {
     if (!reg) throw new NotFoundException(`Registration ${id} not found`);
     return { deleted: true };
   }
+
+  async markAsRead(id: string) {
+    const reg = await this.registrationModel.findById(id).exec();
+    if (!reg) throw new NotFoundException(`Registration ${id} not found`);
+    if (reg.readAt) return reg;
+    reg.readAt = new Date();
+    return reg.save();
+  }
 }

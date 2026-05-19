@@ -19,6 +19,9 @@ export class EventRegistration {
 
   @Prop({ type: Date, default: Date.now })
   registrationDate: Date;
+
+  @Prop({ type: Date, default: null })
+  readAt: Date | null;
 }
 
 export const EventRegistrationSchema = SchemaFactory.createForClass(EventRegistration);

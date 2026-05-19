@@ -30,6 +30,21 @@ export default function AdminMembership() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
 
+  const openView = async (row) => {
+    setViewing(row);
+    if (row.readAt) return;
+    try {
+      await api.patch(`/membership-requests/${row._id}/read`, {});
+      setRows((prev) =>
+        prev.map((r) =>
+          r._id === row._id ? { ...r, readAt: new Date().toISOString() } : r
+        )
+      );
+    } catch {
+      // non-critical
+    }
+  };
+
   const remove = async () => {
     if (!confirmDelete) return;
     setDeleting(true);
@@ -51,7 +66,23 @@ export default function AdminMembership() {
       key: "fullName",
       header: "Name",
       render: (r) => (
-        <div className="font-medium text-brand-text">{r.fullName}</div>
+        <div className="flex items-center gap-2">
+          {!r.readAt && (
+            <span
+              className="w-2 h-2 rounded-full bg-brand-primary shrink-0"
+              title="Unread"
+            />
+          )}
+          <div
+            className={
+              r.readAt
+                ? "font-medium text-brand-text"
+                : "font-semibold text-brand-text"
+            }
+          >
+            {r.fullName}
+          </div>
+        </div>
       ),
     },
     {
@@ -84,7 +115,7 @@ export default function AdminMembership() {
       tdClassName: "text-right",
       render: (r) => (
         <RowActions
-          onView={() => setViewing(r)}
+          onView={() => openView(r)}
           onDelete={() => setConfirmDelete(r)}
         />
       ),

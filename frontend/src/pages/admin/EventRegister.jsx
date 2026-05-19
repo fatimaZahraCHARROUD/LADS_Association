@@ -44,6 +44,21 @@ export default function AdminEventRegister() {
     return m;
   }, [events]);
 
+  const markRead = async (row) => {
+    if (row.readAt) return;
+    try {
+      await api.patch(`/event-registrations/${row._id}/read`, {});
+      setRows((prev) =>
+        prev.map((r) =>
+          r._id === row._id ? { ...r, readAt: new Date().toISOString() } : r
+        )
+      );
+      toast.success("Marked as read");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const remove = async () => {
     if (!confirmDelete) return;
     setDeleting(true);
@@ -75,7 +90,25 @@ export default function AdminEventRegister() {
     {
       key: "fullName",
       header: "Name",
-      render: (r) => r.fullName,
+      render: (r) => (
+        <div className="flex items-center gap-2">
+          {!r.readAt && (
+            <span
+              className="w-2 h-2 rounded-full bg-brand-primary shrink-0"
+              title="Unread"
+            />
+          )}
+          <span
+            className={
+              r.readAt
+                ? "text-brand-text"
+                : "font-semibold text-brand-text"
+            }
+          >
+            {r.fullName}
+          </span>
+        </div>
+      ),
     },
     {
       key: "email",
@@ -104,7 +137,12 @@ export default function AdminEventRegister() {
       key: "actions",
       header: "",
       tdClassName: "text-right",
-      render: (r) => <RowActions onDelete={() => setConfirmDelete(r)} />,
+      render: (r) => (
+        <RowActions
+          onView={!r.readAt ? () => markRead(r) : undefined}
+          onDelete={() => setConfirmDelete(r)}
+        />
+      ),
     },
   ];
 

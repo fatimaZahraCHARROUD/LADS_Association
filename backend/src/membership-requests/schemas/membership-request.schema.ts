@@ -19,6 +19,9 @@ export class MembershipRequest {
 
   @Prop({ default: '' })
   motivation: string;
+
+  @Prop({ type: Date, default: null })
+  readAt: Date | null;
 }
 
 export const MembershipRequestSchema = SchemaFactory.createForClass(MembershipRequest);

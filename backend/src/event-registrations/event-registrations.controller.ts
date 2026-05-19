@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseGuards } from '@nestjs/common';
 import { EventRegistrationsService } from './event-registrations.service';
 import { CreateEventRegistrationDto } from './dto/create-event-registration.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
@@ -22,6 +22,12 @@ export class EventRegistrationsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.eventRegistrationsService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/read')
+  markRead(@Param('id') id: string) {
+    return this.eventRegistrationsService.markAsRead(id);
   }
 
   @UseGuards(JwtAuthGuard)

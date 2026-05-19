@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Search, Bell, Mail, ChevronDown, LogOut, Menu, Users, ClipboardList,
 } from "lucide-react";
@@ -26,6 +26,8 @@ function getInitials(name) {
 
 export default function Topbar({ onOpenSidebar }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isDashboard = pathname === "/admin" || pathname === "/admin/";
   const { query, setQuery } = useTopSearch();
   const [counts, setCounts] = useState({ contacts: 0, memberships: 0, registrations: 0 });
   const [bellOpen, setBellOpen] = useState(false);
@@ -41,6 +43,8 @@ export default function Topbar({ onOpenSidebar }) {
 
   useEffect(() => {
     let cancelled = false;
+    const unreadCount = (arr) =>
+      Array.isArray(arr) ? arr.filter((it) => !it?.readAt).length : 0;
     Promise.all([
       api.get("/contact-messages").catch(() => []),
       api.get("/membership-requests").catch(() => []),
@@ -48,9 +52,9 @@ export default function Topbar({ onOpenSidebar }) {
     ]).then(([c, m, r]) => {
       if (cancelled) return;
       setCounts({
-        contacts: Array.isArray(c) ? c.length : 0,
-        memberships: Array.isArray(m) ? m.length : 0,
-        registrations: Array.isArray(r) ? r.length : 0,
+        contacts: unreadCount(c),
+        memberships: unreadCount(m),
+        registrations: unreadCount(r),
       });
     });
     return () => { cancelled = true; };
@@ -65,6 +69,10 @@ export default function Topbar({ onOpenSidebar }) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (isDashboard) setQuery("");
+  }, [isDashboard, setQuery]);
 
   const total = counts.contacts + counts.memberships + counts.registrations;
 
@@ -85,16 +93,18 @@ export default function Topbar({ onOpenSidebar }) {
         </button>
       )}
 
-      <div className="relative flex-1 max-w-2xl">
-        <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-muted" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search"
-          className="w-full pl-12 pr-4 py-3 text-sm bg-brand-bg border border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white focus:border-brand-border transition-colors"
-        />
-      </div>
+      {!isDashboard && (
+        <div className="relative flex-1 max-w-2xl">
+          <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-muted" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="w-full pl-12 pr-4 py-3 text-sm bg-brand-bg border border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white focus:border-brand-border transition-colors"
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-1 sm:gap-2 ml-auto">
         {/* MAIL */}
@@ -113,7 +123,9 @@ export default function Topbar({ onOpenSidebar }) {
             <div className="absolute right-0 mt-2 w-72 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
               <div className="px-4 py-3 border-b border-brand-border">
                 <p className="text-sm font-semibold text-brand-text">Messages</p>
-                <p className="text-xs text-brand-muted">{counts.contacts} contact messages</p>
+                <p className="text-xs text-brand-muted">
+                  {counts.contacts === 0 ? "All caught up" : `${counts.contacts} unread`}
+                </p>
               </div>
               <NotifItem to="/admin/contacts" icon={<Mail size={16} />} label="Open inbox" count={counts.contacts} onClick={() => setMailOpen(false)} />
             </div>
@@ -136,7 +148,9 @@ export default function Topbar({ onOpenSidebar }) {
             <div className="absolute right-0 mt-2 w-72 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
               <div className="px-4 py-3 border-b border-brand-border">
                 <p className="text-sm font-semibold text-brand-text">Notifications</p>
-                <p className="text-xs text-brand-muted">{total} pending items</p>
+                <p className="text-xs text-brand-muted">
+                  {total === 0 ? "All caught up" : `${total} unread`}
+                </p>
               </div>
               <NotifItem to="/admin/contacts" icon={<Mail size={16} />} label="Contact messages" count={counts.contacts} onClick={() => setBellOpen(false)} />
               <NotifItem to="/admin/membership" icon={<Users size={16} />} label="Membership requests" count={counts.memberships} onClick={() => setBellOpen(false)} />

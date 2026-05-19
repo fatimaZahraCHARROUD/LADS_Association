@@ -29,4 +29,12 @@ export class ContactMessagesService {
     if (!msg) throw new NotFoundException(`Contact message ${id} not found`);
     return { deleted: true };
   }
+
+  async markAsRead(id: string) {
+    const msg = await this.contactModel.findById(id).exec();
+    if (!msg) throw new NotFoundException(`Contact message ${id} not found`);
+    if (msg.readAt) return msg;
+    msg.readAt = new Date();
+    return msg.save();
+  }
 }

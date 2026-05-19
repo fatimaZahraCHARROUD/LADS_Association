@@ -29,4 +29,12 @@ export class MembershipRequestsService {
     if (!req) throw new NotFoundException(`Membership request ${id} not found`);
     return { deleted: true };
   }
+
+  async markAsRead(id: string) {
+    const req = await this.membershipModel.findById(id).exec();
+    if (!req) throw new NotFoundException(`Membership request ${id} not found`);
+    if (req.readAt) return req;
+    req.readAt = new Date();
+    return req.save();
+  }
 }
