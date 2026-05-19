@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Search, Bell, Mail, ChevronDown, LogOut, Menu, Users, ClipboardList,
 } from "lucide-react";
@@ -26,6 +26,8 @@ function getInitials(name) {
 
 export default function Topbar({ onOpenSidebar }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isDashboard = pathname === "/admin" || pathname === "/admin/";
   const { query, setQuery } = useTopSearch();
   const [counts, setCounts] = useState({ contacts: 0, memberships: 0, registrations: 0 });
   const [bellOpen, setBellOpen] = useState(false);
@@ -68,6 +70,10 @@ export default function Topbar({ onOpenSidebar }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    if (isDashboard) setQuery("");
+  }, [isDashboard, setQuery]);
+
   const total = counts.contacts + counts.memberships + counts.registrations;
 
   const logout = () => {
@@ -87,16 +93,18 @@ export default function Topbar({ onOpenSidebar }) {
         </button>
       )}
 
-      <div className="relative flex-1 max-w-2xl">
-        <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-muted" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search"
-          className="w-full pl-12 pr-4 py-3 text-sm bg-brand-bg border border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white focus:border-brand-border transition-colors"
-        />
-      </div>
+      {!isDashboard && (
+        <div className="relative flex-1 max-w-2xl">
+          <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-muted" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="w-full pl-12 pr-4 py-3 text-sm bg-brand-bg border border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white focus:border-brand-border transition-colors"
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-1 sm:gap-2 ml-auto">
         {/* MAIL */}

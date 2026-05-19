@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, MoreHorizontal } from "lucide-react";
 import {
@@ -8,6 +8,13 @@ import {
 import { api } from "../../services/api";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const PERIOD = {
+  week:  { label: "Weekly",  pillSuffix: "this week",  days: 7 },
+  month: { label: "Monthly", pillSuffix: "this month", days: 30 },
+  year:  { label: "Yearly",  pillSuffix: "this year",  days: 365 },
+};
+const PERIOD_KEYS = ["week", "month", "year"];
 
 const CARD_DEFS = [
   { key: "events",      label: "Total Events",      color: "text-orange-500",  ring: "#f97316" },
@@ -26,28 +33,53 @@ function startOfDay(d) {
   return x;
 }
 
-function buildWeekly(allItems) {
+function countInRange(items, startMs, endMs) {
+  return items.filter((it) => {
+    if (!it?.createdAt) return false;
+    const t = new Date(it.createdAt).getTime();
+    return t >= startMs && t < endMs;
+  }).length;
+}
+
+function buildBuckets(items, period) {
+  if (period === "year") {
+    const buckets = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      buckets.push({
+        day: start.toLocaleString("en-US", { month: "short" }),
+        count: countInRange(items, start.getTime(), end.getTime()),
+      });
+    }
+    return buckets;
+  }
+  const n = period === "week" ? 7 : 30;
   const today = startOfDay(new Date());
   const buckets = [];
-  for (let i = 6; i >= 0; i--) {
+  for (let i = n - 1; i >= 0; i--) {
     const start = new Date(today);
     start.setDate(today.getDate() - i);
     const end = new Date(start);
     end.setDate(start.getDate() + 1);
-    const count = allItems.filter((it) => {
-      if (!it?.createdAt) return false;
-      const t = new Date(it.createdAt).getTime();
-      return t >= start.getTime() && t < end.getTime();
-    }).length;
-    buckets.push({ day: DAY_LABELS[start.getDay()], count });
+    const label = period === "week"
+      ? DAY_LABELS[start.getDay()]
+      : String(start.getDate()).padStart(2, "0");
+    buckets.push({
+      day: label,
+      count: countInRange(items, start.getTime(), end.getTime()),
+    });
   }
   return buckets;
 }
 
-function countNewLast7Days(items) {
+function countNewInPeriod(items, period) {
   if (!Array.isArray(items)) return 0;
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  return items.filter((it) => it?.createdAt && new Date(it.createdAt).getTime() >= cutoff).length;
+  const cutoff = Date.now() - PERIOD[period].days * 24 * 60 * 60 * 1000;
+  return items.filter(
+    (it) => it?.createdAt && new Date(it.createdAt).getTime() >= cutoff
+  ).length;
 }
 
 function pctPublished(items) {
@@ -62,6 +94,9 @@ export default function Dashboard() {
     memberships: [], contacts: [], registrations: [],
   });
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("month");
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const periodRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -86,47 +121,37 @@ export default function Dashboard() {
     });
   }, []);
 
-  const stats = useMemo(() => ({
-    events: {
-      value: data.events.length,
-      ring: pctPublished(data.events),
-      change: countNewLast7Days(data.events),
-    },
-    activities: {
-      value: data.activities.length,
-      ring: pctPublished(data.activities),
-      change: countNewLast7Days(data.activities),
-    },
-    news: {
-      value: data.news.length,
-      ring: pctPublished(data.news),
-      change: countNewLast7Days(data.news),
-    },
-    formations: {
-      value: data.formations.length,
-      ring: pctPublished(data.formations),
-      change: countNewLast7Days(data.formations),
-    },
-    memberships: {
-      value: data.memberships.length,
-      ring: data.memberships.length > 0
-        ? Math.min(100, Math.round((countNewLast7Days(data.memberships) / data.memberships.length) * 100))
-        : 0,
-      change: countNewLast7Days(data.memberships),
-    },
-    contacts: {
-      value: data.contacts.length,
-      ring: data.contacts.length > 0
-        ? Math.min(100, Math.round((countNewLast7Days(data.contacts) / data.contacts.length) * 100))
-        : 0,
-      change: countNewLast7Days(data.contacts),
-    },
-  }), [data]);
+  useEffect(() => {
+    if (!periodOpen) return undefined;
+    const handler = (e) => {
+      if (periodRef.current && !periodRef.current.contains(e.target)) {
+        setPeriodOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [periodOpen]);
 
-  const weeklyData = useMemo(() => buildWeekly([
+  const stats = useMemo(() => {
+    const change = (arr) => countNewInPeriod(arr, period);
+    const ringForInbox = (arr) =>
+      arr.length > 0
+        ? Math.min(100, Math.round((change(arr) / arr.length) * 100))
+        : 0;
+    return {
+      events:      { value: data.events.length,      ring: pctPublished(data.events),      change: change(data.events) },
+      activities:  { value: data.activities.length,  ring: pctPublished(data.activities),  change: change(data.activities) },
+      news:        { value: data.news.length,        ring: pctPublished(data.news),        change: change(data.news) },
+      formations:  { value: data.formations.length,  ring: pctPublished(data.formations),  change: change(data.formations) },
+      memberships: { value: data.memberships.length, ring: ringForInbox(data.memberships), change: change(data.memberships) },
+      contacts:    { value: data.contacts.length,    ring: ringForInbox(data.contacts),    change: change(data.contacts) },
+    };
+  }, [data, period]);
+
+  const chartData = useMemo(() => buildBuckets([
     ...data.events, ...data.activities, ...data.news, ...data.formations,
     ...data.memberships, ...data.contacts, ...data.registrations,
-  ]), [data]);
+  ], period), [data, period]);
 
   const mixData = useMemo(() => [
     { name: "Events",     value: data.events.length },
@@ -147,10 +172,39 @@ export default function Dashboard() {
       {/* HEADER */}
       <header className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-brand-text">Dashboard</h1>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl text-sm font-medium shadow-sm transition-colors">
-          Monthly
-          <ChevronDown size={16} />
-        </button>
+
+        <div className="relative" ref={periodRef}>
+          <button
+            onClick={() => setPeriodOpen((o) => !o)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl text-sm font-medium shadow-sm transition-colors"
+          >
+            {PERIOD[period].label}
+            <ChevronDown
+              size={16}
+              className={`transition-transform ${periodOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {periodOpen && (
+            <div className="absolute right-0 mt-2 w-36 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-30">
+              {PERIOD_KEYS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => {
+                    setPeriod(p);
+                    setPeriodOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                    p === period
+                      ? "bg-brand-primary/10 text-brand-primary font-medium"
+                      : "text-brand-text hover:bg-gray-50"
+                  }`}
+                >
+                  {PERIOD[p].label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </header>
 
       {/* STATS GRID */}
@@ -164,7 +218,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <StatCard def={def} stat={s} />
+              <StatCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
             </motion.div>
           );
         })}
@@ -176,7 +230,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="font-semibold text-brand-text">
-                Activity <span className="text-brand-muted text-sm font-normal">(Weekly)</span>
+                Activity{" "}
+                <span className="text-brand-muted text-sm font-normal">
+                  ({PERIOD[period].label})
+                </span>
               </h2>
               <p className="text-xs text-brand-muted mt-0.5">New items created across the platform.</p>
             </div>
@@ -186,7 +243,7 @@ export default function Dashboard() {
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#2563eb" />
@@ -194,7 +251,7 @@ export default function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} interval={period === "month" ? 2 : 0} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} allowDecimals={false} />
                 <Tooltip
                   cursor={{ fill: "rgba(37, 99, 235, 0.06)" }}
@@ -261,7 +318,7 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ def, stat }) {
+function StatCard({ def, stat, pillSuffix }) {
   const trendUp = stat.change > 0;
   return (
     <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6 flex flex-col gap-5">
@@ -281,7 +338,7 @@ function StatCard({ def, stat }) {
           }`}
         >
           {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-          {stat.change} this week
+          {stat.change} {pillSuffix}
         </span>
         <Ring percent={stat.ring} color={def.ring} />
       </div>
