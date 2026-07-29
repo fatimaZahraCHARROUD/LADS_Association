@@ -120,7 +120,9 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
             )}
           </button>
           {mailOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
+            <div 
+            className="absolute right-0 mt-2 w-50 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50"
+            >
               <div className="px-4 py-3 border-b border-brand-border">
                 <p className="text-sm font-semibold text-brand-text">Messages</p>
                 <p className="text-xs text-brand-muted">
@@ -145,7 +147,7 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
             )}
           </button>
           {bellOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
+            <div className="absolute right-0 mt-2 w-60 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
               <div className="px-4 py-3 border-b border-brand-border">
                 <p className="text-sm font-semibold text-brand-text">Notifications</p>
                 <p className="text-xs text-brand-muted">

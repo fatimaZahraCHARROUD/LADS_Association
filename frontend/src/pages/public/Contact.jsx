@@ -149,7 +149,12 @@ export default function Contact() {
 
     return true;
   };
-
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   const handleSubmit = async (e) => {
 
     e.preventDefault();

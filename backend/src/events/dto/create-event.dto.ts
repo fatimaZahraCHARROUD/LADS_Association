@@ -7,7 +7,7 @@ export class LocalizedStringDto {
 export class CreateEventDto {
   title!: LocalizedStringDto;
   description!: LocalizedStringDto;
-  category?: string;
+  category!: LocalizedStringDto;
   date!: string;
   time?: string;
   location?: string;

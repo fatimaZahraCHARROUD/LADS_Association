@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Users,
   GraduationCap,
@@ -17,7 +17,12 @@ const API_URL = "http://localhost:3000/membership-requests";
 
 export default function Membership() {
   const { t } = useTranslation();
-
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   const benefits = [
     {
       icon: <GraduationCap size={28} />,

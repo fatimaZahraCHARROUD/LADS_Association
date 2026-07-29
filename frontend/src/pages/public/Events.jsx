@@ -21,7 +21,7 @@ const { t, i18n } = useTranslation();
 
   const [activeFilter, setActiveFilter] =
     useState("all");
-
+const [activeCategory, setActiveCategory] = useState("all");
   const [search, setSearch] =
     useState("");
 
@@ -31,8 +31,7 @@ const { t, i18n } = useTranslation();
   const [loading, setLoading] =
     useState(true);
 
-    const [selectedImage, setSelectedImage] =
-  useState(null);
+  const [selectedEventPreview, setSelectedEventPreview] = useState(null);
   /* =========================
       FETCH EVENTS
   ========================= */
@@ -66,7 +65,38 @@ const { t, i18n } = useTranslation();
     fetchData();
 
   }, []);
+const categories = [
+  {
+    key:"all",
+    label:{
+      en:"All categories",
+      fr:"Toutes les catégories",
+      ar:"كل التصنيفات"
+    }
+  },
 
+  ...Array.from(
+    new Map(
+      events
+      .filter(e => e.category)
+      .map(e => [
+        JSON.stringify(e.category),
+        {
+          key: JSON.stringify(e.category),
+          label:e.category
+        }
+      ])
+    ).values()
+  )
+
+];
+
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
 const [form, setForm] = useState({
@@ -112,8 +142,8 @@ const isEventPast = isPast;
 
 const filteredEvents = events
   .filter((e) => {
-    if (activeFilter === "all") return true;
 
+    // Date filter
     if (activeFilter === "past") {
       return isPast(e.date);
     }
@@ -123,16 +153,38 @@ const filteredEvents = events
     }
 
     return true;
+
   })
   .filter((e) => {
+
+    // Category filter
+    if (activeCategory === "all") {
+      return true;
+    }
+
+return JSON.stringify(e.category) === activeCategory;
+  })
+  .filter((e) => {
+
+    // Search
     const q = search.trim().toLowerCase();
 
     return (
-      mlDisplay(e.title, i18n.language)?.toLowerCase().includes(q) ||
-      mlDisplay(e.description, i18n.language)?.toLowerCase().includes(q) ||
-      (e.location || "").toLowerCase().includes(q)
+      mlDisplay(e.title, i18n.language)
+        ?.toLowerCase()
+        .includes(q) ||
+
+      mlDisplay(e.description, i18n.language)
+        ?.toLowerCase()
+        .includes(q) ||
+
+      (e.location || "")
+        .toLowerCase()
+        .includes(q)
     );
+
   });
+
   return (
 
     <section className="events-page">
@@ -162,7 +214,28 @@ const filteredEvents = events
 
         {/* TOPBAR */}
         <div className="events-topbar">
-
+<select style={{"border":"1px solid lightgray", "borderRadius":"10px", "padding":"8px"}}
+  value={activeCategory}
+  onChange={(e) =>
+    setActiveCategory(e.target.value)
+  }
+>
+  {
+categories.map((cat)=>(
+<option
+ key={cat.key}
+ value={cat.key}
+>
+{
+mlDisplay(
+ cat.label,
+ i18n.language
+)
+}
+</option>
+))
+}
+</select>
           {/* SEARCH */}
           <div className="search-box">
 
@@ -178,7 +251,7 @@ const filteredEvents = events
             />
 
           </div>
-
+              
           {/* FILTERS */}
           <div className="filters">
 
@@ -235,10 +308,12 @@ const filteredEvents = events
               <div
                 className="event-card"
                 key={event._id}
+                  onClick={() => setSelectedEventPreview(event)}
+
               >
 
                 {/* IMAGE */}
-                <div className="event-image"   onClick={() => setSelectedImage(event.coverImage)}>
+                <div className="event-image"  >
 
                   <img
                     src={event.coverImage}
@@ -259,14 +334,18 @@ const filteredEvents = events
 
                 {/* CONTENT */}
                 <div className="event-content">
-
+{event.category && (
+  <span className="event-category">
+    {mlDisplay(event.category, i18n.language)}
+  </span>
+)}
                   <h3>
                     {mlDisplay(event.title, i18n.language)}
                   </h3>
 
-                  <p>
-                    {mlDisplay(event.description, i18n.language)}
-                  </p>
+                  
+
+                
 
                   {/* INFO */}
                   <div className="event-info">
@@ -298,10 +377,10 @@ const filteredEvents = events
   <button
     type="button"
     className="register-btn"
-    onClick={() => {
-      console.log("clicked");
-      setSelectedEvent(event);
-    }}
+    onClick={(e) => {
+    e.stopPropagation();
+    setSelectedEvent(event);
+  }}
   >
     {t("events.buttons.register")}
   </button>
@@ -335,29 +414,46 @@ const filteredEvents = events
 
 {/* IMAGE MODAL */}
 {
-  selectedImage && (
+  selectedEventPreview && (
 
     <div
       className="image-modal"
-      onClick={() => setSelectedImage(null)}
+      onClick={() => setSelectedEventPreview(null)}
     >
 
       <div
-        className="image-modal-content"
+        className="image-modal-content preview-modal"
         onClick={(e) => e.stopPropagation()}
       >
 
         <button
           className="close-modal"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => setSelectedEventPreview(null)}
         >
           ✕
         </button>
 
         <img
-          src={selectedImage}
-          alt="Formation"
+          src={selectedEventPreview.coverImage}
+          alt={mlDisplay(
+            selectedEventPreview.title,
+            i18n.language
+          )}
         />
+
+        <h2>
+          {mlDisplay(
+            selectedEventPreview.title,
+            i18n.language
+          )}
+        </h2>
+
+        <p>
+          {mlDisplay(
+            selectedEventPreview.description,
+            i18n.language
+          )}
+        </p>
 
       </div>
 

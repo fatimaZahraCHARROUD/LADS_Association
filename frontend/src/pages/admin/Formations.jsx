@@ -329,10 +329,10 @@ const [imageFile, setImageFile] = useState(null);
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               >
                 <option value="">Select a category…</option>
-                <option value="Leadership">Leadership</option>
-                <option value="Digital">Digital</option>
+                <option value="SoftSkills">Soft Skills</option>
+                <option value="MediaAndDigital">Media & Digital</option>
                 <option value="Social">Social</option>
-                <option value="Entrepreneuriat">Entrepreneuriat</option>
+                <option value="Entrepreneurship">Entrepreneurship</option>
               </Select>
             </Field>
             <Field label="Status">

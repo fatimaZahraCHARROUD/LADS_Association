@@ -6,22 +6,22 @@ export type MembershipRequestDocument = MembershipRequest & Document;
 @Schema({ timestamps: true })
 export class MembershipRequest {
   @Prop({ required: true })
-  fullName: string;
+  fullName!: string;
 
   @Prop({ required: true })
-  email: string;
+  email!: string;
 
   @Prop({ default: '' })
-  phone: string;
+  phone!: string;
 
   @Prop({ default: '' })
-  city: string;
+  city!: string;
 
   @Prop({ default: '' })
-  motivation: string;
+  motivation!: string;
 
   @Prop({ type: Date, default: null })
-  readAt: Date | null;
+  readAt!: Date | null;
 }
 
 export const MembershipRequestSchema = SchemaFactory.createForClass(MembershipRequest);

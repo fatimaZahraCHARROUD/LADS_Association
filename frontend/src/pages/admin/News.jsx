@@ -19,7 +19,7 @@ const EMPTY_NEWS = {
   content: { ...EMPTY_ML },
   thumbnail: "",
   coverImagePublicId: "",
-  tagsInput: "",
+  category: "general",
   isPublished: false,
 };
 
@@ -61,8 +61,7 @@ const [imageFile, setImageFile] = useState(null);
       content: ml(row.content),
       thumbnail: row.thumbnail || "",
       coverImagePublicId: row.coverImagePublicId || "",
-      tagsInput: Array.isArray(row.tags) ? row.tags.join(", ") : "",
-      isPublished: !!row.isPublished,
+      category: row.tags?.[0] || "general",      isPublished: !!row.isPublished,
     });
     setDrawerOpen(true);
   };
@@ -99,10 +98,7 @@ const [imageFile, setImageFile] = useState(null);
       thumbnail: thumbnailUrl,
       coverImagePublicId:coverImagePublicId,
       isPublished: form.isPublished,
-      tags: form.tagsInput
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: [form.category],
     };
 
     if (editing) {
@@ -164,28 +160,30 @@ const [imageFile, setImageFile] = useState(null);
         <div className="font-medium text-brand-text">{mlDisplay(r.title)}</div>
       ),
     },
-    {
-      key: "tags",
-      header: "Tags",
-      render: (r) =>
-        Array.isArray(r.tags) && r.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {r.tags.slice(0, 3).map((t) => (
-              <span
-                key={t}
-                className="px-2 py-0.5 text-xs bg-gray-100 text-brand-muted rounded"
-              >
-                {t}
-              </span>
-            ))}
-            {r.tags.length > 3 && (
-              <span className="text-xs text-brand-muted">+{r.tags.length - 3}</span>
-            )}
-          </div>
-        ) : (
-          "—"
-        ),
-    },
+   {
+  key: "category",
+  header: "Category",
+  render: (r) => {
+    const category = r.tags?.[0] || "general";
+
+    const styles = {
+      urgent: "bg-red-100 text-red-700",
+      general: "bg-gray-100 text-gray-700",
+      announcement: "bg-blue-100 text-blue-700",
+      recruitment: "bg-green-100 text-green-700",
+    };
+
+    return (
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${
+          styles[category] || styles.general
+        }`}
+      >
+        {category.charAt(0).toUpperCase() + category.slice(1)}
+      </span>
+    );
+  },
+},
     {
       key: "isPublished",
       header: "Status",
@@ -234,8 +232,7 @@ const [imageFile, setImageFile] = useState(null);
         searchPlaceholder="Search news..."
         searchFn={(r, q) =>
           mlDisplay(r.title).toLowerCase().includes(q) ||
-          (r.tags || []).join(" ").toLowerCase().includes(q)
-        }
+(r.tags?.[0] || "").toLowerCase().includes(q)        }
         emptyMessage="No news articles yet."
       />
 
@@ -303,13 +300,20 @@ const [imageFile, setImageFile] = useState(null);
           />
         )}
 
-          <Field label="Tags" hint="Comma-separated. E.g. announcement, partnership">
-            <TextInput
-              value={form.tagsInput}
-              onChange={(e) => setForm({ ...form, tagsInput: e.target.value })}
-              placeholder="announcement, partnership"
-            />
-          </Field>
+          <Field label="Category">
+  <select
+    value={form.category}
+    onChange={(e) =>
+      setForm({ ...form, category: e.target.value })
+    }
+    className="w-full rounded-lg border border-brand-border px-3 py-2 bg-white"
+  >
+    <option value="urgent">Urgent</option>
+    <option value="general">General</option>
+    <option value="announcement">Announcement</option>
+    <option value="recruitment">Recruitment</option>
+  </select>
+</Field>
 
           <Field>
             <Toggle

@@ -20,7 +20,7 @@
       rgba(5, 20, 50, 0.82),
       rgba(5, 20, 50, 0.88)
     ),
-    url("https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=1600&auto=format&fit=crop")
+    url("images/img2.png")
       center/cover no-repeat;
 
   display: flex;
@@ -195,13 +195,15 @@
   line-height: 1.7;
   margin-bottom: 22px;
 }
-
-.event-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  margin-bottom: 24px;
+.event-card {
+  cursor: pointer;
+}
+.event-info{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    margin:12px 0;
 }
 
 .event-info span {
@@ -424,4 +426,105 @@
 
 .image-modal-content button:hover {
   transform: translateY(-2px);
+}
+.event-category {
+  display: inline-block;
+  width: fit-content;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 20px;
+  background: #e8f0ff;
+  color: #1646a0;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+
+
+
+.image-modal{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    padding:30px;
+    z-index:9999;
+
+    overflow-y:auto;
+ }
+
+.preview-modal{
+    position:relative;
+
+    width:min(900px,95%);
+    max-height:90vh;
+
+    background:#fff;
+    border-radius:16px;
+
+    overflow:auto;
+}
+.preview-modal img{
+    width:100% !important;
+    max-height:55vh !important;
+
+    object-fit:cover;
+
+    display:block;
+}
+
+.preview-modal h2{
+    padding:20px 25px 10px;
+    margin:0;
+}
+
+.preview-modal p{
+    padding:0 25px 25px;
+    line-height:1.8;
+    color:#555;
+}
+
+.close-modal:hover{
+background:#21157d !important;
+
+    color: rgba(255,255,255,.95) !important;
+
+}
+.close-modal{
+
+    position:absolute;
+
+    top:10px !important;
+    right:10px !important;
+
+    width:42px;
+    height:42px;
+
+    border:none;
+    border-radius:50%;
+
+    background:rgba(255,255,255,.95) !important;
+
+    color:#21157d !important;
+
+    font-size:22px;
+
+    cursor:pointer;
+
+    z-index:100;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    box-shadow:0 5px 15px rgba(0,0,0,.2);
+}
+
+html[dir="rtl"] .close-modal{
+    right:auto;
+    left:15px;
 }

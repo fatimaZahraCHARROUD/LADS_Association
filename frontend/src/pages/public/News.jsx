@@ -13,13 +13,11 @@ import "../../Styles/news.css";
 import { api } from "../../services/api";
 
 import { mlDisplay } from "../../utils/i18n";
-import { useNavigate } from "react-router-dom";
-
+ 
 export default function News() {
 
 const { t, i18n } = useTranslation();
-const navigate = useNavigate();
-  const [news, setNews] =
+   const [news, setNews] =
     useState([]);
 
   const [search, setSearch] =
@@ -31,11 +29,16 @@ const navigate = useNavigate();
   const [loading, setLoading] =
     useState(true);
 
-    const [selectedImage, setSelectedImage] =
-  useState(null);
+const [selectedNews, setSelectedNews] = useState(null);  useState(null);
   /* =====================
       FETCH NEWS
   ===================== */
+ useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   useEffect(() => {
 
     const fetchData = async () => {
@@ -66,59 +69,49 @@ const navigate = useNavigate();
     fetchData();
 
   }, []);
-const goToNews = (id) => {
-  navigate(`/news/${id}`);
+
+  
+  const priority = {
+  urgent: 1,
+  recruitment: 2,
+  announcement: 3,
+  general: 4,
 };
-  const mainNews =
-    news[0] || null;
 
-  const filteredNews =
-    news.slice(1)
+const displayedNews = [...news]
+  .filter((n) => {
+    if (activeCategory === "all") return true;
+    return (n.tags || []).includes(activeCategory);
+  })
+  .filter((n) => {
+    const q = search.trim().toLowerCase();
 
-      .filter((n) => {
+    return (
+      mlDisplay(n.title, i18n.language).toLowerCase().includes(q) ||
+      mlDisplay(n.content, i18n.language).toLowerCase().includes(q) ||
+      (n.tags || []).join(" ").toLowerCase().includes(q)
+    );
+  })
+  .sort((a, b) => {
+    const pa = priority[a.tags?.[0]] ?? 99;
+    const pb = priority[b.tags?.[0]] ?? 99;
 
-        if (activeCategory === "all")
-          return true;
+    if (pa !== pb) return pa - pb;
 
-        return (n.tags || [])
-          .includes(activeCategory);
+    // Same category → newest first
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
 
-      })
+const mainNews = displayedNews[0] || null;
+const filteredNews = displayedNews.slice(1);
 
-      .filter((n) => {
-
-        const q =
-          search.trim().toLowerCase();
-
-        return (
-
-          mlDisplay(n.title, i18n.language)
-            .toLowerCase()
-            .includes(q)
-
-          ||
-
-          mlDisplay(n.content, i18n.language)
-            .toLowerCase()
-            .includes(q)
-
-          ||
-
-          (n.tags || [])
-            .join(" ")
-            .toLowerCase()
-            .includes(q)
-
-        );
-
-      });
-
-  const categories = [
-    "all",
-    "Leadership",
-    "Innovation",
-    "Social Action",
-  ];
+ const categories = [
+  "all",
+  "urgent",
+  "general",
+  "announcement",
+  "recruitment",
+];
 
   return (
 
@@ -199,7 +192,7 @@ const goToNews = (id) => {
           {/* MAIN NEWS */}
           {mainNews && (
 
-            <div className="main-news"   onClick={() => goToNews(mainNews._id)}>
+            <div className="main-news"      onClick={() => setSelectedNews(mainNews)}>
 
               <img
                 src={mainNews.thumbnail}
@@ -228,12 +221,13 @@ const goToNews = (id) => {
                 <h2>
                   {mlDisplay(mainNews.title, i18n.language)}
                 </h2>
+ 
+                
 
-                <p>
-                  {mlDisplay(mainNews.content, i18n.language)}
-                </p>
-
-                <button className="read-btn" onClick={() => goToNews(mainNews._id)}>
+                <button className="read-btn"onClick={(e)=>{
+        e.stopPropagation();
+        setSelectedNews(mainNews);
+    }}>
 
                   {t("news.read")}
                   {" "}
@@ -254,7 +248,8 @@ const goToNews = (id) => {
 
               <div
                 className="side-news-card"
-                key={item._id} onClick={() => goToNews(item._id)}
+                key={item._id}     onClick={() => setSelectedNews(item)}
+
               >
 
                 <img
@@ -305,7 +300,64 @@ const goToNews = (id) => {
       </div>
 
 {/* IMAGE MODAL */}
+{
+  selectedNews && (
 
+    <div
+      className="image-modal"
+      onClick={() => setSelectedNews(null)}
+    >
+
+      <div
+        className="image-modal-content preview-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+
+        <button
+          className="close-modal"
+          onClick={() => setSelectedNews(null)}
+        >
+          ✕
+        </button>
+
+        <img
+          src={selectedNews.thumbnail}
+          alt={mlDisplay(
+            selectedNews.title,
+            i18n.language
+          )}
+        />
+
+        <div className="preview-content">
+
+          <span className="news-category">
+            {selectedNews.tags?.[0] ||
+              t("news.defaultTag")}
+          </span>
+
+          
+          <h2>
+            {mlDisplay(
+              selectedNews.title,
+              i18n.language
+            )}
+          </h2>
+
+          <p>
+            {mlDisplay(
+              selectedNews.content,
+              i18n.language
+            )}
+          </p>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  )
+}
 
     </section>
 

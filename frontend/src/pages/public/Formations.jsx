@@ -29,11 +29,15 @@ const { t, i18n } = useTranslation();
 
   const [search, setSearch] =
     useState("");
-const [selectedImage, setSelectedImage] =
-  useState(null);
-  /* =========================
+const [selectedFormation, setSelectedFormation] = useState(null);  /* =========================
       FETCH DATA
   ========================= */
+ useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   useEffect(() => {
 
     const fetchData = async () => {
@@ -169,25 +173,25 @@ const [selectedImage, setSelectedImage] =
 
             <button
               className={
-                activeFilter === "leadership"
+                activeFilter === "Soft Skills"
                   ? "active"
                   : ""
               }
               onClick={() =>
-                setActiveFilter("leadership")
+                setActiveFilter("SoftSkills")
               }
             >
-              {t("formations.filters.leadership")}
+              {t("formations.filters.SoftSkills")}
             </button>
 
             <button
               className={
-                activeFilter === "digital"
+                activeFilter === "MediaAndDigital"
                   ? "active"
                   : ""
               }
               onClick={() =>
-                setActiveFilter("digital")
+                setActiveFilter("MediaAndDigital")
               }
             >
               {t("formations.filters.digital")}
@@ -195,12 +199,12 @@ const [selectedImage, setSelectedImage] =
 
             <button
               className={
-                activeFilter === "social"
+                activeFilter === "Social"
                   ? "active"
                   : ""
               }
               onClick={() =>
-                setActiveFilter("social")
+                setActiveFilter("Social")
               }
             >
               {t("formations.filters.social")}
@@ -208,13 +212,13 @@ const [selectedImage, setSelectedImage] =
 
             <button
               className={
-                activeFilter === "entrepreneurship"
+                activeFilter === "Entrepreneurship"
                   ? "active"
                   : ""
               }
               onClick={() =>
                 setActiveFilter(
-                  "entrepreneurship"
+                  "Entrepreneurship"
                 )
               }
             >
@@ -233,10 +237,10 @@ const [selectedImage, setSelectedImage] =
 
               <div
                 className="formation-card"
-                key={f._id || f.id}
+                key={f._id || f.id} onClick={() => setSelectedFormation(f)}
               >
 
-               <div className="formation-image"   onClick={() => setSelectedImage(f.imgUrl)}>
+               <div className="formation-image"   >
 
   <img
     src={f.imgUrl}
@@ -259,9 +263,7 @@ const [selectedImage, setSelectedImage] =
 
   </div>
 
-                  <p>
-                    {mlDisplay(f.description, i18n.language)}
-                  </p>
+                  
 
                   <div className="formation-info">
 
@@ -283,7 +285,9 @@ const [selectedImage, setSelectedImage] =
                       {t("formations.buttons.details")}
                     </button> */}
 
-                    <button className="join-btn" onClick={()=> navigate("/membership")}>
+                    <button className="join-btn" onClick={(e) => {
+    e.stopPropagation();
+     navigate("/membership")}}>
                       {t("formations.buttons.join")}
                     </button>
 
@@ -304,29 +308,50 @@ const [selectedImage, setSelectedImage] =
 
 {/* IMAGE MODAL */}
 {
-  selectedImage && (
+  selectedFormation && (
 
     <div
       className="image-modal"
-      onClick={() => setSelectedImage(null)}
+      onClick={() => setSelectedFormation(null)}
     >
 
       <div
-        className="image-modal-content"
+        className="image-modal-content preview-modal"
         onClick={(e) => e.stopPropagation()}
       >
 
         <button
           className="close-modal"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => setSelectedFormation(null)}
         >
           ✕
         </button>
 
         <img
-          src={selectedImage}
-          alt="Formation"
+          src={selectedFormation.imgUrl}
+          alt={mlDisplay(
+            selectedFormation.title,
+            i18n.language
+          )}
         />
+
+        <div className="preview-content">
+
+          <h2>
+            {mlDisplay(
+              selectedFormation.title,
+              i18n.language
+            )}
+          </h2>
+  
+          <p>
+            {mlDisplay(
+              selectedFormation.description,
+              i18n.language
+            )}
+          </p>
+
+        </div>
 
       </div>
 

@@ -198,13 +198,15 @@
 }
 
 .activity-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  margin-bottom: 24px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    margin:12px 0;
 }
-
+.activity-card{
+  cursor:pointer;
+}
 .activity-info span {
   display: flex;
   align-items: center;

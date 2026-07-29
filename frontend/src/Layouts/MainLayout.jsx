@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Outlet, Link } from "react-router-dom";
 import { api } from "../services/api";
 
 import {
-  Menu,
-  X,
+  Menu,MessageCircle,
+  X,MapPin,
   Phone,
   Mail,Globe, ChevronDown
 } from "lucide-react";
@@ -22,11 +22,13 @@ import "../Styles/mainLayout.css";
 export default function MainLayout() {
 
   const [open, setOpen] = useState(false);
+const [desktopLangOpen,setdesktopLangOpen]=useState(false);
+const [mobileLangOpen, setMobileLangOpen] = useState(false);
 
   const [ladsInfo, setLadsInfo] = useState([]);
 
   const { t, i18n } = useTranslation();
-
+const [contactOpen, setContactOpen] = useState(false);
   /* =========================
       LOAD INFO
   ========================= */
@@ -47,7 +49,45 @@ export default function MainLayout() {
     load();
 
   }, []);
+  const languages=[
+    {
+        code:"en",
+        label:"English",
+        flag:"🇬🇧"
+    },
+    {
+        code:"fr",
+        label:"Français",
+        flag:"🇫🇷"
+    },
+    {
+        code:"ar",
+        label:"العربية",
+        flag:"🇲🇦"
+    }
+  ]
+  const langRef=useRef();
 
+useEffect(()=>{
+
+const handle=(e)=>{
+
+if(
+langRef.current &&
+!langRef.current.contains(e.target)
+){
+
+setdesktopLangOpen(false);
+
+}
+
+};
+
+document.addEventListener("mousedown",handle);
+
+return()=>document.removeEventListener("mousedown",handle);
+
+},[]);
   /* =========================
       RTL / LTR
   ========================= */
@@ -135,42 +175,83 @@ export default function MainLayout() {
           </a>
 
           {/* LANG SWITCHER */}
-          <div className="lang-switcher">
+         <div className="lang-dropdown" ref={langRef}>
 
-            <button
-              onClick={() => i18n.changeLanguage("en")}
-              className={
-                i18n.language === "en"
-                  ? "active-lang"
-                  : ""
-              }
-            >
-              EN
-            </button>
+    <button
+        className="lang-trigger"
+        onClick={()=>setdesktopLangOpen(!desktopLangOpen)}
+    >
 
-            <button
-              onClick={() => i18n.changeLanguage("fr")}
-              className={
-                i18n.language === "fr"
-                  ? "active-lang"
-                  : ""
-              }
-            >
-              FR
-            </button>
+        <div className="lang-current">
 
-            <button
-              onClick={() => i18n.changeLanguage("ar")}
-              className={
-                i18n.language === "ar"
-                  ? "active-lang"
-                  : ""
-              }
-            >
-              AR
-            </button>
+            <Globe size={16}/>
 
-          </div>
+            {
+                languages.find(
+                    l=>l.code===i18n.language
+                )?.flag
+            }
+
+            {
+                languages.find(
+                    l=>l.code===i18n.language
+                )?.label
+            }
+
+        </div>
+
+        <ChevronDown
+            size={16}
+            className={desktopLangOpen?"rotate":""}
+        />
+
+    </button>
+
+{
+desktopLangOpen && (
+
+<div className="lang-drawer">
+
+{
+
+languages.map(lang=>(
+
+<button
+
+key={lang.code}
+
+className={
+i18n.language===lang.code
+?"active":""
+}
+
+onClick={()=>{
+
+i18n.changeLanguage(lang.code);
+
+setdesktopLangOpen(false);
+
+}}
+
+>
+
+<span>{lang.flag}</span>
+
+{lang.label}
+
+</button>
+
+))
+
+}
+
+</div>
+
+)
+
+}
+
+</div>
 
         </div>
 
@@ -260,7 +341,100 @@ export default function MainLayout() {
           >
             {t("layout.nav.contact")}
           </Link>
+{/* MOBILE ACTIONS */}
+<div className="mobile-actions">
 
+  <Link
+    to="/membership"
+    className="mobile-login-btn"
+    onClick={() => setOpen(false)}
+  >
+    {t("layout.join")}
+  </Link>
+
+  <Link
+    to="/login"
+    className="mobile-join-btn"
+    onClick={() => setOpen(false)}
+  >
+    {t("layout.login")}
+  </Link>
+     {/* LANG SWITCHER */}
+       
+    <button
+        className="lang-trigger"
+        onClick={()=>setMobileLangOpen(!mobileLangOpen)}
+    >
+
+        <div className="lang-current lang-mobile" >
+
+            <Globe size={16}/>
+
+            {
+                languages.find(
+                    l=>l.code===i18n.language
+                )?.flag
+            }
+
+            {
+                languages.find(
+                    l=>l.code===i18n.language
+                )?.label
+            }
+
+        </div>
+
+        <ChevronDown
+            size={16}
+            className={desktopLangOpen?"rotate":""}
+        />
+
+    </button>
+
+{
+mobileLangOpen && (
+
+<div className="lang-drawer">
+
+{
+
+languages.map(lang=>(
+
+<button
+
+key={lang.code}
+
+className={
+i18n.language===lang.code
+?"active":""
+}
+
+onClick={()=>{
+    i18n.changeLanguage(lang.code);
+    setDesktopLangOpen(false);
+    setMobileLangOpen(false);
+}}
+
+>
+
+<span>{lang.flag}</span>
+
+{lang.label}
+
+</button>
+
+))
+
+}
+
+</div>
+
+)
+
+}
+
+ 
+</div>
         </nav>
 
         {/* DESKTOP ACTIONS */}
@@ -290,6 +464,49 @@ export default function MainLayout() {
         <Outlet />
       </main>
 
+<div className={`floating-contact ${contactOpen ? "open" : ""}`}>
+
+  <div className="contact-links">
+
+    <a
+      href={`https://wa.me/${phone.replace(/\D/g, "")}`}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <FaWhatsapp />
+    </a>
+
+    <a
+      href={instagram}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <FaInstagram />
+    </a>
+
+    <a
+      href={linkedin}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <FaLinkedin />
+    </a>
+
+    <a href={`mailto:${email}`}>
+      <Mail size={20}/>
+    </a>
+
+  </div>
+
+  <button
+    className="contact-toggle"
+    onClick={() => setContactOpen(!contactOpen)}
+  >
+    {contactOpen ? <X size={22}/> : <MessageCircle size={22}/>}
+  </button>
+
+</div>
+
       {/* FOOTER */}
       <footer className="footer">
 
@@ -306,23 +523,24 @@ export default function MainLayout() {
               {t("layout.footer.desc")}
             </p>
 
-            <div className="footer-contact">
+           <div className="footer-contact">
 
-              <p>
-                📍 {t("layout.footer.location")}
-              </p>
+  <p>
+    <MapPin size={16} />
+    <span>{t("layout.footer.location")}</span>
+  </p>
 
-              <p>
-                📧 {email}
-              </p>
+  <p>
+    <Mail size={16} />
+    <span>{email}</span>
+  </p>
 
-              <p>
-                📞 {phone}
-              </p>
+  <p>
+    <Phone size={16} />
+    <span>{phone}</span>
+  </p>
 
-            </div>
-
-          </div>
+</div>  </div>
 
           {/* COL 2 */}
           <div className="footer-col">
@@ -368,11 +586,11 @@ export default function MainLayout() {
               {t("layout.nav.contact")}
             </a>
 
-            <a href="#">
+            <a href="/contact">
               {t("layout.footer.partnerships")}
             </a>
 
-            <a href="#">
+            <a href="/contact">
               {t("layout.footer.careers")}
             </a>
 

@@ -7,6 +7,7 @@ import {
   Lightbulb,
   Briefcase,
   HeartHandshake,
+  ChevronDown,
 } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
@@ -19,12 +20,12 @@ import { mlDisplay } from "../../utils/i18n";
 
 export default function About() {
 
-  const { t } = useTranslation();
+const { t, i18n } = useTranslation();
 
   const [info, setInfo] = useState([]);
 
   const [loading, setLoading] = useState(true);
-
+const [openFaq, setOpenFaq] = useState(null);
   /* =========================
       FETCH DATA
   ========================= */
@@ -60,7 +61,39 @@ export default function About() {
     fetchData();
 
   }, []);
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
 
+const faqs = [
+  {
+    question: t("about.faq.items.0.q"),
+    answer: t("about.faq.items.0.a"),
+  },
+  {
+    question: t("about.faq.items.1.q"),
+    answer: t("about.faq.items.1.a"),
+  },
+  {
+    question: t("about.faq.items.2.q"),
+    answer: t("about.faq.items.2.a"),
+  },
+  {
+    question: t("about.faq.items.3.q"),
+    answer: t("about.faq.items.3.a"),
+  },
+  {
+    question: t("about.faq.items.4.q"),
+    answer: t("about.faq.items.4.a"),
+  },
+  {
+    question: t("about.faq.items.5.q"),
+    answer: t("about.faq.items.5.a"),
+  },
+];
   /* =========================
       HELPERS
   ========================= */
@@ -181,7 +214,7 @@ export default function About() {
 
         <div className="container hero-content">
 
-          <span className="hero-badge">
+          <span className="hero-badge" style={{color:"#2563eb"}}>
             {t("about.hero.badge")}
           </span>
 
@@ -219,14 +252,14 @@ export default function About() {
 
             <h2>
               {
-                mlDisplay(story?.title)
+                mlDisplay(story?.title, i18n.language)
                 ||
                 t("about.story_title")
               }
             </h2>
 
             <p>
-              {mlDisplay(story?.content)}
+              {mlDisplay(story?.content, i18n.language)}
             </p>
 
           </div>
@@ -244,14 +277,14 @@ export default function About() {
 
             <h3>
               {
-                mlDisplay(mission?.title)
+                mlDisplay(mission?.title, i18n.language)
                 ||
                 t("about.mission")
               }
             </h3>
 
             <p>
-              {mlDisplay(mission?.content)}
+              {mlDisplay(mission?.content, i18n.language)}
             </p>
 
           </div>
@@ -264,14 +297,14 @@ export default function About() {
 
             <h3>
               {
-                mlDisplay(vision?.title)
+                mlDisplay(vision?.title, i18n.language)
                 ||
                 t("about.vision")
               }
             </h3>
 
             <p>
-              {mlDisplay(vision?.content)}
+              {mlDisplay(vision?.content, i18n.language)}
             </p>
 
           </div>
@@ -364,6 +397,75 @@ export default function About() {
 
         </section>
 
+{/* FAQ */}
+<section className="faq-section">
+
+  <div className="section-header">
+
+    <span className="section-tag">
+      {t("about.faq.tag")}
+    </span>
+
+    <h2>
+      {t("about.faq.title")}
+    </h2>
+
+  </div>
+
+  <div className="faq-list">
+
+    {faqs.map((faq, index) => (
+
+      <div
+        key={index}
+        className={`faq-item ${
+          openFaq === index ? "active" : ""
+        }`}
+      >
+
+        <button
+          className="faq-question"
+          onClick={() =>
+            setOpenFaq(
+              openFaq === index
+                ? null
+                : index
+            )
+          }
+        >
+
+          <span>{faq.question}</span>
+
+          <ChevronDown
+            className={
+              openFaq === index
+                ? "rotate"
+                : ""
+            }
+            size={22}
+          />
+
+        </button>
+
+        <div
+          className={`faq-answer ${
+            openFaq === index
+              ? "show"
+              : ""
+          }`}
+        >
+
+          <p>{faq.answer}</p>
+
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+
+</section>
        
 
       </div>

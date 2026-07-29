@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState ,useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -32,7 +32,12 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
-
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");

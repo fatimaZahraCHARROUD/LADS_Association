@@ -14,7 +14,12 @@ export default function NewsDetails() {
   const navigate = useNavigate();
 
   const [news, setNews] = useState(null);
-
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   useEffect(() => {
 
     const fetchNews = async () => {

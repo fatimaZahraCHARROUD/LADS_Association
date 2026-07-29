@@ -19,7 +19,7 @@ import {
 const EMPTY_EVENT = {
   title: { ...EMPTY_ML },
   description: { ...EMPTY_ML },
-  category: "",
+  category: { ...EMPTY_ML },
   date: "",
   time: "",
   location: "",
@@ -38,8 +38,7 @@ function toFormDate(value) {
 }
 
 export default function AdminEvents() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_EVENT);
@@ -47,6 +46,7 @@ export default function AdminEvents() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 const [imageFile, setImageFile] = useState(null);
+const [rows,setRows]=useState([]);
 
   const load = async () => {
     try {
@@ -82,7 +82,7 @@ const openCreate = () => {
     setForm({
       title: ml(row.title),
       description: ml(row.description),
-      category: row.category || "",
+      category: ml(row.category),
       date: toFormDate(row.date),
       time: row.time || "",
       location: row.location || "",
@@ -144,6 +144,8 @@ const openCreate = () => {
       toast.success("Event created");
     }
 
+
+
     setDrawerOpen(false);
     setImageFile(null);
     await load();
@@ -153,6 +155,56 @@ const openCreate = () => {
     setSaving(false);
   }
 };
+
+    const groupedEvents = Object.values(
+  rows
+    .sort(
+      (a,b)=>
+        new Date(b.createdAt) -
+        new Date(a.createdAt)
+    )
+    .reduce((groups,event)=>{
+
+      const category =
+        mlDisplay(
+          event.category,
+          "en"
+        ) || "No category";
+
+
+      if(!groups[category]){
+        groups[category]={
+          category,
+          latest:new Date(event.createdAt),
+          events:[]
+        };
+      }
+
+
+      groups[category].events.push(event);
+
+
+      return groups;
+
+    },{})
+)
+.sort(
+(a,b)=>b.latest-a.latest
+);
+
+const existingCategories = Object.values(
+  rows.reduce((acc, event) => {
+
+    const key = JSON.stringify(event.category);
+
+    if (!acc[key]) {
+      acc[key] = event.category;
+    }
+
+    return acc;
+
+  }, {})
+);
 
   const togglePublish = async (row) => {
     try {
@@ -250,17 +302,26 @@ const openCreate = () => {
         onAdd={openCreate}
       />
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        searchPlaceholder="Search events..."
-        searchFn={(r, q) =>
-          mlDisplay(r.title).toLowerCase().includes(q) ||
-          (r.location || "").toLowerCase().includes(q)
-        }
-        emptyMessage="No events yet."
-      />
+     {
+groupedEvents.map(group=>(
+<div 
+ key={group.category}
+ className="mb-8"
+>
+
+
+<h2 className="text-lg font-bold mb-3">
+ {group.category}
+</h2>
+
+
+<DataTable
+ columns={columns}
+ rows={group.events}
+ loading={loading}
+ searchPlaceholder="Search events..."
+ emptyMessage="No events"
+/>
 
       <Drawer
         open={drawerOpen}
@@ -327,12 +388,12 @@ const openCreate = () => {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Category">
-              <TextInput
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-              />
-            </Field>
+           <MultilingualInput
+            as="textarea" rows={1}
+            label="Category"
+            value={form.category}
+            onChange={(v) => setForm({ ...form, category: v })}
+          />
             <Field label="Max participants">
               <NumberInput
                 min={0}
@@ -393,7 +454,9 @@ const openCreate = () => {
           </div>
         </form>
       </Drawer>
-
+</div>
+))
+}
       <ConfirmDialog
         open={!!confirmDelete}
         title="Delete event?"

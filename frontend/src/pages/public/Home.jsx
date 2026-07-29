@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { api } from "../../services/api";
+import { mlDisplay } from "../../utils/i18n";
 import {
   Users,
   CalendarDays,
   Newspaper,
+  ChevronDown,
   Lightbulb,
   Target,
   TrendingUp,
@@ -10,6 +13,8 @@ import {
   Sparkles,
   Globe,
   Briefcase,
+   ChevronLeft,
+  ChevronRight,
   GraduationCap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -18,47 +23,238 @@ import { useTranslation } from "react-i18next";
 import "../../Styles/home.css";
 
 export default function Home() {
-  const { t } = useTranslation();
+const { t, i18n } = useTranslation();
+
+const [slides, setSlides] = useState([]);
+const [activeSlide, setActiveSlide] = useState(0);
 const navigate = useNavigate();
+const faqs = [
+  {
+    question: t("about.faq.items.0.q"),
+    answer: t("about.faq.items.0.a"),
+  },
+  {
+    question: t("about.faq.items.1.q"),
+    answer: t("about.faq.items.1.a"),
+  },
+  {
+    question: t("about.faq.items.2.q"),
+    answer: t("about.faq.items.2.a"),
+  },
+  {
+    question: t("about.faq.items.3.q"),
+    answer: t("about.faq.items.3.a"),
+  },
+  {
+    question: t("about.faq.items.4.q"),
+    answer: t("about.faq.items.4.a"),
+  },
+  {
+    question: t("about.faq.items.5.q"),
+    answer: t("about.faq.items.5.a"),
+  },
+];
+const [openFaq, setOpenFaq] = useState(null);
+
+useEffect(() => {
+
+  const loadHero = async () => {
+
+    try {
+
+      const [
+        events,
+        activities,
+        formations,
+        news
+      ] = await Promise.all([
+        api.get("/events?isPublished=true"),
+        api.get("/activities?isPublished=true"),
+        api.get("/formations?isPublished=true"),
+        api.get("/news?isPublished=true"),
+      ]);
+
+
+      const prepare = (items,type)=>{
+
+        return items
+        .sort(
+          (a,b)=>
+          new Date(b.createdAt)
+          -
+          new Date(a.createdAt)
+        )
+        .slice(0,2)
+        .map(item=>({
+
+          ...item,
+
+          type
+
+        }));
+
+      };
+
+
+      const allSlides = [
+ ...prepare(events,"event"),
+ ...prepare(activities,"activity"),
+ ...prepare(formations,"formation"),
+ ...prepare(news,"news"),
+]
+.sort(
+(a,b)=>
+new Date(b.createdAt)
+-
+new Date(a.createdAt)
+)
+.slice(0,8);
+
+
+      setSlides(allSlides);
+
+
+    } catch(err){
+
+      console.log(err);
+
+    }
+
+  };
+
+
+  loadHero();
+
+},[]);
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
+useEffect(()=>{
+
+ if(!slides.length)
+   return;
+
+
+ const timer=setInterval(()=>{
+
+   setActiveSlide(
+     prev =>
+     (prev+1)%slides.length
+   );
+
+ },5000);
+
+
+ return ()=>clearInterval(timer);
+
+
+},[slides]);
+
+const prevSlide = () => {
+  setActiveSlide((prev) =>
+    prev === 0 ? slides.length - 1 : prev - 1
+  );
+};
+
+const nextSlide = () => {
+  setActiveSlide((prev) =>
+    (prev + 1) % slides.length
+  );
+};
+
   return (
     <div className="home-page">
 
       {/* HERO */}
-      <section className="hero">
-        <div className="hero-overlay"></div>
+<section className="hero">
 
-        <div className="container hero-wrapper">
-          <div className="hero-content">
+  {/* BACKGROUND IMAGE */}
+  <div
+    className="home-hero-background"
+    style={{
+      backgroundImage: slides.length 
+        ? `url(${slides[activeSlide]?.coverImage || slides[activeSlide]?.image || slides[activeSlide]?.imgUrl || slides[activeSlide]?.thumbnail})` 
+        : "",
+    }}
+  ></div>
 
-            <h1>
-              {t("home.hero.title")}
-            </h1>
 
-            <p>
-              {t("home.hero.desc")}
-            </p>
+  {/* BLACK OVERFLOW */}
+  <div className="hero-black-overlay"></div>
 
-            <br />
-            <br />
-            <br />
+{/* 
+<button
+  className="hero-arrow hero-arrow-left"
+  onClick={prevSlide}
+>
+  <ChevronLeft size={30} />
+</button>
 
-            {/* <div className="hero-buttons">
+<button
+  className="hero-arrow hero-arrow-right"
+  onClick={nextSlide}
+>
+  <ChevronRight size={30} />
+</button> */}
+  <div className="home-container hero-wrapper">
 
-              <button className="primary-btn">
-                {t("home.cta.button")}
-                <ArrowRight size={18} />
-              </button>
+      <div className="home-hero-content">
 
-              <button className="secondary-btn">
-                {t("home.activities.activities.button")}
-              </button>
+      {slides.length > 0 && (
+        <>
+           
 
+
+          <h1 className="hero-title">
+            LADS Association  
+          </h1> 
+          <p style={{color:"white"}}>{t("home.hero.desc")}</p><br />
+          {/* <div style={{"backgroundColor":"navy","color":"white", "borderRadius":"8px"}}>
+          <h2> {mlDisplay(
+              slides[activeSlide].title,
+              i18n.language
+            )}</h2>
             </div> */}
 
-          </div>
-        </div>
+        </>
+      )}
 
-        {/* STATS */}
+    </div>  
+
+
+    
+
+
+  </div>
+
+<div className="hero-info">
+
+      <div className="hero-dots">
+
+        {slides.map((slide,index)=>(
+
+          <button
+            key={slide._id}
+            className={`hero-dot ${index===activeSlide ? "active" : ""}`}
+            onClick={()=>setActiveSlide(index)}
+          />
+
+        ))}
+
+      </div>
+
+    </div>
+    
+</section>
+
+
+
+
+ {/* STATS */}
+ 
         <div className="hero-stats-wrapper">
           <div className="container">
             <div className="hero-stats-bar">
@@ -86,8 +282,6 @@ const navigate = useNavigate();
             </div>
           </div>
         </div>
-      </section>
-
       <div className="container">
 
         {/* ABOUT */}
@@ -248,7 +442,7 @@ const navigate = useNavigate();
                 className="activity-image"
                 style={{
                   backgroundImage:
-                    "url('https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=1200&auto=format&fit=crop')",
+                    "url('images/img2.png')",
                 }}
               ></div>
 
@@ -410,7 +604,7 @@ const navigate = useNavigate();
               className="formation-card side-card"
               style={{
                 backgroundImage:
-                  "url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1200&auto=format&fit=crop')",
+                  "url('images/team.png')",
               }}
             >
               <div className="formation-layer">
@@ -423,6 +617,76 @@ const navigate = useNavigate();
           </div>
 
         </section>
+
+{/* FAQ */}
+<section className="faq-section">
+
+  <div className="section-header">
+
+    <span className="section-tag">
+      {t("about.faq.tag")}
+    </span>
+
+    <h2>
+      {t("about.faq.title")}
+    </h2>
+
+  </div>
+
+  <div className="faq-list">
+
+    {faqs.map((faq, index) => (
+
+      <div
+        key={index}
+        className={`faq-item ${
+          openFaq === index ? "active" : ""
+        }`}
+      >
+
+        <button
+          className="faq-question"
+          onClick={() =>
+            setOpenFaq(
+              openFaq === index
+                ? null
+                : index
+            )
+          }
+        >
+
+          <span>{faq.question}</span>
+
+          <ChevronDown
+            className={
+              openFaq === index
+                ? "rotate"
+                : ""
+            }
+            size={22}
+          />
+
+        </button>
+
+        <div
+          className={`faq-answer ${
+            openFaq === index
+              ? "show"
+              : ""
+          }`}
+        >
+
+          <p>{faq.answer}</p>
+
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+
+</section>
 
         {/* TESTIMONIALS */}
         <section className="testimonials">

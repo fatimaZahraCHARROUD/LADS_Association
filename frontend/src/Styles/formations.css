@@ -193,7 +193,9 @@
   font-size: 22px;
   margin-bottom: 12px;
 }
-
+.formation-card{
+  cursor:pointer;
+}
 .formation-content p {
   color: #64748b;
   line-height: 1.7;
@@ -202,10 +204,11 @@
 
 /* INFO */
 .formation-info {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 22px;
+   display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    margin:12px 0;
 }
 
 .formation-info span {

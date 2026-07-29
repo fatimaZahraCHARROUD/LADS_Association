@@ -30,11 +30,16 @@ const navigate=useNavigate();
 
   const [loading, setLoading] =
     useState(true);
-  const [selectedImage, setSelectedImage] =
-  useState(null);
+const [selectedActivity, setSelectedActivity] = useState(null);  useState(null);
   /* =========================
       FETCH DATA
   ========================= */
+  useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
   useEffect(() => {
 
     const fetchData = async () => {
@@ -129,7 +134,7 @@ const navigate=useNavigate();
             {t("activities.hero.badge")}
           </span>
 
-          <h1>
+          <h1 >
             {t("activities.hero.title")}
           </h1>
 
@@ -216,11 +221,11 @@ const navigate=useNavigate();
 
               <div
                 className="activity-card"
-                key={activity._id}
+                key={activity._id}  onClick={() => setSelectedActivity(activity)}
               >
 
                 {/* IMAGE */}
-                <div className="activity-image"   onClick={() => setSelectedImage(activity.image)}>
+                <div className="activity-image"  >
 
                   <img
                     src={activity.image}
@@ -246,9 +251,7 @@ const navigate=useNavigate();
                     {mlDisplay(activity.title, i18n.language)}
                   </h3>
 
-                  <p>
-                    {mlDisplay(activity.description, i18n.language)}
-                  </p>
+                 
 
                   <div className="activity-info">
 
@@ -264,7 +267,9 @@ const navigate=useNavigate();
 
                   </div>
 
-                     <button className="join-btn" onClick={()=> navigate("/membership")}>
+                     <button className="join-btn" onClick={(e) => {
+    e.stopPropagation();
+     navigate("/membership")}}>
                       {t("formations.buttons.join")}
                     </button>
                   {/* <button className="details-btn">
@@ -300,29 +305,46 @@ const navigate=useNavigate();
 
 {/* IMAGE MODAL */}
 {
-  selectedImage && (
+  selectedActivity && (
 
     <div
       className="image-modal"
-      onClick={() => setSelectedImage(null)}
+      onClick={() => setSelectedActivity(null)}
     >
 
       <div
-        className="image-modal-content"
+        className="image-modal-content preview-modal"
         onClick={(e) => e.stopPropagation()}
       >
 
         <button
           className="close-modal"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => setSelectedActivity(null)}
         >
           ✕
         </button>
 
         <img
-          src={selectedImage}
-          alt="Formation"
+          src={selectedActivity.image}
+          alt={mlDisplay(selectedActivity.title, i18n.language)}
         />
+
+        <div className="preview-content">
+
+          <h2>
+            {mlDisplay(selectedActivity.title, i18n.language)}
+          </h2>
+
+          
+
+          <p>
+            {mlDisplay(
+              selectedActivity.description,
+              i18n.language
+            )}
+          </p>
+
+        </div>
 
       </div>
 

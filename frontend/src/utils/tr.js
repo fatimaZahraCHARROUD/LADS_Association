@@ -9,7 +9,8 @@ const resources = {
       home: {
         hero: {
           title: "Empowering Youth to Become Leaders of Change",
-          desc: "L.A.D.S is a youth association dedicated to leadership, entrepreneurship, and social innovation — transforming ideas into impactful real-world initiatives.",
+          desc: "Your Journey to Growth, Leadership & Meaningful Networking Starts Here.",
+          discover:"Discover More"
         },
 
         stats: {
@@ -103,20 +104,20 @@ const resources = {
           tag: "Testimonials",
           title: "Voices From Our Community",
 
-          first: {
-            text: "L.A.D.S helped me improve my confidence and leadership skills.",
-            author: "Association Member",
-          },
+           first: {
+      text: "Joining L.A.D.S during my studies at ENIAD was one of my best decisions. It helped me build leadership, teamwork, and public speaking skills while boosting my confidence.",
+      author: "Association Member",
+    },
 
-          second: {
-            text: "The workshops and mentorship changed the way I think about entrepreneurship.",
-            author: "Young Entrepreneur",
-          },
+    second: {
+      text: "Being a responsible member at L.A.D.S strengthened my leadership, decision-making, and teamwork skills while allowing me to turn ideas into real projects.",
+      author: "Association Responsible",
+    },
 
-          third: {
-            text: "An inspiring environment full of ambitious and creative youth.",
-            author: "Volunteer",
-          },
+    third: {
+      text: "It was a pleasure to speak at a L.A.D.S webinar. The organization was excellent, and the members' enthusiasm made the experience truly inspiring.",
+      author: "Webinar Guest Speaker",
+    },
         },
 
         cta: {
@@ -290,6 +291,36 @@ about: {
       },
     ],
   },
+  "faq": {
+  "tag": "FAQ",
+  "title": "Frequently Asked Questions",
+  "items": [
+    {
+      "q": "What is LADS Association?",
+      "a": "LADS is a Moroccan non-profit organization dedicated to empowering youth through leadership, education, innovation, entrepreneurship, and community service."
+    },
+    {
+      "q": "Who can join LADS?",
+      "a": "Students, graduates, young professionals, and anyone who shares our values and wishes to contribute to positive social impact can become members."
+    },
+    {
+      "q": "What activities does LADS organize?",
+      "a": "We organize training programs, workshops, conferences, networking events, competitions, social initiatives, and community projects throughout the year."
+    },
+    {
+      "q": "How is LADS organized?",
+      "a": "LADS is composed of Communication & Coordination, Media & Marketing, Human Resources, Information Technology, Events, Finance, Projects, and Statistics & Analytics departments."
+    },
+    {
+      "q": "How can I participate in LADS activities?",
+      "a": "You can register through our website, follow our social media pages, or become a member to receive updates and exclusive opportunities."
+    },
+    {
+      "q": "How can organizations partner with LADS?",
+      "a": "Organizations can collaborate with LADS through sponsorships, joint projects, training programs, mentorship, internships, and strategic partnerships."
+    }
+  ]
+},
 
   team: {
 
@@ -359,17 +390,17 @@ formations: {
 
   filters: {
     all: "All",
-    leadership: "Leadership",
-    digital: "Digital",
+    SoftSkills: "Soft Skills",
+    digital: "Media & Digital",
     social: "Social",
     entrepreneurship: "Entrepreneurship"
   },
 
   categories: {
-    leadership: "Leadership",
-    digital: "Digital",
-    social: "Social",
-    entrepreneurship: "Entrepreneurship"
+    SoftSkills: "Soft Skills",
+    MediaAndDigital: "Media & Digital",
+    Social: "Social",
+    Entrepreneurship: "Entrepreneurship"
   },
 
   buttons: {
@@ -396,9 +427,10 @@ news: {
 
   categories: {
     all: "All",
-    Leadership: "Leadership",
-    Innovation: "Innovation",
-    "Social Action": "Social Action",
+    urgent: "Urgent",
+    general: "General",
+    announcement: "Announcement",
+    recruitment: "Recruitment",
   },
 },
 contact: {
@@ -526,7 +558,8 @@ login: {
       home: {
         hero: {
           title: "Donner aux jeunes les moyens de devenir des leaders du changement",
-          desc: "L.A.D.S est une association de jeunesse dédiée au leadership, à l’entrepreneuriat et à l’innovation sociale afin de transformer les idées en projets à impact.",
+          desc:  "Votre parcours vers la croissance, le leadership et un réseau professionnel commence ici.",
+          discover:"Découvrir plus"
         },
 
         stats: {
@@ -620,20 +653,20 @@ login: {
           tag: "Témoignages",
           title: "Les voix de notre communauté",
 
-          first: {
-            text: "L.A.D.S m’a aidé à améliorer ma confiance et mes compétences en leadership.",
-            author: "Membre de l’association",
-          },
+           first: {
+      text: "Rejoindre L.A.D.S pendant mes études à l'ENIAD a été une excellente décision. J'y ai développé mon leadership, mon esprit d'équipe et ma confiance pour parler en public.",
+      author: "Membre de l'association",
+    },
 
-          second: {
-            text: "Les ateliers et le mentorat ont changé ma vision de l’entrepreneuriat.",
-            author: "Jeune Entrepreneur",
-          },
+    second: {
+      text: "Être responsable au sein de L.A.D.S m'a permis de développer mon leadership, de mieux gérer une équipe et de concrétiser des idées en projets réels.",
+      author: "Responsable de l'association",
+    },
 
-          third: {
-            text: "Un environnement inspirant rempli de jeunes ambitieux et créatifs.",
-            author: "Bénévole",
-          },
+    third: {
+      text: "J'ai eu le plaisir d'intervenir lors d'un webinaire de L.A.D.S. L'organisation était excellente et les échanges avec les jeunes étaient très enrichissants.",
+      author: "Invité du webinaire",
+    },
         },
 
         cta: {
@@ -732,7 +765,36 @@ events: {
 // FRENCH
 
 about: {
-
+"faq": {
+  "tag": "FAQ",
+  "title": "Questions Fréquemment Posées",
+  "items": [
+    {
+      "q": "Qu'est-ce que l'association LADS ?",
+      "a": "LADS est une association marocaine à but non lucratif dédiée au développement des jeunes à travers le leadership, l'éducation, l'innovation, l'entrepreneuriat et l'engagement citoyen."
+    },
+    {
+      "q": "Qui peut rejoindre LADS ?",
+      "a": "Les étudiants, diplômés, jeunes professionnels et toute personne partageant nos valeurs peuvent rejoindre l'association."
+    },
+    {
+      "q": "Quelles activités organise LADS ?",
+      "a": "Nous organisons des formations, ateliers, conférences, événements de networking, compétitions, initiatives sociales et projets communautaires."
+    },
+    {
+      "q": "Comment est organisée l'association ?",
+      "a": "LADS comprend les départements Communication & Coordination, Média & Marketing, Ressources Humaines, Informatique, Événementiel, Finance, Projets et Statistiques & Analyse."
+    },
+    {
+      "q": "Comment participer aux activités de LADS ?",
+      "a": "Vous pouvez vous inscrire via notre site web, suivre nos réseaux sociaux ou devenir membre."
+    },
+    {
+      "q": "Comment devenir partenaire de LADS ?",
+      "a": "Les organisations peuvent collaborer avec LADS à travers des partenariats, du sponsoring, des formations, des stages et des projets communs."
+    }
+  ]
+},
   loading: "Chargement du contenu...",
 
   hero: {
@@ -877,17 +939,17 @@ formations: {
 
   filters: {
     all: "Tous",
-    leadership: "Leadership",
-    digital: "Digital",
+    SoftSkills: "Soft Skills",
+    digital: "Media & Digital",
     social: "Social",
     entrepreneurship: "Entrepreneuriat"
   },
 
   categories: {
-    leadership: "Leadership",
-    digital: "Digital",
-    social: "Social",
-    entrepreneurship: "Entrepreneuriat"
+    SoftSkills: "Soft Skills",
+    MediaAndDigital: "Media & Digital",
+    Social: "Social",
+    Entrepreneurship: "Entrepreneuriat"
   },
 
   buttons: {
@@ -914,9 +976,10 @@ news: {
 
   categories: {
     all: "Tous",
-    Leadership: "Leadership",
-    Innovation: "Innovation",
-    "Social Action": "Action sociale",
+    urgent: "Urgent",
+    general: "Général",
+    announcement: "Annonce",
+    recruitment: "Recrutement",
   },
 },contact: {
 
@@ -1044,7 +1107,8 @@ login: {
       home: {
         hero: {
           title: "تمكين الشباب ليصبحوا قادة التغيير",
-          desc: "جمعية L.A.D.S هي جمعية شبابية تهدف إلى تطوير القيادة، ريادة الأعمال، والابتكار الاجتماعي لتحويل الأفكار إلى مشاريع ذات أثر حقيقي.",
+          desc: "رحلتك نحو النمو والقيادة وبناء شبكة علاقات قوية تبدأ من هنا.",
+          
         },
 
         stats: {
@@ -1138,20 +1202,20 @@ login: {
           tag: "آراء الأعضاء",
           title: "أصوات من مجتمعنا",
 
-          first: {
-            text: "ساعدتني L.A.D.S على تطوير الثقة بالنفس ومهارات القيادة.",
-            author: "عضو بالجمعية",
-          },
+           first: {
+      text: "كان انضمامي إلى L.A.D.S خلال دراستي في ENIAD من أفضل القرارات. ساعدتني الجمعية على تطوير القيادة والعمل الجماعي والتحدث أمام الجمهور وزادت ثقتي بنفسي.",
+      author: "عضو في الجمعية",
+    },
 
-          second: {
-            text: "غيرت الورشات والتأطير طريقتي في التفكير حول ريادة الأعمال.",
-            author: "رائد أعمال شاب",
-          },
+    second: {
+      text: "كان تحملي لمسؤولية داخل L.A.D.S تجربة مميزة، طورت من خلالها مهارات القيادة واتخاذ القرار والعمل مع الفريق وتحويل الأفكار إلى مشاريع حقيقية.",
+      author: "مسؤول في الجمعية",
+    },
 
-          third: {
-            text: "بيئة ملهمة مليئة بالشباب الطموح والمبدع.",
-            author: "متطوع",
-          },
+    third: {
+      text: "سعدت بالمشاركة في إحدى ندوات L.A.D.S. كان التنظيم احترافيًا والأعضاء متحمسين، وكانت تجربة ملهمة ومثرية للغاية.",
+      author: "ضيف الندوة",
+    },
         },
 
         cta: {
@@ -1249,7 +1313,36 @@ events: {
 about: {
 
   loading: "جارٍ تحميل المحتوى...",
-
+"faq": {
+  "tag": "الأسئلة الشائعة",
+  "title": "الأسئلة الأكثر شيوعًا",
+  "items": [
+    {
+      "q": "ما هي جمعية LADS؟",
+      "a": "LADS هي جمعية مغربية غير ربحية تهدف إلى تمكين الشباب من خلال القيادة والتعليم والابتكار وريادة الأعمال وخدمة المجتمع."
+    },
+    {
+      "q": "من يمكنه الانضمام إلى الجمعية؟",
+      "a": "يمكن للطلبة والخريجين والمهنيين الشباب وكل من يشاركنا قيمنا ورؤيتنا الانضمام إلى الجمعية."
+    },
+    {
+      "q": "ما هي الأنشطة التي تنظمها الجمعية؟",
+      "a": "ننظم دورات تدريبية وورش عمل ومؤتمرات وفعاليات للتواصل ومبادرات مجتمعية ومسابقات ومشاريع ذات أثر اجتماعي."
+    },
+    {
+      "q": "كيف يتم تنظيم الجمعية؟",
+      "a": "تتكون الجمعية من أقسام التواصل والتنسيق، الإعلام والتسويق، الموارد البشرية، تكنولوجيا المعلومات، الفعاليات، المالية، المشاريع، والإحصاء والتحليل."
+    },
+    {
+      "q": "كيف يمكنني المشاركة في أنشطة الجمعية؟",
+      "a": "يمكنك التسجيل عبر موقعنا الإلكتروني أو متابعة صفحاتنا على وسائل التواصل الاجتماعي أو الانضمام كعضو."
+    },
+    {
+      "q": "كيف يمكن للمؤسسات الشراكة مع LADS؟",
+      "a": "يمكن للمؤسسات التعاون مع الجمعية من خلال الرعاية، والمشاريع المشتركة، والتدريب، وبرامج الإرشاد، والتدريب المهني، والشراكات الاستراتيجية."
+    }
+  ]
+},
   hero: {
 
     badge: "حول L.A.D.S",
@@ -1392,17 +1485,17 @@ formations: {
 
   filters: {
     all: "الكل",
-    leadership: "القيادة",
-    digital: "رقمي",
-    social: "اجتماعي",
-    entrepreneurship: "ريادة الأعمال"
+    SoftSkills: "المهارات الشخصية",
+  digital: "الإعلام والرقمنة",
+  social: "اجتماعي",
+  entrepreneurship: "ريادة الأعمال"
   },
 
   categories: {
-    leadership: "القيادة",
-    digital: "رقمي",
-    social: "اجتماعي",
-    entrepreneurship: "ريادة الأعمال"
+     SoftSkills: "المهارات الشخصية",
+  MediaAndDigital: "الإعلام والرقمنة",
+  Social: "اجتماعي",
+  Entrepreneurship: "ريادة الأعمال"
   },
 
   buttons: {
@@ -1429,10 +1522,11 @@ news: {
 
   categories: {
     all: "الكل",
-    Leadership: "القيادة",
-    Innovation: "الابتكار",
-    "Social Action": "العمل الاجتماعي",
-  },
+    urgent: "عاجل",
+    general: "عام",
+    announcement: "إعلان",
+    recruitment: "التوظيف",
+  }
 },
 contact: {
 
