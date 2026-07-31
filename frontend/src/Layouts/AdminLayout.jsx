@@ -54,6 +54,9 @@ function AdminShell() {
       logout={logout}
     />
   );
+  useEffect(() => {
+  document.documentElement.dir = "ltr";
+}, []);
 
   return (
     <div className="flex h-screen bg-brand-bg overflow-hidden">
@@ -99,7 +102,7 @@ function SidebarBody({
 }) {
   return (
     <>
-      <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border" dir="ltr"   >
         <img
           src="/logo.png"
           alt="LADS"

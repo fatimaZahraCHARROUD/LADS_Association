@@ -6,7 +6,8 @@ import {
   Menu,MessageCircle,
   X,MapPin,
   Phone,
-  Mail,Globe, ChevronDown
+  Mail,Globe, ChevronDown,User,
+  LayoutDashboard,
 } from "lucide-react";
 
 import {
@@ -20,6 +21,33 @@ import { useTranslation } from "react-i18next";
 import "../Styles/mainLayout.css";
 
 export default function MainLayout() {
+
+  function decodeJwt(token) {
+  if (!token) return null;
+
+  try {
+    const payload = token.split(".")[1];
+
+    return JSON.parse(
+      atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    );
+  } catch {
+    return null;
+  }
+}
+
+const token = localStorage.getItem("token");
+
+const currentUser = decodeJwt(token);
+
+const isLoggedIn = !!currentUser;
+
+const userName =
+  currentUser?.name ||
+  currentUser?.fullName ||
+  currentUser?.email ||
+  "User";
+
 
   const [open, setOpen] = useState(false);
 const [desktopLangOpen,setdesktopLangOpen]=useState(false);
@@ -117,10 +145,10 @@ return()=>document.removeEventListener("mousedown",handle);
     infoMap.email || "lahdse@gmail.com";
 
   const instagram =
-    infoMap.instagram || "#";
+    infoMap.instagram || "https://www.instagram.com/leader_association?igsh=YTlnbWdvc25kMjRm";
 
   const linkedin =
-    infoMap.linkedin || "#";
+    infoMap.linkedin || "https://www.linkedin.com/in/leader-association-98196a39b/";
 
   return (
     <div className="main-layout">
@@ -352,13 +380,31 @@ setdesktopLangOpen(false);
     {t("layout.join")}
   </Link>
 
-  <Link
-    to="/login"
-    className="mobile-join-btn"
-    onClick={() => setOpen(false)}
-  >
-    {t("layout.login")}
-  </Link>
+    {isLoggedIn ? (
+    <>
+      
+
+      <Link   style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          cursor: "default",color:"white"
+        }}
+        className="join-btn"
+        to="/admin" onClick={() => setOpen(false)}
+      >
+         <User size={16} />
+        {userName}
+      </Link>
+    </>
+  ) : (
+    <Link
+      className="join-btn" style={{color:"white"}}
+      to="/login" onClick={() => setOpen(false)}
+    >
+      {t("layout.login")}
+    </Link>
+  )}
      {/* LANG SWITCHER */}
        
     <button
@@ -440,22 +486,41 @@ onClick={()=>{
         {/* DESKTOP ACTIONS */}
         <div className="desktop-actions">
 
-          <Link
-            className="login-btn"
-            to="/membership"
-            style={{ margin: "4px" }}
-          >
-            {t("layout.join")}
-          </Link>
+  <Link
+    className="login-btn"
+    to="/membership"
+    style={{ margin: "4px" }}
+  >
+    {t("layout.join")}
+  </Link>
 
-          <Link
-            className="join-btn"
-            to="/login"
-          >
-            {t("layout.login")}
-          </Link>
+  {isLoggedIn ? (
+    <>
+      
 
-        </div>
+      <Link   style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          cursor: "default",
+        }}
+        className="join-btn"
+        to="/admin"
+      >
+         <User size={16} />
+        {userName}
+      </Link>
+    </>
+  ) : (
+    <Link
+      className="join-btn"
+      to="/login"
+    >
+      {t("layout.login")}
+    </Link>
+  )}
+
+</div>
 
       </header>
 

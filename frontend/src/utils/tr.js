@@ -531,6 +531,7 @@ membership: {
   errors: {
     required: "All fields are required",
     phone: "Invalid phone number",
+    email:"Invalid email address",
     motivation: "Motivation must be at least 10 characters",
   },
 
@@ -1079,6 +1080,7 @@ membership: {
   errors: {
     required: "Tous les champs sont obligatoires",
     phone: "Numéro invalide",
+    email:"Adresse email invalide",
     motivation: "Minimum 10 caractères",
   },
 
@@ -1625,6 +1627,7 @@ contact: {
   errors: {
     required: "جميع الحقول مطلوبة",
     phone: "رقم غير صالح",
+    email:"البريد الإلكتروني غير صالح",
     motivation: "يجب أن لا يقل عن 10 أحرف",
   },
 

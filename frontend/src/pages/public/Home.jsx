@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-
+const heroFallback = "/images/home.png";
 import "../../Styles/home.css";
 
 export default function Home() {
@@ -145,7 +145,7 @@ useEffect(()=>{
      (prev+1)%slides.length
    );
 
- },5000);
+ },4000);
 
 
  return ()=>clearInterval(timer);
@@ -164,6 +164,14 @@ const nextSlide = () => {
     (prev + 1) % slides.length
   );
 };
+const visibleSlides =
+  slides.length > 0
+    ? [
+        slides[activeSlide % slides.length],
+        slides[(activeSlide + 1) % slides.length],
+        slides[(activeSlide + 2) % slides.length],
+      ]
+    : [];
 
   return (
     <div className="home-page">
@@ -172,14 +180,24 @@ const nextSlide = () => {
 <section className="hero">
 
   {/* BACKGROUND IMAGE */}
-  <div
-    className="home-hero-background"
-    style={{
-      backgroundImage: slides.length 
-        ? `url(${slides[activeSlide]?.coverImage || slides[activeSlide]?.image || slides[activeSlide]?.imgUrl || slides[activeSlide]?.thumbnail})` 
-        : "",
-    }}
-  ></div>
+ <div className="hero-slider">
+ {visibleSlides.map((slide, index) => (
+  <div 
+    key={slide._id || index}
+    className={`hero-slide ${index === 1 ? "active" : ""}`}
+  >
+    <img
+      src={
+        slide.coverImage ||
+        slide.image ||
+        slide.imgUrl ||
+        slide.thumbnail
+      }
+      alt=""
+    />
+  </div>
+))}
+</div>
 
 
   {/* BLACK OVERFLOW */}
@@ -203,8 +221,7 @@ const nextSlide = () => {
 
       <div className="home-hero-content">
 
-      {slides.length > 0 && (
-        <>
+      
            
 
 
@@ -219,9 +236,7 @@ const nextSlide = () => {
             )}</h2>
             </div> */}
 
-        </>
-      )}
-
+        
     </div>  
 
 
@@ -232,19 +247,17 @@ const nextSlide = () => {
 
 <div className="hero-info">
 
-      <div className="hero-dots">
-
-        {slides.map((slide,index)=>(
-
-          <button
-            key={slide._id}
-            className={`hero-dot ${index===activeSlide ? "active" : ""}`}
-            onClick={()=>setActiveSlide(index)}
-          />
-
-        ))}
-
-      </div>
+     {slides.length > 0 && (
+  <div className="hero-dots">
+    {slides.map((slide, index) => (
+      <button
+        key={slide._id}
+        className={`hero-dot ${index === activeSlide ? "active" : ""}`}
+        onClick={() => setActiveSlide(index)}
+      />
+    ))}
+  </div>
+)}
 
     </div>
     

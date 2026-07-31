@@ -77,10 +77,10 @@ export default function Contact() {
     infoMap.address || "Berkane, Morocco";
 
   const instagram =
-    infoMap.instagram || "#";
+    infoMap.instagram || "https://www.instagram.com/leader_association?igsh=YTlnbWdvc25kMjRm";
 
   const linkedin =
-    infoMap.linkedin || "#";
+    infoMap.linkedin || "https://www.linkedin.com/in/leader-association-98196a39b/";
 
   const whatsappNumber =
     phone.replace(/\D/g, "");

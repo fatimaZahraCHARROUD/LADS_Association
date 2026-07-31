@@ -75,6 +75,15 @@ useEffect(() => {
       return false;
     }
 
+     const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(form.email)) {
+      setError(t("membership.errors.email"));
+      setTimeout(() => setError(""), 2000);
+      return false;
+    }
+
     const phoneRegex = /^(?:\+|00|0)?[1-9]\d{7,14}$/;
 
     if (!phoneRegex.test(form.phone)) {

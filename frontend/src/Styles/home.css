@@ -1313,5 +1313,71 @@ height: 490px;
     background:#fff;
 }
 
+.hero-slider {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 15px;
+  padding: 20px;
+  z-index: 0;
+}
+
+.hero-slide {
+  flex: 1;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.hero-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+
+.hero-slide {
+  transition: all 0.8s ease;
+  opacity: 0.7;
+}
+
+.hero-slide.active {
+  transform: scale(1.08) translateY(-10px);
+  opacity: 1;
+width:50%;
+
+}
+
+
+
+
+
+
+
+@media (max-width: 768px) {
+
+  .hero-slider {
+    padding: 0;
+    gap: 0;
+  }
+
+  .hero-slide {
+    display: none;
+  }
+
+  .hero-slide.active {
+    display: block;
+    width: 100%;
+    flex: none;
+  }
+
+  .hero-slide.active img {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+  }
+
+}
+
+
 
 

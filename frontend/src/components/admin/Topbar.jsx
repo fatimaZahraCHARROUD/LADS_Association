@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Search, Bell, Mail, ChevronDown, LogOut, Menu, Users, ClipboardList,
+  Search, Bell,  Home, Mail, ChevronDown, LogOut, Menu, Users, ClipboardList,
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useTopSearch } from "../../contexts/TopSearchContext";
@@ -182,23 +182,38 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
             </span>
             <ChevronDown size={16} className="hidden sm:block text-brand-muted shrink-0" />
           </button>
-          {profileOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-brand-border">
-                <p className="text-sm font-medium text-brand-text truncate">{displayName}</p>
-                {user.email && user.email !== displayName && (
-                  <p className="text-xs text-brand-muted truncate">{user.email}</p>
-                )}
-              </div>
-              <button
-                onClick={logout}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-danger hover:bg-red-50"
-              >
-                <LogOut size={16} />
-                Logout
-              </button>
-            </div>
-          )}
+         {profileOpen && (
+  <div className="absolute right-0 mt-2 w-56 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
+    <div className="px-4 py-3 border-b border-brand-border">
+      <p className="text-sm font-medium text-brand-text truncate">
+        {displayName}
+      </p>
+
+      {user.email && user.email !== displayName && (
+        <p className="text-xs text-brand-muted truncate">
+          {user.email}
+        </p>
+      )}
+    </div>
+
+    <Link
+      to="/"
+      onClick={() => setProfileOpen(false)}
+      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-text hover:bg-gray-50"
+    >
+      <Home size={16} />
+      Home Page
+    </Link>
+
+    <button
+      onClick={logout}
+      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-danger hover:bg-red-50"
+    >
+      <LogOut size={16} />
+      Logout
+    </button>
+  </div>
+)}
         </div>
       </div>
     </header>
