@@ -11,6 +11,7 @@ import { MembershipRequestsModule } from './membership-requests/membership-reque
 import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
 import { AuthModule } from './auth/auth.module';
 import {UploadModule} from './upload/upload.module';
+import { DocumentsModule } from './documents/documents.module';
 @Module({
   imports: [
     DatabaseConfig,
@@ -25,6 +26,7 @@ import {UploadModule} from './upload/upload.module';
     EventRegistrationsModule,
     AuthModule,
     UploadModule,
+    DocumentsModule,
   ],
 })
 export class AppModule {}
