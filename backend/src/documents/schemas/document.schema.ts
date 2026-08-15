@@ -22,12 +22,6 @@ export class LadsDocument {
 
   @Prop({ default: '' })
   description!: string;
-
-  @Prop({ enum: ['public', 'department', 'private'], default: 'department' })
-  visibility!: string;
-
-  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
-  allowedUsers!: Types.ObjectId[];
 }
 
 export const DocumentSchema = SchemaFactory.createForClass(LadsDocument);

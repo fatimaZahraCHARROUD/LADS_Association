@@ -5,6 +5,4 @@ export class CreateDocumentDto {
   uploadedBy?: string;
   driveUrl!: string;
   description?: string;
-  visibility?: 'public' | 'department' | 'private';
-  allowedUsers?: string[];
 }

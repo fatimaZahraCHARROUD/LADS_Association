@@ -12,6 +12,8 @@ import { EventRegistrationsModule } from './event-registrations/event-registrati
 import { AuthModule } from './auth/auth.module';
 import {UploadModule} from './upload/upload.module';
 import { DocumentsModule } from './documents/documents.module';
+import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
+import { MeetingsModule } from './meetings/meetings.module';
 @Module({
   imports: [
     DatabaseConfig,
@@ -27,6 +29,8 @@ import { DocumentsModule } from './documents/documents.module';
     AuthModule,
     UploadModule,
     DocumentsModule,
+    DocumentPermissionsModule,
+    MeetingsModule,
   ],
 })
 export class AppModule {}

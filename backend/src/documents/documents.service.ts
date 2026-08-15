@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { LadsDocument, LadsDocumentDocument } from './schemas/document.schema';
@@ -24,7 +24,6 @@ export class DocumentsService {
       .find(filter)
       .sort({ createdAt: -1 })
       .populate('uploadedBy', 'fullName email')
-      .populate('department', 'name')
       .exec();
   }
 
@@ -32,7 +31,6 @@ export class DocumentsService {
     const document = await this.documentModel
       .findById(id)
       .populate('uploadedBy', 'fullName email')
-      .populate('department', 'name')
       .exec();
     if (!document) throw new NotFoundException(`Document ${id} not found`);
     return document;
@@ -49,20 +47,5 @@ export class DocumentsService {
     if (!existing) throw new NotFoundException(`Document ${id} not found`);
     await this.documentModel.findByIdAndDelete(id).exec();
     return { message: 'Document deleted' };
-  }
-
-  canView(
-    document: LadsDocumentDocument,
-    userId: string,
-    userDepartments: string[],
-  ): boolean {
-    if (document.visibility === 'public') return true;
-    if (document.visibility === 'department') {
-      return userDepartments.includes(document.department.toString());
-    }
-    if (document.visibility === 'private') {
-      return document.allowedUsers.map((u) => u.toString()).includes(userId);
-    }
-    return false;
   }
 }
