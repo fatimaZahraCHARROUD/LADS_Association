@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { api } from "../../services/api";
-
+import StatCard from "../../components/statcard";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const PERIOD = {
@@ -206,7 +206,11 @@ export default function Dashboard() {
           )}
         </div>
       </header>
-
+{/* STATS CARDS */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+  <StatCard title="Total Départements" count={data?.formations?.length || 0} />
+<StatCard title="Total Membres" count={data?.memberships?.length || 0} />
+</div>
       {/* STATS GRID */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
         {CARD_DEFS.map((def, i) => {
