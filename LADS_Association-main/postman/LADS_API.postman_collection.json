@@ -1,0 +1,411 @@
+{
+  "info": {
+    "name": "LADS Association API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "{{baseUrl}}" }
+  ],
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get all users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Get user by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/users",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Abdelghani Ait Tamghart\",\n  \"email\": \"abdelghani@example.com\",\n  \"password\": \"securepassword\",\n  \"role\": [\"Member\"],\n  \"genre\": \"Male\",\n  \"phone\": \"0600000000\",\n  \"birthday\": \"2000-01-01\",\n  \"ville\": \"Berkane\",\n  \"niveau_etude\": \"Bac+3\",\n  \"specialite_etude\": \"Informatique\",\n  \"situation\": \"Étudiant\",\n  \"departement\": [\"IT\"],\n  \"date_adhesion\": \"2026-01-01\",\n  \"cotisation_payee\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/users/{{userId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cotisation_payee\": true,\n  \"role\": [\"Member\", \"Responsible\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Get all events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"],
+              "query": [
+                { "key": "status", "value": "upcoming", "disabled": true },
+                { "key": "isPublished", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get event by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          }
+        },
+        {
+          "name": "Create event",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/events",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": {\n    \"en\": \"Leadership Workshop\",\n    \"fr\": \"Atelier de leadership\",\n    \"ar\": \"ورشة عمل القيادة\"\n  },\n  \"description\": {\n    \"en\": \"A workshop on leadership skills.\",\n    \"fr\": \"Un atelier sur les compétences en leadership.\",\n    \"ar\": \"ورشة عمل حول مهارات القيادة.\"\n  },\n  \"category\": \"Workshop\",\n  \"date\": \"2026-06-15\",\n  \"time\": \"10:00\",\n  \"location\": \"Berkane\",\n  \"maxParticipants\": 50,\n  \"coverImage\": \"\",\n  \"registerLink\": \"\",\n  \"status\": \"upcoming\",\n  \"isPublished\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Update event",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/events/{{eventId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": \"Oujda\",\n  \"maxParticipants\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "Toggle publish event",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/events/{{eventId}}/publish"
+          }
+        },
+        {
+          "name": "Delete event",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/events/{{eventId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Activities",
+      "item": [
+        {
+          "name": "Get all activities",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/activities"
+          }
+        },
+        {
+          "name": "Get activity by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/activities/{{activityId}}"
+          }
+        },
+        {
+          "name": "Create activity",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/activities",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": {\n    \"en\": \"Community Cleanup\",\n    \"fr\": \"Nettoyage communautaire\",\n    \"ar\": \"تنظيف المجتمع\"\n  },\n  \"description\": {\n    \"en\": \"A cleanup activity in the city.\",\n    \"fr\": \"Une activité de nettoyage dans la ville.\",\n    \"ar\": \"نشاط تنظيف في المدينة.\"\n  },\n  \"activityDate\": \"2026-07-10\",\n  \"location\": \"Berkane\",\n  \"images\": [],\n  \"categorie\": \"Volunteering\",\n  \"status\": \"upcoming\",\n  \"isPublished\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Update activity",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/activities/{{activityId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": \"Oujda\",\n  \"status\": \"completed\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Toggle publish activity",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/activities/{{activityId}}/publish"
+          }
+        },
+        {
+          "name": "Delete activity",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/activities/{{activityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "News",
+      "item": [
+        {
+          "name": "Get all news",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/news"
+          }
+        },
+        {
+          "name": "Get news by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/news/{{newsId}}"
+          }
+        },
+        {
+          "name": "Create news",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/news",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": {\n    \"en\": \"LADS Launches New Program\",\n    \"fr\": \"LADS lance un nouveau programme\",\n    \"ar\": \"لادس تطلق برنامجاً جديداً\"\n  },\n  \"content\": {\n    \"en\": \"We are excited to announce a new leadership program.\",\n    \"fr\": \"Nous sommes ravis d'annoncer un nouveau programme de leadership.\",\n    \"ar\": \"يسعدنا الإعلان عن برنامج قيادي جديد.\"\n  },\n  \"thumbnail\": \"\",\n  \"tags\": [\"leadership\", \"program\"],\n  \"isPublished\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Update news",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/news/{{newsId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tags\": [\"leadership\", \"program\", \"youth\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Toggle publish news",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/news/{{newsId}}/publish"
+          }
+        },
+        {
+          "name": "Delete news",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/news/{{newsId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "LADS Info",
+      "item": [
+        {
+          "name": "Get all LADS info",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/lads-info"
+          }
+        },
+        {
+          "name": "Get LADS info by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/lads-info/{{ladsInfoId}}"
+          }
+        },
+        {
+          "name": "Create LADS info",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/lads-info",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": {\n    \"en\": \"About LADS\",\n    \"fr\": \"À propos de LADS\",\n    \"ar\": \"عن لادس\"\n  },\n  \"content\": {\n    \"en\": \"LADS is a youth leadership association based in Berkane, Morocco.\",\n    \"fr\": \"LADS est une association de leadership jeunesse basée à Berkane, Maroc.\",\n    \"ar\": \"لادس هي جمعية قيادة الشباب مقرها بركان، المغرب.\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Update LADS info",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/lads-info/{{ladsInfoId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": {\n    \"en\": \"Updated content in English.\",\n    \"fr\": \"Contenu mis à jour en français.\",\n    \"ar\": \"المحتوى المحدث بالعربية.\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete LADS info",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/lads-info/{{ladsInfoId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contact Messages",
+      "item": [
+        {
+          "name": "Get all contact messages",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/contact-messages"
+          }
+        },
+        {
+          "name": "Get contact message by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/contact-messages/{{contactMessageId}}"
+          }
+        },
+        {
+          "name": "Submit contact message (public)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contact-messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Visitor Name\",\n  \"email\": \"visitor@example.com\",\n  \"phone\": \"0600000000\",\n  \"subject\": \"Question about LADS\",\n  \"message\": \"Hello, I would like to know more about your association.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete contact message",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/contact-messages/{{contactMessageId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Membership Requests",
+      "item": [
+        {
+          "name": "Get all membership requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/membership-requests"
+          }
+        },
+        {
+          "name": "Get membership request by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/membership-requests/{{membershipRequestId}}"
+          }
+        },
+        {
+          "name": "Submit membership request (public)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/membership-requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Visitor Name\",\n  \"email\": \"visitor@example.com\",\n  \"phone\": \"0600000000\",\n  \"city\": \"Berkane\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete membership request",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/membership-requests/{{membershipRequestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Event Registrations",
+      "item": [
+        {
+          "name": "Get all registrations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/event-registrations",
+              "host": ["{{baseUrl}}"],
+              "path": ["event-registrations"],
+              "query": [
+                { "key": "eventId", "value": "{{eventId}}", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get registration by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/event-registrations/{{registrationId}}"
+          }
+        },
+        {
+          "name": "Register for event (public)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/event-registrations",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"fullName\": \"Visitor Name\",\n  \"email\": \"visitor@example.com\",\n  \"phone\": \"0600000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete registration",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/event-registrations/{{registrationId}}"
+          }
+        }
+      ]
+    }
+  ]
+}

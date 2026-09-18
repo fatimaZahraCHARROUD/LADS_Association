@@ -1,0 +1,530 @@
+/* events.css */
+
+.events-page {
+  background: #f5f8fc;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* HERO */
+
+.events-hero {
+  height: 340px;
+  background: linear-gradient(
+      rgba(5, 20, 50, 0.82),
+      rgba(5, 20, 50, 0.88)
+    ),
+    url("images/img2.png")
+      center/cover no-repeat;
+
+  display: flex;
+  align-items: center;
+}
+
+.hero-content {
+  color: white;
+}
+
+.hero-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+
+.events-hero h1 {
+  font-size: 58px;
+  font-weight: 800;
+  margin-bottom: 15px;
+}
+
+.events-hero h1 span {
+  color: #60a5fa;
+}
+
+.events-hero p {
+  max-width: 650px;
+  line-height: 1.8;
+  color: #dbeafe;
+}
+
+/* TOPBAR */
+
+.events-topbar {
+  margin-top: -45px;
+  margin-bottom: 50px;
+
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.08);
+}
+
+/* SEARCH */
+
+.search-box {
+  flex: 1;
+  max-width: 400px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  background: #f8fafc;
+  border: 1px solid #dbe3ee;
+
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  font-size: 15px;
+}
+
+/* FILTERS */
+
+.filters {
+  display: flex;
+  gap: 12px;
+}
+
+.filters button {
+  border: none;
+  background: #e2e8f0;
+  color: #0f172a;
+
+  padding: 12px 20px;
+  border-radius: 12px;
+
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.filters button.active,
+.filters button:hover {
+  background: #2563eb;
+  color: white;
+}
+
+/* EVENTS */
+
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.event-card {
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+
+  transition: 0.3s;
+}
+
+.event-card:hover {
+  transform: translateY(-8px);
+}
+
+.event-image {
+  position: relative;
+}
+
+.event-image img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+.event-image span {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+
+  padding: 8px 14px;
+  border-radius: 30px;
+
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.event-image .upcoming {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.event-image .past {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.event-content {
+  padding: 24px;
+}
+
+.event-content h3 {
+  font-size: 22px;
+  margin-bottom: 14px;
+  color: #0f172a;
+}
+
+.event-content p {
+  color: #64748b;
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+.event-card {
+  cursor: pointer;
+}
+.event-info{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    margin:12px 0;
+}
+
+.event-info span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #475569;
+  font-size: 14px;
+}
+
+/* BUTTONS */
+
+.event-buttons {
+  display: flex;
+  gap: 14px;
+}
+
+.event-buttons button {
+  flex: 1;
+  border: none;
+  padding: 13px;
+  border-radius: 12px;
+
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.details-btn {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.register-btn {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+}
+
+.event-buttons button:hover {
+  transform: translateY(-2px);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 992px) {
+  .events-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .events-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .events-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .events-hero h1 {
+    font-size: 40px;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+}
+
+.image-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.image-modal-content {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* =========================
+   MODAL OVERLAY
+========================= */
+.image-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.75);
+  backdrop-filter: blur(6px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 9999;
+  padding: 20px;
+}
+
+/* =========================
+   MODAL BOX
+========================= */
+.image-modal-content {
+  background: #ffffff;
+  width: 100%;
+  max-width: 480px;
+
+  border-radius: 20px;
+  padding: 28px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: popIn 0.25s ease-out;
+}
+
+/* animation */
+@keyframes popIn {
+  from {
+    transform: translateY(20px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* =========================
+   CLOSE BUTTON
+========================= */
+.close-modal {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+
+  border: none;
+  background: #f1f5f9;
+  color: #0f172a;
+
+  font-size: 18px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-modal:hover {
+  background: #e2e8f0;
+}
+
+/* =========================
+   MODAL TITLE
+========================= */
+.image-modal-content h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+/* =========================
+   INPUTS
+========================= */
+.image-modal-content input {
+  width: 100%;
+  padding: 12px 14px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  font-size: 14px;
+  outline: none;
+
+  transition: 0.2s;
+}
+
+.image-modal-content input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* =========================
+   BUTTON
+========================= */
+.image-modal-content button {
+  margin-top: 8px;
+  padding: 12px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: 0.3s;
+}
+
+.image-modal-content button:hover {
+  transform: translateY(-2px);
+}
+.event-category {
+  display: inline-block;
+  width: fit-content;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 20px;
+  background: #e8f0ff;
+  color: #1646a0;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+
+
+
+.image-modal{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    padding:30px;
+    z-index:9999;
+
+    overflow-y:auto;
+ }
+
+.preview-modal{
+    position:relative;
+
+    width:min(900px,95%);
+    max-height:90vh;
+
+    background:#fff;
+    border-radius:16px;
+
+    overflow:auto;
+}
+.preview-modal img{
+    width:100% !important;
+    max-height:55vh !important;
+
+    object-fit:cover;
+
+    display:block;
+}
+
+.preview-modal h2{
+    padding:20px 25px 10px;
+    margin:0;
+}
+
+.preview-modal p{
+    padding:0 25px 25px;
+    line-height:1.8;
+    color:#555;
+}
+
+.close-modal:hover{
+background:#21157d !important;
+
+    color: rgba(255,255,255,.95) !important;
+
+}
+.close-modal{
+
+    position:absolute;
+
+    top:10px !important;
+    right:10px !important;
+
+    width:42px;
+    height:42px;
+
+    border:none;
+    border-radius:50%;
+
+    background:rgba(255,255,255,.95) !important;
+
+    color:#21157d !important;
+
+    font-size:22px;
+
+    cursor:pointer;
+
+    z-index:100;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    box-shadow:0 5px 15px rgba(0,0,0,.2);
+}
+
+html[dir="rtl"] .close-modal{
+    right:auto;
+    left:15px;
+}
