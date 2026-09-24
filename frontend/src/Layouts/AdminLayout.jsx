@@ -122,6 +122,10 @@ function SidebarBody({
           Dashboard
         </SidebarLink>
 
+        <SidebarLink to="/admin/members" icon={Users}>
+          Members
+        </SidebarLink>
+
         <SidebarGroup
           label="Content"
           icon={Database}

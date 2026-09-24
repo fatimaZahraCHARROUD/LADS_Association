@@ -11,6 +11,10 @@ import { MembershipRequestsModule } from './membership-requests/membership-reque
 import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
 import { AuthModule } from './auth/auth.module';
 import {UploadModule} from './upload/upload.module';
+import { MembersModule } from './members/members.module';
+import { DepartmentsModule } from './departments/departments.module';
+import { RolesModule } from './roles/roles.module';
+import { DepartmentMembersModule } from './department-members/department-members.module';
 @Module({
   imports: [
     DatabaseConfig,
@@ -25,6 +29,10 @@ import {UploadModule} from './upload/upload.module';
     EventRegistrationsModule,
     AuthModule,
     UploadModule,
+    MembersModule,
+    DepartmentsModule,
+    RolesModule,
+    DepartmentMembersModule,
   ],
 })
 export class AppModule {}
