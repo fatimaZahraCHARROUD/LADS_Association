@@ -92,6 +92,7 @@ export default function Dashboard() {
   const [data, setData] = useState({
     events: [], activities: [], news: [], formations: [],
     memberships: [], contacts: [], registrations: [],
+    members: [], departments: [],
   });
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
@@ -107,7 +108,9 @@ export default function Dashboard() {
       api.get("/membership-requests").catch(() => []),
       api.get("/contact-messages").catch(() => []),
       api.get("/event-registrations").catch(() => []),
-    ]).then(([events, activities, news, formations, memberships, contacts, registrations]) => {
+      api.get("/members").catch(() => []),
+      api.get("/departments").catch(() => []),
+    ]).then(([events, activities, news, formations, memberships, contacts, registrations, members, departments]) => {
       setData({
         events: Array.isArray(events) ? events : [],
         activities: Array.isArray(activities) ? activities : [],
@@ -116,6 +119,8 @@ export default function Dashboard() {
         memberships: Array.isArray(memberships) ? memberships : [],
         contacts: Array.isArray(contacts) ? contacts : [],
         registrations: Array.isArray(registrations) ? registrations : [],
+        members: Array.isArray(members) ? members : [],
+        departments: Array.isArray(departments) ? departments : [],
       });
       setLoading(false);
     });
@@ -208,8 +213,8 @@ export default function Dashboard() {
       </header>
 {/* STATS CARDS */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-  <StatCard title="Total Départements" count={data?.formations?.length || 0} />
-<StatCard title="Total Membres" count={data?.memberships?.length || 0} />
+  <StatCard title="Total Départements" count={data?.departments?.length || 0} />
+<StatCard title="Total Membres" count={data?.members?.length || 0} />
 </div>
       {/* STATS GRID */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -222,7 +227,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <StatCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
+              <MetricCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
             </motion.div>
           );
         })}
@@ -322,7 +327,7 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ def, stat, pillSuffix }) {
+function MetricCard({ def, stat, pillSuffix }) {
   const trendUp = stat.change > 0;
   return (
     <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6 flex flex-col gap-5">
