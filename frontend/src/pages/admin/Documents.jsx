@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { api, getCurrentUserId } from "../../services/api";
+import { api } from "../../services/api";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -12,10 +12,9 @@ import { Field, UrlInput, Select } from "../../components/admin/FormField";
 const EMPTY_DOCUMENT = {
   title: "",
   category: "",
-  department: "",
   driveUrl: "",
   description: "",
-  visibility: "department",
+  visibility: "all",
 };
 
 export default function AdminDocuments() {
@@ -53,10 +52,9 @@ export default function AdminDocuments() {
     setForm({
       title: row.title || "",
       category: row.category || "",
-      department: row.department?._id || row.department || "",
       driveUrl: row.driveUrl || "",
       description: row.description || "",
-      visibility: row.visibility || "department",
+      visibility: row.visibility === "private" ? "private" : "all",
     });
     setDrawerOpen(true);
   };
@@ -77,14 +75,10 @@ export default function AdminDocuments() {
       toast.error("Drive link is required.");
       return;
     }
-    if (!form.department.trim()) {
-      toast.error("Department ID is required.");
-      return;
-    }
 
     setSaving(true);
     try {
-      const payload = { ...form, uploadedBy: getCurrentUserId() };
+      const payload = { ...form };
       if (editing) {
         await api.patch(`/documents/${editing._id}`, payload);
         toast.success("Document updated");
@@ -131,7 +125,7 @@ export default function AdminDocuments() {
       key: "visibility",
       header: "Visibility",
       render: (r) => (
-        <StatusBadge variant={r.visibility === "public" ? "published" : "draft"}>
+        <StatusBadge variant={r.visibility === "private" ? "draft" : "published"}>
           {r.visibility}
         </StatusBadge>
       ),
@@ -238,15 +232,6 @@ export default function AdminDocuments() {
             />
           </Field>
 
-          <Field label="Department ID" required>
-            <input
-              type="text"
-              placeholder="ObjectId du département"
-              className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-            />
-          </Field>
           <Field label="Drive link" required>
             <UrlInput
               value={form.driveUrl}
@@ -269,8 +254,7 @@ export default function AdminDocuments() {
               value={form.visibility}
               onChange={(e) => setForm({ ...form, visibility: e.target.value })}
             >
-              <option value="public">Public</option>
-              <option value="department">Department</option>
+              <option value="all">All</option>
               <option value="private">Private</option>
             </Select>
           </Field>

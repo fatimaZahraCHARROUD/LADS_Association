@@ -12,7 +12,7 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { api, getCurrentUserId } from "../../services/api";
+import { api } from "../../services/api";
 
 import PageHeader from "../../components/admin/PageHeader";
 import Drawer from "../../components/admin/Drawer";
@@ -23,7 +23,6 @@ import { Field, Select } from "../../components/admin/FormField";
 const EMPTY_MEETING = {
   title: "",
   description: "",
-  department: "",
   startAt: "",
   endAt: "",
   meetingLink: "",
@@ -106,7 +105,6 @@ export default function AdminMeetings() {
     setForm({
       title: m.title || "",
       description: m.description || "",
-      department: m.department?._id || m.department || "",
       startAt: toLocalInputValue(m.startAt),
       endAt: toLocalInputValue(m.endAt),
       meetingLink: m.meetingLink || "",
@@ -128,10 +126,6 @@ export default function AdminMeetings() {
       toast.error("Title is required.");
       return;
     }
-    if (!form.department.trim()) {
-      toast.error("Department ID is required.");
-      return;
-    }
     if (!form.startAt || !form.endAt) {
       toast.error("Start and end time are required.");
       return;
@@ -141,7 +135,6 @@ export default function AdminMeetings() {
     try {
       const payload = {
         ...form,
-        createdBy: getCurrentUserId(),
         startAt: new Date(form.startAt).toISOString(),
         endAt: new Date(form.endAt).toISOString(),
       };
@@ -334,16 +327,6 @@ export default function AdminMeetings() {
               className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-          </Field>
-
-          <Field label="Department ID" required>
-            <input
-              type="text"
-              placeholder="ObjectId du département"
-              className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
             />
           </Field>
 

@@ -22,6 +22,9 @@ export class LadsDocument {
 
   @Prop({ default: '' })
   description!: string;
+
+  @Prop({ enum: ['all', 'private'], default: 'all' })
+  visibility!: string;
 }
 
 export const DocumentSchema = SchemaFactory.createForClass(LadsDocument);

@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { MeetingsService } from './meetings.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { getUserId } from '../services/jwt/current-user';
 
 @Controller('meetings')
 export class MeetingsController {
@@ -20,8 +22,8 @@ export class MeetingsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateMeetingDto) {
-    return this.meetingsService.create(dto);
+  create(@Body() dto: CreateMeetingDto, @Req() req: any) {
+    return this.meetingsService.create(dto, getUserId(req));
   }
 
   @UseGuards(JwtAuthGuard)

@@ -142,16 +142,18 @@ function SidebarBody({
           <SidebarLink to="/admin/formations" icon={GraduationCap} nested>
             Formations
           </SidebarLink>
-          <SidebarLink to="/admin/documents" icon={FileText} nested>
-            Documents
-          </SidebarLink>
-          <SidebarLink to="/admin/meetings" icon={CalendarClock} nested>
-            Meetings
-          </SidebarLink>
           <SidebarLink to="/admin/info" icon={Settings} nested>
             LADS Info
           </SidebarLink>
         </SidebarGroup>
+
+        <SidebarLink to="/admin/documents" icon={FileText}>
+          Documents
+        </SidebarLink>
+
+        <SidebarLink to="/admin/meetings" icon={CalendarClock}>
+          Meetings
+        </SidebarLink>
 
         <SidebarGroup
           label="Inbox"
