@@ -213,7 +213,6 @@ export default function Dashboard() {
       </header>
 {/* STATS CARDS */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-  <StatCard title="Total Départements" count={data?.departments?.length || 0} />
 <StatCard title="Total Membres" count={data?.members?.length || 0} />
 </div>
       {/* STATS GRID */}
