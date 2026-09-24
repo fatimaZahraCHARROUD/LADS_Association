@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowDownRight, ArrowUpRight, ChevronDown, MoreHorizontal } from "lucide-react";
+import { ChevronDown, MoreHorizontal } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -15,6 +15,23 @@ const PERIOD = {
   year:  { label: "Yearly",  pillSuffix: "this year",  days: 365 },
 };
 const PERIOD_KEYS = ["week", "month", "year"];
+const REQUEST_KEYS = [
+  "events", "activities", "news", "formations",
+  "memberships", "contacts", "registrations", "members",
+];
+const API_PATHS = {
+  events: "/events",
+  activities: "/activities",
+  news: "/news",
+  formations: "/formations",
+  memberships: "/membership-requests",
+  contacts: "/contact-messages",
+  registrations: "/event-registrations",
+  members: "/users",
+};
+
+const createStatus = (value) =>
+  Object.fromEntries(REQUEST_KEYS.map((key) => [key, value]));
 
 const CARD_DEFS = [
   { key: "events",      label: "Total Events",      color: "text-orange-500",  ring: "#f97316" },
@@ -23,8 +40,8 @@ const CARD_DEFS = [
   { key: "formations",  label: "Total Formations",  color: "text-purple-500",  ring: "#a855f7" },
   { key: "memberships", label: "Total Memberships", color: "text-indigo-500",  ring: "#6366f1" },
   { key: "contacts",    label: "Total Contacts",    color: "text-rose-500",    ring: "#f43f5e" },
-  { key: "departments", label: "Total Départements", color: "text-blue-500", ring: "#3b82f6" },
-  { key: "members",     label: "Total Membres",      color: "text-green-500", ring: "#22c55e" },
+  { key: "departments", label: "Total Departments", color: "text-blue-500", ring: "#3b82f6" },
+  { key: "members",     label: "Total Members",     color: "text-green-500", ring: "#22c55e" },
 ];
 
 const MIX_COLORS = ["#f97316", "#10b981", "#2563eb", "#a855f7"];
@@ -94,42 +111,53 @@ export default function Dashboard() {
     events: [], activities: [], news: [], formations: [],
     memberships: [], contacts: [], registrations: [], departments: [], members: []
   });
-  const [loading, setLoading] = useState(true);
+  const [loadingByKey, setLoadingByKey] = useState(() => createStatus(true));
+  const [errorsByKey, setErrorsByKey] = useState(() => createStatus(null));
+  const [retryCount, setRetryCount] = useState(0);
   const [period, setPeriod] = useState("month");
   const [periodOpen, setPeriodOpen] = useState(false);
   const periodRef = useRef(null);
 
   useEffect(() => {
-    Promise.all([
-      api.get("/events").catch(() => []),
-      api.get("/activities").catch(() => []),
-      api.get("/news").catch(() => []),
-      api.get("/formations").catch(() => []),
-      api.get("/membership-requests").catch(() => []),
-      api.get("/contact-messages").catch(() => []),
-      api.get("/event-registrations").catch(() => []),
-      api.get("/users").catch(() => []),
-    ]).then(([events, activities, news, formations, memberships, contacts, registrations, members]) => {
-      const safeMembers = Array.isArray(members) ? members : [];
-      const departments = [...new Set(
-        safeMembers.flatMap((member) => (
-          Array.isArray(member?.departement) ? member.departement : []
-        )).filter(Boolean)
-      )];
-      setData({
-        events: Array.isArray(events) ? events : [],
-        activities: Array.isArray(activities) ? activities : [],
-        news: Array.isArray(news) ? news : [],
-        formations: Array.isArray(formations) ? formations : [],
-        memberships: Array.isArray(memberships) ? memberships : [],
-        contacts: Array.isArray(contacts) ? contacts : [],
-        registrations: Array.isArray(registrations) ? registrations : [],
-        departments,
-        members: safeMembers,
-      });
-      setLoading(false);
+    let active = true;
+
+    setLoadingByKey(createStatus(true));
+    setErrorsByKey(createStatus(null));
+
+    REQUEST_KEYS.forEach(async (key) => {
+      try {
+        const result = await api.get(API_PATHS[key]);
+        if (!active) return;
+
+        const value = Array.isArray(result) ? result : [];
+        setData((current) => {
+          if (key !== "members") return { ...current, [key]: value };
+
+          const departments = [...new Set(
+            value
+              .flatMap((member) => (Array.isArray(member?.departement) ? member.departement : []))
+              .filter(Boolean)
+          )];
+          return { ...current, members: value, departments };
+        });
+      } catch (requestError) {
+        if (active) {
+          setErrorsByKey((current) => ({
+            ...current,
+            [key]: requestError instanceof Error ? requestError.message : "Unable to load this section.",
+          }));
+        }
+      } finally {
+        if (active) {
+          setLoadingByKey((current) => ({ ...current, [key]: false }));
+        }
+      }
     });
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [retryCount]);
 
   useEffect(() => {
     if (!periodOpen) return undefined;
@@ -172,12 +200,14 @@ export default function Dashboard() {
     { name: "Formations", value: data.formations.length },
   ], [data]);
   const mixTotal = mixData.reduce((acc, x) => acc + x.value, 0);
-
-  if (loading) {
-    return (
-      <div className="text-brand-muted py-12 text-sm">Loading dashboard…</div>
-    );
-  }
+  const hasErrors = Object.values(errorsByKey).some(Boolean);
+  const allLoading = Object.values(loadingByKey).some(Boolean);
+  const activityKeys = ["events", "activities", "news", "formations", "memberships", "contacts", "registrations"];
+  const activityLoading = activityKeys.some((key) => loadingByKey[key]);
+  const activityHasErrors = activityKeys.some((key) => errorsByKey[key]);
+  const contentKeys = ["events", "activities", "news", "formations"];
+  const contentLoading = contentKeys.some((key) => loadingByKey[key]);
+  const contentHasErrors = contentKeys.some((key) => errorsByKey[key]);
 
   return (
     <div className="space-y-8">
@@ -219,6 +249,19 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {hasErrors && !allLoading && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>Some dashboard data could not be loaded.</span>
+          <button
+            type="button"
+            onClick={() => setRetryCount((count) => count + 1)}
+            className="shrink-0 font-medium underline underline-offset-2"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
         {CARD_DEFS.map((def, i) => {
@@ -230,7 +273,13 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <StatCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
+              <StatCard
+                def={def}
+                stat={s}
+                pillSuffix={PERIOD[period].pillSuffix}
+                loading={loadingByKey[def.key === "departments" ? "members" : def.key]}
+                error={errorsByKey[def.key === "departments" ? "members" : def.key]}
+              />
             </motion.div>
           );
         })}
@@ -238,7 +287,7 @@ export default function Dashboard() {
 
       {/* CHARTS */}
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-brand-border shadow-sm p-6">
+        <div className="xl:col-span-2 min-w-0 bg-white rounded-2xl border border-brand-border shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="font-semibold text-brand-text">
@@ -247,14 +296,22 @@ export default function Dashboard() {
                   ({PERIOD[period].label})
                 </span>
               </h2>
-              <p className="text-xs text-brand-muted mt-0.5">New items created across the platform.</p>
             </div>
             <button className="p-1.5 rounded-md text-brand-muted hover:bg-gray-100">
               <MoreHorizontal size={18} />
             </button>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <p className="text-xs text-brand-muted mt-0.5">
+            {activityLoading ? "Loading activity data..." : activityHasErrors ? "Some activity sources are unavailable." : "New items created across the platform."}
+          </p>
+          <div className="h-72 min-h-72 min-w-0">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              minHeight={288}
+              initialDimension={{ width: 640, height: 288 }}
+            >
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
@@ -279,15 +336,24 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-brand-text">Content Mix</h2>
             <button className="p-1.5 rounded-md text-brand-muted hover:bg-gray-100">
               <MoreHorizontal size={18} />
             </button>
           </div>
-          <div className="relative h-56">
-            <ResponsiveContainer width="100%" height="100%">
+          <p className="text-xs text-brand-muted">
+            {contentLoading ? "Loading content data..." : contentHasErrors ? "Some content sources are unavailable." : ""}
+          </p>
+          <div className="relative h-56 min-h-56 min-w-0">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              minHeight={224}
+              initialDimension={{ width: 320, height: 224 }}
+            >
               <PieChart>
                 <Pie
                   data={mixData}
@@ -330,35 +396,3 @@ export default function Dashboard() {
   );
 }
 
-function Ring({ percent, color }) {
-  const safe = Math.max(0, Math.min(100, Number(percent) || 0));
-  const data = [
-    { name: "filled", value: safe },
-    { name: "rest", value: 100 - safe },
-  ];
-  return (
-    <div className="relative w-14 h-14">
-      <ResponsiveContainer>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={18}
-            outerRadius={26}
-            startAngle={90}
-            endAngle={-270}
-            dataKey="value"
-            stroke="none"
-          >
-            <Cell fill={color} />
-            <Cell fill="#f1f5f9" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
-        {safe}%
-      </span>
-    </div>
-  );
-}
