@@ -14,6 +14,8 @@ import {
   LogOut,
   ChevronDown,
   ClipboardList,
+  FileText,
+  CalendarClock,
   X,
 } from "lucide-react";
 import Topbar from "../components/admin/Topbar";
@@ -144,6 +146,14 @@ function SidebarBody({
             LADS Info
           </SidebarLink>
         </SidebarGroup>
+
+        <SidebarLink to="/admin/documents" icon={FileText}>
+          Documents
+        </SidebarLink>
+
+        <SidebarLink to="/admin/meetings" icon={CalendarClock}>
+          Meetings
+        </SidebarLink>
 
         <SidebarGroup
           label="Inbox"
