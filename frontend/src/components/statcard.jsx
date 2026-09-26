@@ -1,21 +1,52 @@
-import React from 'react';
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
-function StatCard({ title, count }) {
+function StatCard({ def, stat, pillSuffix, loading = false, error = null }) {
+  const percent = Math.max(0, Math.min(100, Number(stat?.ring) || 0));
+  const ringData = [
+    { value: percent },
+    { value: 100 - percent },
+  ];
+
   return (
-    <div style={cardStyle}>
-      <h4>{title}</h4>
-      <h2>{count}</h2>
+    <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-5 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm text-brand-muted truncate">{def.label}</p>
+        <p className="mt-2 text-3xl font-bold text-brand-text">
+          {loading ? "..." : error ? "-" : stat?.value ?? 0}
+        </p>
+        <p className={`mt-2 text-xs font-medium ${def.color}`}>
+          {loading ? "Loading..." : error ? "Unavailable" : `${stat?.change ?? 0} new ${pillSuffix}`}
+        </p>
+      </div>
+      <div className="relative w-14 h-14 shrink-0" aria-label={`${percent}% progress`}>
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          minWidth={56}
+          minHeight={56}
+          initialDimension={{ width: 56, height: 56 }}
+        >
+          <PieChart>
+            <Pie
+              data={ringData}
+              innerRadius={18}
+              outerRadius={26}
+              startAngle={90}
+              endAngle={-270}
+              dataKey="value"
+              stroke="none"
+            >
+              <Cell fill={def.ring} />
+              <Cell fill="#f1f5f9" />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
+          {percent}%
+        </span>
+      </div>
     </div>
   );
 }
-
-const cardStyle = {
-  backgroundColor: '#ffffff',
-  padding: '20px',
-  borderRadius: '10px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-  minWidth: '180px',
-  textAlign: 'center'
-};
 
 export default StatCard;

@@ -15,6 +15,9 @@ import { MembersModule } from './members/members.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { RolesModule } from './roles/roles.module';
 import { DepartmentMembersModule } from './department-members/department-members.module';
+import { DocumentsModule } from './documents/documents.module';
+import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
+import { MeetingsModule } from './meetings/meetings.module';
 @Module({
   imports: [
     DatabaseConfig,
@@ -33,6 +36,9 @@ import { DepartmentMembersModule } from './department-members/department-members
     DepartmentsModule,
     RolesModule,
     DepartmentMembersModule,
+    DocumentsModule,
+    DocumentPermissionsModule,
+    MeetingsModule,
   ],
 })
 export class AppModule {}

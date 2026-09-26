@@ -26,6 +26,8 @@ import Contacts from "./pages/admin/Contacts";
 import AdminMembership from "./pages/admin/Membership";
 import AdminMembers from "./pages/admin/Members";
 import Info from "./pages/admin/Info";
+import AdminDocuments from "./pages/admin/Documents";
+import AdminMeetings from "./pages/admin/Meetings";
 
 // Layouts
 import MainLayout from "./Layouts/MainLayout";
@@ -128,6 +130,12 @@ function App() {
           
           {/* Info */}
           <Route path="info" element={<Info />} />
+
+          {/* Documents */}
+          <Route path="documents" element={<AdminDocuments />} />
+
+          {/* Meetings */}
+          <Route path="meetings" element={<AdminMeetings />} />
         
         </Route>
      
