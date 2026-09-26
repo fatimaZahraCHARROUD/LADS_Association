@@ -24,6 +24,7 @@ import AdminActivities from "./pages/admin/Activities";
 import AdminFormations from "./pages/admin/Formations";
 import Contacts from "./pages/admin/Contacts";
 import AdminMembership from "./pages/admin/Membership";
+import AdminMembers from "./pages/admin/Members";
 import Info from "./pages/admin/Info";
 import AdminDocuments from "./pages/admin/Documents";
 import AdminMeetings from "./pages/admin/Meetings";
@@ -123,6 +124,9 @@ function App() {
 
           {/* Membership */}
           <Route path="membership" element={<AdminMembership />} />
+          
+          {/* Manage Members */}
+          <Route path="members" element={<AdminMembers />} />
           
           {/* Info */}
           <Route path="info" element={<Info />} />

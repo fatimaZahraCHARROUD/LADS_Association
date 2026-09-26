@@ -11,6 +11,10 @@ import { MembershipRequestsModule } from './membership-requests/membership-reque
 import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
 import { AuthModule } from './auth/auth.module';
 import {UploadModule} from './upload/upload.module';
+import { MembersModule } from './members/members.module';
+import { DepartmentsModule } from './departments/departments.module';
+import { RolesModule } from './roles/roles.module';
+import { DepartmentMembersModule } from './department-members/department-members.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
 import { MeetingsModule } from './meetings/meetings.module';
@@ -28,6 +32,10 @@ import { MeetingsModule } from './meetings/meetings.module';
     EventRegistrationsModule,
     AuthModule,
     UploadModule,
+    MembersModule,
+    DepartmentsModule,
+    RolesModule,
+    DepartmentMembersModule,
     DocumentsModule,
     DocumentPermissionsModule,
     MeetingsModule,

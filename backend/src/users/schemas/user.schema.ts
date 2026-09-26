@@ -5,6 +5,9 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
+  @Prop({ default: '' })
+  membershipNumber!: string;
+
   @Prop({ required: true })
   fullName!: string;
 
@@ -49,6 +52,12 @@ export class User {
 
   @Prop({ default: false })
   cotisation_payee!: boolean;
+
+  @Prop({ enum: ['active', 'inactive'], default: 'active' })
+  status!: string;
+
+  @Prop({ default: false })
+  isAdmin!: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
