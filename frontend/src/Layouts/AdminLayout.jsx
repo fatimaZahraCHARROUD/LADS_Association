@@ -16,6 +16,7 @@ import {
   ClipboardList,
   FileText,
   CalendarClock,
+  Building2,
   X,
 } from "lucide-react";
 import Topbar from "../components/admin/Topbar";
@@ -153,6 +154,10 @@ function SidebarBody({
 
         <SidebarLink to="/admin/meetings" icon={CalendarClock}>
           Meetings
+        </SidebarLink>
+
+        <SidebarLink to="/admin/departments" icon={Building2}>
+          Departments
         </SidebarLink>
 
         <SidebarGroup

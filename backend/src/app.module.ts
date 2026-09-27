@@ -10,10 +10,11 @@ import { ContactMessagesModule } from './contact-messages/contact-messages.modul
 import { MembershipRequestsModule } from './membership-requests/membership-requests.module';
 import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
 import { AuthModule } from './auth/auth.module';
-import {UploadModule} from './upload/upload.module';
+import { UploadModule } from './upload/upload.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
 import { MeetingsModule } from './meetings/meetings.module';
+import { DepartmentsModule } from './departments/departments.module';
 @Module({
   imports: [
     DatabaseConfig,
@@ -31,6 +32,7 @@ import { MeetingsModule } from './meetings/meetings.module';
     DocumentsModule,
     DocumentPermissionsModule,
     MeetingsModule,
+    DepartmentsModule,
   ],
 })
 export class AppModule {}
