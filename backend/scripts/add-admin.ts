@@ -21,6 +21,7 @@ const UserSchema = new Schema(
     departement: [String],
     date_adhesion: String,
     cotisation_payee: Boolean,
+    isAdmin: Boolean,
   },
   { timestamps: true, collection: 'users' },
 );
@@ -38,6 +39,7 @@ async function run() {
     console.log(`User ${email} already exists (id: ${existing._id}). Updating password and role.`);
     existing.set('password', await bcrypt.hash(plain, 10));
     existing.set('role', ['President']);
+    existing.set('isAdmin', true);
     await existing.save();
   } else {
     await User.create({
@@ -45,6 +47,7 @@ async function run() {
       email,
       password: await bcrypt.hash(plain, 10),
       role: ['President'],
+      isAdmin: true,
       genre: 'Male',
       phone: '+212600000000',
       ville: 'Casablanca',

@@ -92,6 +92,7 @@ export default function Dashboard() {
   const [data, setData] = useState({
     events: [], activities: [], news: [], formations: [],
     memberships: [], contacts: [], registrations: [],
+    members: [], departments: [],
   });
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
@@ -107,7 +108,9 @@ export default function Dashboard() {
       api.get("/membership-requests").catch(() => []),
       api.get("/contact-messages").catch(() => []),
       api.get("/event-registrations").catch(() => []),
-    ]).then(([events, activities, news, formations, memberships, contacts, registrations]) => {
+      api.get("/members").catch(() => []),
+      api.get("/departments").catch(() => []),
+    ]).then(([events, activities, news, formations, memberships, contacts, registrations, members, departments]) => {
       setData({
         events: Array.isArray(events) ? events : [],
         activities: Array.isArray(activities) ? activities : [],
@@ -116,6 +119,8 @@ export default function Dashboard() {
         memberships: Array.isArray(memberships) ? memberships : [],
         contacts: Array.isArray(contacts) ? contacts : [],
         registrations: Array.isArray(registrations) ? registrations : [],
+        members: Array.isArray(members) ? members : [],
+        departments: Array.isArray(departments) ? departments : [],
       });
       setLoading(false);
     });
@@ -208,8 +213,8 @@ export default function Dashboard() {
       </header>
 {/* STATS CARDS */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-  <StatCard title="Total Départements" count={data?.formations?.length || 0} />
-<StatCard title="Total Membres" count={data?.memberships?.length || 0} />
+<StatCard title="Total Départements" count={data?.formations?.length || 0} />
+<StatCard title="Total Membres" count={data?.members?.length || 0} />
 </div>
       {/* STATS GRID */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -222,7 +227,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <StatCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
+              <MetricCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
             </motion.div>
           );
         })}
@@ -322,6 +327,7 @@ export default function Dashboard() {
   );
 }
 
+<<<<<<< HEAD
 // function StatCard({ def, stat, pillSuffix }) {
 //   const trendUp = stat.change > 0;
 //   return (
@@ -349,6 +355,35 @@ export default function Dashboard() {
 //     </div>
 //   );
 // }
+=======
+function MetricCard({ def, stat, pillSuffix }) {
+  const trendUp = stat.change > 0;
+  return (
+    <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6 flex flex-col gap-5">
+      <div className="flex items-start justify-between">
+        <p className={`text-sm font-semibold ${def.color}`}>{def.label}</p>
+        <button className="p-1 rounded-md text-brand-muted hover:bg-gray-100">
+          <MoreHorizontal size={16} />
+        </button>
+      </div>
+      <p className="text-4xl font-bold text-brand-text leading-none">{stat.value}</p>
+      <div className="flex items-end justify-between">
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+            trendUp
+              ? "bg-emerald-50 text-emerald-600"
+              : "bg-gray-50 text-brand-muted"
+          }`}
+        >
+          {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+          {stat.change} {pillSuffix}
+        </span>
+        <Ring percent={stat.ring} color={def.ring} />
+      </div>
+    </div>
+  );
+}
+>>>>>>> bae765f209fa0b4ee689d2107fb57f2551ae582c
 
 // function Ring({ percent, color }) {
 //   const safe = Math.max(0, Math.min(100, Number(percent) || 0));
