@@ -30,10 +30,9 @@ export class DocumentsController {
   @Get()
   findAll(
     @Req() req: any,
-    @Query('department') department?: string,
     @Query('category') category?: string,
   ) {
-    return this.documentsService.findAll(getUserId(req), department, category);
+    return this.documentsService.findAll(getUserId(req), category);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -11,9 +11,6 @@ export class Meeting {
   @Prop({ default: '' })
   description!: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Department', required: true })
-  department!: Types.ObjectId;
-
   @Prop({ required: true })
   startAt!: Date;
 

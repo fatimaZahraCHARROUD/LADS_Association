@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+# uploaded files (private)
+/uploads
+
 # Logs
 logs
 *.log

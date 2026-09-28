@@ -29,11 +29,10 @@ export class MeetingsController {
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
-    @Query('department') department?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    return this.meetingsService.findAll(department, from, to);
+    return this.meetingsService.findAll(from, to);
   }
 
   @UseGuards(JwtAuthGuard)

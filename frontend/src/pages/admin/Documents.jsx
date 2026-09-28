@@ -33,6 +33,7 @@ export default function AdminDocuments() {
       setRows(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error(err.message);
+       console.error("POST /documents failed:", err.message);
     } finally {
       setLoading(false);
     }
