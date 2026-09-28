@@ -11,9 +11,6 @@ export class LadsDocument {
   @Prop({ default: '' })
   category!: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Department', required: true })
-  department!: Types.ObjectId;
-
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   uploadedBy!: Types.ObjectId;
 

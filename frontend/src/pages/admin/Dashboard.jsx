@@ -322,63 +322,63 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ def, stat, pillSuffix }) {
-  const trendUp = stat.change > 0;
-  return (
-    <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6 flex flex-col gap-5">
-      <div className="flex items-start justify-between">
-        <p className={`text-sm font-semibold ${def.color}`}>{def.label}</p>
-        <button className="p-1 rounded-md text-brand-muted hover:bg-gray-100">
-          <MoreHorizontal size={16} />
-        </button>
-      </div>
-      <p className="text-4xl font-bold text-brand-text leading-none">{stat.value}</p>
-      <div className="flex items-end justify-between">
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-            trendUp
-              ? "bg-emerald-50 text-emerald-600"
-              : "bg-gray-50 text-brand-muted"
-          }`}
-        >
-          {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-          {stat.change} {pillSuffix}
-        </span>
-        <Ring percent={stat.ring} color={def.ring} />
-      </div>
-    </div>
-  );
-}
+// function StatCard({ def, stat, pillSuffix }) {
+//   const trendUp = stat.change > 0;
+//   return (
+//     <div className="bg-white rounded-2xl border border-brand-border shadow-sm p-6 flex flex-col gap-5">
+//       <div className="flex items-start justify-between">
+//         <p className={`text-sm font-semibold ${def.color}`}>{def.label}</p>
+//         <button className="p-1 rounded-md text-brand-muted hover:bg-gray-100">
+//           <MoreHorizontal size={16} />
+//         </button>
+//       </div>
+//       <p className="text-4xl font-bold text-brand-text leading-none">{stat.value}</p>
+//       <div className="flex items-end justify-between">
+//         <span
+//           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+//             trendUp
+//               ? "bg-emerald-50 text-emerald-600"
+//               : "bg-gray-50 text-brand-muted"
+//           }`}
+//         >
+//           {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+//           {stat.change} {pillSuffix}
+//         </span>
+//         <Ring percent={stat.ring} color={def.ring} />
+//       </div>
+//     </div>
+//   );
+// }
 
-function Ring({ percent, color }) {
-  const safe = Math.max(0, Math.min(100, Number(percent) || 0));
-  const data = [
-    { name: "filled", value: safe },
-    { name: "rest", value: 100 - safe },
-  ];
-  return (
-    <div className="relative w-14 h-14">
-      <ResponsiveContainer>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={18}
-            outerRadius={26}
-            startAngle={90}
-            endAngle={-270}
-            dataKey="value"
-            stroke="none"
-          >
-            <Cell fill={color} />
-            <Cell fill="#f1f5f9" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
-        {safe}%
-      </span>
-    </div>
-  );
-}
+// function Ring({ percent, color }) {
+//   const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+//   const data = [
+//     { name: "filled", value: safe },
+//     { name: "rest", value: 100 - safe },
+//   ];
+//   return (
+//     <div className="relative w-14 h-14">
+//       <ResponsiveContainer>
+//         <PieChart>
+//           <Pie
+//             data={data}
+//             cx="50%"
+//             cy="50%"
+//             innerRadius={18}
+//             outerRadius={26}
+//             startAngle={90}
+//             endAngle={-270}
+//             dataKey="value"
+//             stroke="none"
+//           >
+//             <Cell fill={color} />
+//             <Cell fill="#f1f5f9" />
+//           </Pie>
+//         </PieChart>
+//       </ResponsiveContainer>
+//       <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
+//         {safe}%
+//       </span>
+//     </div>
+//   );
+// }
