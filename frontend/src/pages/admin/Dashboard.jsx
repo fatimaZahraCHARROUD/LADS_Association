@@ -213,8 +213,16 @@ export default function Dashboard() {
       </header>
 {/* STATS CARDS */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-<StatCard title="Total Départements" count={data?.formations?.length || 0} />
-<StatCard title="Total Membres" count={data?.members?.length || 0} />
+  <StatCard
+    def={{ label: "Total Départements", color: "text-brand-primary", ring: "#2563eb" }}
+    stat={{ value: data?.departments?.length || 0, ring: 0, change: 0 }}
+    pillSuffix="this month"
+  />
+  <StatCard
+    def={{ label: "Total Membres", color: "text-indigo-500", ring: "#6366f1" }}
+    stat={{ value: data?.members?.length || 0, ring: 0, change: 0 }}
+    pillSuffix="this month"
+  />
 </div>
       {/* STATS GRID */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -327,7 +335,6 @@ export default function Dashboard() {
   );
 }
 
-<<<<<<< HEAD
 // function StatCard({ def, stat, pillSuffix }) {
 //   const trendUp = stat.change > 0;
 //   return (
@@ -355,7 +362,6 @@ export default function Dashboard() {
 //     </div>
 //   );
 // }
-=======
 function MetricCard({ def, stat, pillSuffix }) {
   const trendUp = stat.change > 0;
   return (
@@ -383,37 +389,36 @@ function MetricCard({ def, stat, pillSuffix }) {
     </div>
   );
 }
->>>>>>> bae765f209fa0b4ee689d2107fb57f2551ae582c
 
-// function Ring({ percent, color }) {
-//   const safe = Math.max(0, Math.min(100, Number(percent) || 0));
-//   const data = [
-//     { name: "filled", value: safe },
-//     { name: "rest", value: 100 - safe },
-//   ];
-//   return (
-//     <div className="relative w-14 h-14">
-//       <ResponsiveContainer>
-//         <PieChart>
-//           <Pie
-//             data={data}
-//             cx="50%"
-//             cy="50%"
-//             innerRadius={18}
-//             outerRadius={26}
-//             startAngle={90}
-//             endAngle={-270}
-//             dataKey="value"
-//             stroke="none"
-//           >
-//             <Cell fill={color} />
-//             <Cell fill="#f1f5f9" />
-//           </Pie>
-//         </PieChart>
-//       </ResponsiveContainer>
-//       <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
-//         {safe}%
-//       </span>
-//     </div>
-//   );
-// }
+function Ring({ percent, color }) {
+  const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+  const data = [
+    { name: "filled", value: safe },
+    { name: "rest", value: 100 - safe },
+  ];
+  return (
+    <div className="relative w-14 h-14">
+      <ResponsiveContainer>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={18}
+            outerRadius={26}
+            startAngle={90}
+            endAngle={-270}
+            dataKey="value"
+            stroke="none"
+          >
+            <Cell fill={color} />
+            <Cell fill="#f1f5f9" />
+          </Pie>
+         </PieChart>
+      </ResponsiveContainer>
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
+        {safe}%
+      </span>
+     </div>
+  );
+}
