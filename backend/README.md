@@ -31,6 +31,14 @@
 $ npm install
 ```
 
+## Environment configuration
+
+Create a local environment file by copying `.env.example` to `.env` in the
+`backend` directory. Set `JWT_SECRET` to a unique, strong random value before
+starting the API; this required value signs and verifies login tokens. The
+optional `JWT_EXPIRES_IN` controls token lifetime and defaults to `1d`.
+Keep `.env` local and never commit its secret.
+
 ## Compile and run the project
 
 ```bash

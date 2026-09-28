@@ -1,19 +1,24 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
-import { DepartmentsService } from './departments.service';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import {
+  AssignDepartmentUserDto,
+  AssignDepartmentUsersDto,
+} from './dto/assign-department-users.dto';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
-import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { DepartmentsAdminGuard } from './departments-admin.guard';
+import { DepartmentsService } from './departments.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DepartmentsAdminGuard)
 @Controller('departments')
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
@@ -36,6 +41,35 @@ export class DepartmentsController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDepartmentDto) {
     return this.departmentsService.update(id, dto);
+  }
+
+  @Patch(':id/manager')
+  assignManager(@Param('id') id: string, @Body() dto: AssignDepartmentUserDto) {
+    return this.departmentsService.assignManager(id, dto.userId);
+  }
+
+  @Patch(':id/vice-manager')
+  assignViceManager(
+    @Param('id') id: string,
+    @Body() dto: AssignDepartmentUserDto,
+  ) {
+    return this.departmentsService.assignViceManager(id, dto.userId);
+  }
+
+  @Patch(':id/team-managers')
+  assignTeamManagers(
+    @Param('id') id: string,
+    @Body() dto: AssignDepartmentUsersDto,
+  ) {
+    return this.departmentsService.assignTeamManagers(id, dto.userIds);
+  }
+
+  @Patch(':id/members')
+  assignMembers(
+    @Param('id') id: string,
+    @Body() dto: AssignDepartmentUsersDto,
+  ) {
+    return this.departmentsService.assignMembers(id, dto.userIds);
   }
 
   @Delete(':id')
