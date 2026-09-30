@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Search, Bell,  Home, Mail, ChevronDown, LogOut, Menu, Users, ClipboardList,
+  Search, Bell, Home, Mail, ChevronDown, LogOut, Menu, Users, ClipboardList,
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useTopSearch } from "../../contexts/TopSearchContext";
@@ -28,20 +28,40 @@ function getInitials(name) {
 export default function Topbar({ onOpenSidebar }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const isDashboard = pathname === "/admin" || pathname === "/admin/";
+  const isDashboard =
+    pathname === "/admin" ||
+    pathname === "/admin/" ||
+    pathname === "/exec" ||
+    pathname === "/team" ||
+    pathname === "/responsible" ||
+    pathname === "/member";
+
   const { query, setQuery } = useTopSearch();
-const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen] = useState(false);
+  const { counts, setCounts } = useNotifications();
+  const [bellOpen, setBellOpen] = useState(false);
   const [mailOpen, setMailOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const bellRef = useRef(null);
   const mailRef = useRef(null);
   const profileRef = useRef(null);
 
+  // Detect the current role from localStorage user
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const activeMembership = (storedUser.memberships || []).find(
+    (m) => String(m._id) === String(storedUser.activeMembershipId)
+  );
+  const activeRole = storedUser.isAdmin
+    ? "President"
+    : activeMembership?.role;
+  const isPresident = activeRole === "President";
+
   const user = decodeJwt(localStorage.getItem("token")) || {};
   const displayName = user.name || user.fullName || user.email || "Admin";
   const initials = getInitials(displayName);
 
+  // Only fetch notifications if user is President
   useEffect(() => {
+    if (!isPresident) return;
     let cancelled = false;
     const unreadCount = (arr) =>
       Array.isArray(arr) ? arr.filter((it) => !it?.readAt).length : 0;
@@ -57,8 +77,10 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
         registrations: unreadCount(r),
       });
     });
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [isPresident, setCounts]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -78,6 +100,7 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/");
   };
 
@@ -107,61 +130,86 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
       )}
 
       <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-        {/* MAIL */}
-        <div className="relative" ref={mailRef}>
-          <button
-            onClick={() => setMailOpen((o) => !o)}
-            className="relative p-2.5 rounded-full text-brand-text hover:bg-gray-100"
-            aria-label="Messages"
-          >
-            <Mail size={20} />
-            {counts.contacts > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-danger" />
-            )}
-          </button>
-          {mailOpen && (
-            <div 
-            className="absolute right-0 mt-2 w-50 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50"
-            >
-              <div className="px-4 py-3 border-b border-brand-border">
-                <p className="text-sm font-semibold text-brand-text">Messages</p>
-                <p className="text-xs text-brand-muted">
-                  {counts.contacts === 0 ? "All caught up" : `${counts.contacts} unread`}
-                </p>
-              </div>
-              <NotifItem to="/admin/contacts" icon={<Mail size={16} />} label="Open inbox" count={counts.contacts} onClick={() => setMailOpen(false)} />
+        {/* MAIL + BELL — ONLY FOR PRESIDENT */}
+        {isPresident && (
+          <>
+            <div className="relative" ref={mailRef}>
+              <button
+                onClick={() => setMailOpen((o) => !o)}
+                className="relative p-2.5 rounded-full text-brand-text hover:bg-gray-100"
+                aria-label="Messages"
+              >
+                <Mail size={20} />
+                {counts.contacts > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-danger" />
+                )}
+              </button>
+              {mailOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-brand-border">
+                    <p className="text-sm font-semibold text-brand-text">Messages</p>
+                    <p className="text-xs text-brand-muted">
+                      {counts.contacts === 0 ? "All caught up" : `${counts.contacts} unread`}
+                    </p>
+                  </div>
+                  <NotifItem
+                    to="/admin/contacts"
+                    icon={<Mail size={16} />}
+                    label="Open inbox"
+                    count={counts.contacts}
+                    onClick={() => setMailOpen(false)}
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* BELL */}
-        <div className="relative" ref={bellRef}>
-          <button
-            onClick={() => setBellOpen((o) => !o)}
-            className="relative p-2.5 rounded-full text-brand-text hover:bg-gray-100"
-            aria-label="Notifications"
-          >
-            <Bell size={20} />
-            {total > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-danger" />
-            )}
-          </button>
-          {bellOpen && (
-            <div className="absolute right-0 mt-2 w-60 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-brand-border">
-                <p className="text-sm font-semibold text-brand-text">Notifications</p>
-                <p className="text-xs text-brand-muted">
-                  {total === 0 ? "All caught up" : `${total} unread`}
-                </p>
-              </div>
-              <NotifItem to="/admin/contacts" icon={<Mail size={16} />} label="Contact messages" count={counts.contacts} onClick={() => setBellOpen(false)} />
-              <NotifItem to="/admin/membership" icon={<Users size={16} />} label="Membership requests" count={counts.memberships} onClick={() => setBellOpen(false)} />
-              <NotifItem to="/admin/eventRegister" icon={<ClipboardList size={16} />} label="Event registrations" count={counts.registrations} onClick={() => setBellOpen(false)} />
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setBellOpen((o) => !o)}
+                className="relative p-2.5 rounded-full text-brand-text hover:bg-gray-100"
+                aria-label="Notifications"
+              >
+                <Bell size={20} />
+                {total > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-danger" />
+                )}
+              </button>
+              {bellOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-brand-border">
+                    <p className="text-sm font-semibold text-brand-text">Notifications</p>
+                    <p className="text-xs text-brand-muted">
+                      {total === 0 ? "All caught up" : `${total} unread`}
+                    </p>
+                  </div>
+                  <NotifItem
+                    to="/admin/contacts"
+                    icon={<Mail size={16} />}
+                    label="Contact messages"
+                    count={counts.contacts}
+                    onClick={() => setBellOpen(false)}
+                  />
+                  <NotifItem
+                    to="/admin/membership"
+                    icon={<Users size={16} />}
+                    label="Membership requests"
+                    count={counts.memberships}
+                    onClick={() => setBellOpen(false)}
+                  />
+                  <NotifItem
+                    to="/admin/eventRegister"
+                    icon={<ClipboardList size={16} />}
+                    label="Event registrations"
+                    count={counts.registrations}
+                    onClick={() => setBellOpen(false)}
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* PROFILE */}
+        {/* PROFILE — always visible */}
         <div className="relative ml-1 sm:ml-2" ref={profileRef}>
           <button
             onClick={() => setProfileOpen((o) => !o)}
@@ -182,38 +230,44 @@ const { counts, setCounts } = useNotifications();  const [bellOpen, setBellOpen]
             </span>
             <ChevronDown size={16} className="hidden sm:block text-brand-muted shrink-0" />
           </button>
-         {profileOpen && (
-  <div className="absolute right-0 mt-2 w-56 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
-    <div className="px-4 py-3 border-b border-brand-border">
-      <p className="text-sm font-medium text-brand-text truncate">
-        {displayName}
-      </p>
 
-      {user.email && user.email !== displayName && (
-        <p className="text-xs text-brand-muted truncate">
-          {user.email}
-        </p>
-      )}
-    </div>
+          {profileOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-brand-border">
+                <p className="text-sm font-medium text-brand-text truncate">
+                  {displayName}
+                </p>
+                {user.email && user.email !== displayName && (
+                  <p className="text-xs text-brand-muted truncate">{user.email}</p>
+                )}
+                {activeRole && (
+                  <p className="text-xs text-brand-primary mt-1">
+                    {activeRole}
+                    {activeMembership?.departmentId?.name
+                      ? ` · ${activeMembership.departmentId.name}`
+                      : ""}
+                  </p>
+                )}
+              </div>
 
-    <Link
-      to="/"
-      onClick={() => setProfileOpen(false)}
-      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-text hover:bg-gray-50"
-    >
-      <Home size={16} />
-      Home Page
-    </Link>
+              <Link
+                to="/"
+                onClick={() => setProfileOpen(false)}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-text hover:bg-gray-50"
+              >
+                <Home size={16} />
+                Home Page
+              </Link>
 
-    <button
-      onClick={logout}
-      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-danger hover:bg-red-50"
-    >
-      <LogOut size={16} />
-      Logout
-    </button>
-  </div>
-)}
+              <button
+                onClick={logout}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-brand-danger hover:bg-red-50"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

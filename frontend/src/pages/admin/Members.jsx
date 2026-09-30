@@ -26,6 +26,7 @@ const EMPTY_FORM = {
   departement: "",
   cotisation_payee: false,
   status: "active",
+   role: "Member",
 };
 
 export default function AdminMembers() {
@@ -85,6 +86,7 @@ export default function AdminMembers() {
       departement: r.departement?.[0] || "",
       cotisation_payee: !!r.cotisation_payee,
       status: r.status || "active",
+      role: r.role?.[0] || r.memberships?.[0]?.role || "Member",
     });
     setFile(null);
     setFormOpen(true);
@@ -117,7 +119,10 @@ export default function AdminMembers() {
         situation: form.situation,
         cotisation_payee: form.cotisation_payee,
         status: form.status,
+          role: form.role, 
       };
+      const isGlobal = ["President", "Director Executive"].includes(form.role);
+if (!isGlobal && form.departement) payload.departement = [form.departement];
       if (form.departement) payload.departement = [form.departement];
       if (form.password) payload.password = form.password;
 
@@ -415,6 +420,13 @@ export default function AdminMembers() {
               </select>
             </div>
             <div>
+  <label className="text-sm font-medium text-brand-text mb-1 block">Role *</label>
+  <select value={form.role} onChange={set("role")} className={fieldClass}>
+    <option value="Member">Member</option>
+    <option value="Director Executive">Director Executive</option>
+  </select>
+</div>
+            <div>
               <label className="text-sm font-medium text-brand-text mb-1 block">Birthday</label>
               <input type="date" value={form.birthday} onChange={set("birthday")} className={fieldClass} />
             </div>
@@ -422,10 +434,19 @@ export default function AdminMembers() {
               <label className="text-sm font-medium text-brand-text mb-1 block">City</label>
               <input value={form.ville} onChange={set("ville")} className={fieldClass} />
             </div>
-            <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Department</label>
-              <input value={form.departement} onChange={set("departement")} className={fieldClass} />
-            </div>
+           {![ "Director Executive"].includes(form.role) && (
+  <div>
+    <label className="text-sm font-medium text-brand-text mb-1 block">
+      Department
+    </label>
+    <input
+      value={form.departement}
+      onChange={set("departement")}
+      className={fieldClass}
+      placeholder="e.g. IT, Media, Event"
+    />
+  </div>
+)}
             <div>
               <label className="text-sm font-medium text-brand-text mb-1 block">Niveau d'étude</label>
               <input value={form.niveau_etude} onChange={set("niveau_etude")} className={fieldClass} />

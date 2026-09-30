@@ -60,13 +60,26 @@ export class DepartmentsService {
       teamManagers,
       members,
     });
-    return this.findOne(String(department._id));
+
+    const deptId = String(department._id);
+    if (manager) await this.syncMembership(String(manager), deptId, 'Responsable');
+    if (viceManager) await this.syncMembership(String(viceManager), deptId, 'Responsable');
+    for (const tm of teamManagers) await this.syncMembership(String(tm), deptId, 'Team Manager');
+    for (const m of members) await this.syncMembership(String(m), deptId, 'Member');
+
+    return this.findOne(deptId);
   }
 
   async update(id: string, dto: UpdateDepartmentDto) {
     this.validateDepartmentId(id);
     const current = await this.departmentModel.findById(id).exec();
     if (!current) throw new NotFoundException(`Department ${id} not found`);
+
+    // Snapshot the current member lists so we can diff
+    const beforeManager = current.manager ? String(current.manager) : null;
+    const beforeVice = current.viceManager ? String(current.viceManager) : null;
+    const beforeTeamManagers = (current.teamManagers ?? []).map(String);
+    const beforeMembers = (current.members ?? []).map(String);
 
     const updates: Record<string, unknown> = {};
     if (dto.name !== undefined) updates.name = this.validateName(dto.name);
@@ -94,10 +107,45 @@ export class DepartmentsService {
       : current.viceManager;
     this.validateDistinctManagers(manager, viceManager);
 
-    await this.departmentModel
+    const updated = await this.departmentModel
       .findByIdAndUpdate(id, updates, { new: true, runValidators: true })
       .exec();
-    return this.findOne(id);
+
+    if (!updated) throw new NotFoundException(`Department ${id} not found`);
+
+    // ── Diff and sync memberships ──
+    const afterManager = updated.manager ? String(updated.manager) : null;
+    const afterVice = updated.viceManager ? String(updated.viceManager) : null;
+    const afterTeamManagers = (updated.teamManagers ?? []).map(String);
+    const afterMembers = (updated.members ?? []).map(String);
+
+    const deptId = id;
+
+    // Manager
+    if (beforeManager !== afterManager) {
+      if (beforeManager) await this.removeMembership(beforeManager, deptId);
+      if (afterManager) await this.syncMembership(afterManager, deptId, 'Responsable');
+    }
+
+    // Vice manager
+    if (beforeVice !== afterVice) {
+      if (beforeVice) await this.removeMembership(beforeVice, deptId);
+      if (afterVice) await this.syncMembership(afterVice, deptId, 'Responsable');
+    }
+
+    // Team managers — added / removed
+    const addedTM = afterTeamManagers.filter((x) => !beforeTeamManagers.includes(x));
+    const removedTM = beforeTeamManagers.filter((x) => !afterTeamManagers.includes(x));
+    for (const uid of addedTM) await this.syncMembership(uid, deptId, 'Team Manager');
+    for (const uid of removedTM) await this.removeMembership(uid, deptId);
+
+    // Members — added / removed
+    const addedM = afterMembers.filter((x) => !beforeMembers.includes(x));
+    const removedM = beforeMembers.filter((x) => !afterMembers.includes(x));
+    for (const uid of addedM) await this.syncMembership(uid, deptId, 'Member');
+    for (const uid of removedM) await this.removeMembership(uid, deptId);
+
+    return this.findOne(deptId);
   }
 
   async assignManager(id: string, userId: string | null) {
@@ -132,8 +180,109 @@ export class DepartmentsService {
     this.validateDepartmentId(id);
     const department = await this.departmentModel.findByIdAndDelete(id).exec();
     if (!department) throw new NotFoundException(`Department ${id} not found`);
+
+    // Clean up memberships for all users attached to this department
+    const userIds = new Set<string>();
+    if (department.manager) userIds.add(String(department.manager));
+    if (department.viceManager) userIds.add(String(department.viceManager));
+    (department.teamManagers ?? []).forEach((u) => userIds.add(String(u)));
+    (department.members ?? []).forEach((u) => userIds.add(String(u)));
+
+    for (const uid of userIds) await this.removeMembership(uid, id);
+
     return { deleted: true };
   }
+
+  // ─────────────────────────────────────────────
+  //  Membership sync helpers
+  // ─────────────────────────────────────────────
+
+  /** Add or replace this user's membership for the given department. */
+  private async syncMembership(
+    userId: string,
+    departmentId: string,
+    role: string,
+  ) {
+    if (!Types.ObjectId.isValid(userId)) return;
+    if (!Types.ObjectId.isValid(departmentId)) return;
+
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    const existing = (user.memberships ?? []) as any[];
+
+    // Skip if user already has this exact (dept, role) pair
+    const already = existing.some(
+      (m) =>
+        String(m.departmentId) === String(departmentId) &&
+        m.role === role,
+    );
+    if (already) return;
+
+    // Drop any prior membership for this department (role change)
+    const filtered = existing.filter(
+      (m) => String(m.departmentId) !== String(departmentId),
+    );
+
+    // If user has a global membership (President/Director Exec), don't touch
+    const hasGlobal = filtered.some(
+      (m) =>
+        !m.departmentId &&
+        ['President', 'Director Executive'].includes(m.role),
+    );
+    if (hasGlobal) return;
+
+    const newMembership = {
+      _id: new Types.ObjectId(),
+      departmentId: new Types.ObjectId(departmentId),
+      role,
+    };
+
+    const memberships = [...filtered, newMembership];
+
+    // Fix activeMembershipId if it just became invalid
+    const activeValid =
+      user.activeMembershipId &&
+      memberships.some(
+        (m) => String(m._id) === String(user.activeMembershipId),
+      );
+
+    const patch: any = { memberships };
+    if (!activeValid) patch.activeMembershipId = memberships[0]._id;
+
+    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  /** Remove this user's membership for the given department (if any). */
+  private async removeMembership(userId: string, departmentId: string) {
+    if (!Types.ObjectId.isValid(userId)) return;
+
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    const existing = (user.memberships ?? []) as any[];
+    const filtered = existing.filter(
+      (m) => String(m.departmentId) !== String(departmentId),
+    );
+    if (filtered.length === existing.length) return; // nothing to remove
+
+    const activeValid =
+      user.activeMembershipId &&
+      filtered.some(
+        (m) => String(m._id) === String(user.activeMembershipId),
+      );
+
+    const patch: any = { memberships: filtered };
+    if (!activeValid) {
+      patch.activeMembershipId = filtered[0]?._id ?? null;
+    }
+
+    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  // ─────────────────────────────────────────────
+  //  Validation (unchanged)
+  // ─────────────────────────────────────────────
 
   private validateName(name: string) {
     if (typeof name !== 'string' || !name.trim()) {

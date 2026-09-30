@@ -1,14 +1,19 @@
-import { UseGuards,Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards,
+} from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
+import { Roles } from '../services/jwt/roles.decorator';
 
 @Controller('activities')
 export class ActivitiesController {
   constructor(private readonly activitiesService: ActivitiesService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
   @Post()
   create(@Body() dto: CreateActivityDto) {
     return this.activitiesService.create(dto);
@@ -28,19 +33,22 @@ export class ActivitiesController {
     return this.activitiesService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateActivityDto) {
     return this.activitiesService.update(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
   @Patch(':id/publish')
   togglePublish(@Param('id') id: string) {
     return this.activitiesService.togglePublish(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.activitiesService.remove(id);

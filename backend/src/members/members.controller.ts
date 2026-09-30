@@ -18,12 +18,15 @@ import { multerOptions } from './multer.config';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
+import { Roles } from '../services/jwt/roles.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveRoleGuard)
 @Controller('members')
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
+  @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Post()
   @UseInterceptors(FileInterceptor('profileImage', multerOptions))
   create(
@@ -48,6 +51,7 @@ export class MembersController {
     return this.membersService.findOne(id);
   }
 
+  @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('profileImage', multerOptions))
   update(
@@ -58,6 +62,7 @@ export class MembersController {
     return this.membersService.update(id, dto, file);
   }
 
+  @Roles('President', 'Director Executive')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.membersService.remove(id);

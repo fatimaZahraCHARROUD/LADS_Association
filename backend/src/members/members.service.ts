@@ -1,6 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateMemberDto } from './dto/create-member.dto';
@@ -13,30 +17,47 @@ export interface MemberFilter {
   departement?: string;
 }
 
+const GLOBAL_ROLES = ['President', 'Director Executive'];
+
 @Injectable()
 export class MembersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
   async create(dto: CreateMemberDto, file?: Express.Multer.File) {
     const existing = await this.userModel.findOne({ email: dto.email });
-    if (existing) {
-      throw new BadRequestException('Email already exists');
-    }
+    if (existing) throw new BadRequestException('Email already exists');
 
-    const profileImage = file
-      ? `/uploads/members/${file.filename}`
-      : '';
-
+    const profileImage = file ? `/uploads/members/${file.filename}` : '';
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const membershipNumber = await this.generateMembershipNumber();
 
+    const role = dto.role || 'Member';
+    const isGlobal = GLOBAL_ROLES.includes(role);
+
+    const memberships = [
+      {
+        _id: new Types.ObjectId(),
+        departmentId: isGlobal ? null : (dto.departement?.[0] || null),
+        role,
+      },
+    ];
+
+    // Remove `role` from spread so it doesn't overwrite the array field
+    const { role: _ignoredRole, ...rest } = dto as any;
+
     const member = await this.userModel.create({
-      ...dto,
+      ...rest,
       password: hashedPassword,
       profileImage,
       membershipNumber,
       date_adhesion:
         dto.date_adhesion ?? new Date().toISOString().slice(0, 10),
+      memberships,
+      activeMembershipId: memberships[0]._id,
+      // keep legacy fields in sync
+      role: [role],
+      departement: isGlobal ? [] : (dto.departement || []),
+      isAdmin: role === 'President',
     });
 
     const obj: any = member.toObject();
@@ -75,7 +96,11 @@ export class MembersService {
       query.departement = filter.departement;
     }
 
-    return this.userModel.find(query).select('-password').sort({ createdAt: -1 }).exec();
+    return this.userModel
+      .find(query)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   async findOne(id: string) {
@@ -88,13 +113,32 @@ export class MembersService {
     const memberDoc = await this.userModel.findById(id).exec();
     if (!memberDoc) throw new NotFoundException(`Member ${id} not found`);
 
-    const data: any = { ...dto };
+    // Strip `role` from the payload — we never want to write it directly
+    const { role: newRole, ...rest } = dto as any;
+    const data: any = { ...rest };
+
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 10);
     }
-
     if (file) {
       data.profileImage = `/uploads/members/${file.filename}`;
+    }
+
+    // If a role was sent, rebuild memberships
+    if (newRole) {
+      const isGlobal = GLOBAL_ROLES.includes(newRole);
+      const memberships = [
+        {
+          _id: new Types.ObjectId(),
+          departmentId: isGlobal ? null : (rest.departement?.[0] || null),
+          role: newRole,
+        },
+      ];
+      data.memberships = memberships;
+      data.activeMembershipId = memberships[0]._id;
+      data.role = [newRole];
+      data.departement = isGlobal ? [] : (rest.departement || []);
+      data.isAdmin = newRole === 'President';
     }
 
     const member = await this.userModel

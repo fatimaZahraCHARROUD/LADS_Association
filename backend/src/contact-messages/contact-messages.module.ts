@@ -6,9 +6,10 @@ import { ContactMessage, ContactMessageSchema } from './schemas/contact-message.
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { MailModule } from '../mail/mail.module';
+import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: ContactMessage.name, schema: ContactMessageSchema }]),JwtModule,MailModule],
+  imports: [MongooseModule.forFeature([{ name: ContactMessage.name, schema: ContactMessageSchema },{ name: User.name, schema: UserSchema }, ]),JwtModule,MailModule],
   controllers: [ContactMessagesController],
   providers: [ContactMessagesService,JwtAuthGuard],
 })

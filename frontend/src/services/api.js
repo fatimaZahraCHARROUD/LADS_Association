@@ -28,13 +28,6 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-export const api = {
-  get:    (p)    => request(p),
-  post:   (p, b) => request(p, { method: "POST",   body: b }),
-  patch:  (p, b) => request(p, { method: "PATCH",  body: b }),
-  delete: (p)    => request(p, { method: "DELETE" }),
-};
-
 export { API_BASE };
 
 export function getCurrentUserId() {
@@ -47,3 +40,12 @@ export function getCurrentUserId() {
     return null;
   }
 }
+
+export const api = {
+  get:    (p)      => request(p),
+  post:   (p, b)   => request(p, { method: "POST",   body: b }),
+  patch:  (p, b)   => request(p, { method: "PATCH",  body: b }),
+  delete: (p)      => request(p, { method: "DELETE" }),
+  switchRole: (membershipId) =>
+    request("/auth/switch-role", { method: "POST", body: { membershipId } }),
+};

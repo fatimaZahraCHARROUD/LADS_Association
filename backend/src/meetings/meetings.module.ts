@@ -5,11 +5,13 @@ import { MeetingsController } from './meetings.controller';
 import { Meeting, MeetingSchema } from './schemas/meeting.schema';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
+import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Meeting.name, schema: MeetingSchema },
+       { name: User.name, schema: UserSchema }, 
     ]),
     JwtModule,
   ],

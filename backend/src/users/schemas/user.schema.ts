@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-
+import { Types } from 'mongoose';
 export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
@@ -22,6 +22,27 @@ export class User {
 
   @Prop({ enum: ['Male', 'Female'], default: 'Male' })
   genre!: string;
+
+@Prop({
+  type: [
+    {
+      departmentId: { type: Types.ObjectId, ref: 'Department', default: null },
+      role: {
+        type: String,
+        enum: ['President', 'Director Executive', 'Team Manager', 'Responsable', 'Member'],
+      },
+    },
+  ],
+  default: [],
+})
+memberships!: {
+  _id: Types.ObjectId;
+  departmentId: Types.ObjectId | null;
+  role: string;
+}[];
+
+@Prop({ type: Types.ObjectId, default: null })
+activeMembershipId!: Types.ObjectId | null;
 
   @Prop({ default: '' })
   profileImage!: string;

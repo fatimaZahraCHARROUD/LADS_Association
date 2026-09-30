@@ -5,11 +5,13 @@ import { DocumentsController } from './documents.controller';
 import { LadsDocument, DocumentSchema } from './schemas/document.schema';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
+import { User, UserSchema } from '../users/schemas/user.schema'; 
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: LadsDocument.name, schema: DocumentSchema },
+      {name: User.name, schema: UserSchema}
     ]),
     JwtModule,
   ],

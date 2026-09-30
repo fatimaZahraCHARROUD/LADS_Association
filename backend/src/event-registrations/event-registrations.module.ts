@@ -6,9 +6,10 @@ import { EventRegistration, EventRegistrationSchema } from './schemas/event-regi
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { MailModule } from '../mail/mail.module';
+import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: EventRegistration.name, schema: EventRegistrationSchema }]),JwtModule,MailModule],
+  imports: [MongooseModule.forFeature([{ name: EventRegistration.name, schema: EventRegistrationSchema },{ name: User.name, schema: UserSchema },  ]),JwtModule,MailModule],
   controllers: [EventRegistrationsController],
   providers: [EventRegistrationsService,JwtAuthGuard],
 })
