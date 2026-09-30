@@ -28,8 +28,7 @@ const MENU = {
   "Director Executive": [
     "dashboard",
     "strategic",
-    "members", "departments",
-    "documents", "meetings",
+    "members",     "documents", "meetings",
     "followup",
   ],
   "Team Manager": [
