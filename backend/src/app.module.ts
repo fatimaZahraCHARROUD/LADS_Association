@@ -18,6 +18,7 @@ import { DepartmentMembersModule } from './department-members/department-members
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
 import { MeetingsModule } from './meetings/meetings.module';
+import { StrategicPlansModule } from './strategic-plans/strategic-plans.module';
 // import { APP_GUARD } from '@nestjs/core';
 // import { JwtAuthGuard } from './services/jwt/jwt.guard';
 // import { ActiveRoleGuard } from './services/jwt/active-role.guard';
@@ -45,6 +46,7 @@ import { MeetingsModule } from './meetings/meetings.module';
     DocumentsModule,
     DocumentPermissionsModule,
     MeetingsModule,
+    StrategicPlansModule,
      //MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
  
