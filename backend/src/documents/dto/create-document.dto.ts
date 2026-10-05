@@ -3,5 +3,7 @@ export class CreateDocumentDto {
   category?: string;
   driveUrl!: string;
   description?: string;
-  visibility?: 'all' | 'private';
+  visibility?: 'all' | 'private' | 'department' | 'member';
+  visibilityDepartment?: string | null;
+  visibilityMember?: string | null;
 }

@@ -20,8 +20,17 @@ export class LadsDocument {
   @Prop({ default: '' })
   description!: string;
 
-  @Prop({ enum: ['all', 'private'], default: 'all' })
+  @Prop({
+    enum: ['all', 'private', 'department', 'member'],
+    default: 'all',
+  })
   visibility!: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Department', default: null })
+  visibilityDepartment!: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  visibilityMember!: Types.ObjectId | null;
 }
 
 export const DocumentSchema = SchemaFactory.createForClass(LadsDocument);

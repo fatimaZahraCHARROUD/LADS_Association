@@ -47,3 +47,14 @@ export function getCurrentUserId() {
     return null;
   }
 }
+
+export function getCurrentUserRole() {
+  const token = localStorage.getItem("token");
+  if (!token) return [];
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return Array.isArray(payload.role) ? payload.role : [];
+  } catch {
+    return [];
+  }
+}
