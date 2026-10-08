@@ -34,53 +34,82 @@ export class MembersService {
     private celluleModel: Model<CelluleDocument>,
   ) {}
 
-  async create(dto: CreateMemberDto, file?: Express.Multer.File) {
-    const existing = await this.userModel.findOne({ email: dto.email });
-    if (existing) throw new BadRequestException('Email already exists');
+  // ─────────────────────────────────────────────
+  //  CREATE
+  // ─────────────────────────────────────────────
+ async create(dto: CreateMemberDto, file?: Express.Multer.File) {
+  console.log('[create] role=', JSON.stringify(dto.role),
+            'departement=', JSON.stringify(dto.departement));
+  
+  const existing = await this.userModel.findOne({ email: dto.email });
+  if (existing) throw new BadRequestException('Email already exists');
 
-    const profileImage = file ? `/uploads/members/${file.filename}` : '';
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const membershipNumber = await this.generateMembershipNumber();
+  const profileImage = file ? `/uploads/members/${file.filename}` : '';
+  const hashedPassword = await bcrypt.hash(dto.password, 10);
+  const membershipNumber = await this.generateMembershipNumber();
 
-    const role = dto.role || 'Member';
-    const isGlobal = GLOBAL_ROLES.includes(role);
+  const requestedRole = (dto.role || 'Member').trim();
+  const isGlobal = GLOBAL_ROLES.includes(requestedRole);
 
-    // La membership contient l'_id du département (pas son nom).
-    // On transforme le nom fourni (dto.departement) en _id si possible.
-    const membershipDeptId = isGlobal
-      ? null
-      : await this.resolveDepartmentId(dto.departement);
+  const memberships: any[] = [];
 
-    const memberships = [
-      {
-        _id: new Types.ObjectId(),
-        departmentId: membershipDeptId,
-        role,
-      },
-    ];
-
-    // Remove `role` from spread so it doesn't overwrite the array field
-    const { role: _ignoredRole, ...rest } = dto as any;
-
-    const member = await this.userModel.create({
-      ...rest,
-      password: hashedPassword,
-      profileImage,
-      membershipNumber,
-      date_adhesion:
-        dto.date_adhesion ?? new Date().toISOString().slice(0, 10),
-      memberships,
-      activeMembershipId: memberships[0]._id,
-      // keep legacy fields in sync
-      role: [role],
-      departement: isGlobal ? [] : (dto.departement || []),
-      isAdmin: role === 'President',
+  // 1. ALWAYS add the global membership if the requested role is global
+  if (isGlobal) {
+    memberships.push({
+      _id: new Types.ObjectId(),
+      departmentId: null,
+      role: requestedRole,
     });
-
-    const obj: any = member.toObject();
-    delete obj.password;
-    return obj;
   }
+
+  // 2. Add a department membership if a department was provided
+  const deptId = await this.resolveDepartmentId(dto.departement);
+  if (deptId) {
+    memberships.push({
+      _id: new Types.ObjectId(),
+      departmentId: deptId,
+      role: 'Member', // department default; Team Manager/Responsable come from the Departments page
+    });
+  }
+
+  // 3. Never leave the user without at least one membership
+  if (memberships.length === 0) {
+    memberships.push({
+      _id: new Types.ObjectId(),
+      departmentId: null,
+      role: 'Member',
+    });
+  }
+
+  // 4. activeMembershipId: prefer the global one, else the department one
+  const activeMembershipId =
+    memberships.find((m) => !m.departmentId)?._id ?? memberships[0]._id;
+
+  // 5. Legacy `role` array = union of membership roles
+  const roleArray = Array.from(
+    new Set(memberships.map((m) => m.role).filter(Boolean)),
+  );
+
+  const { role: _ignoredRole, ...rest } = dto as any;
+
+  const member = await this.userModel.create({
+    ...rest,
+    password: hashedPassword,
+    profileImage,
+    membershipNumber,
+    date_adhesion:
+      dto.date_adhesion ?? new Date().toISOString().slice(0, 10),
+    memberships,
+    activeMembershipId,
+    role: roleArray,
+    departement: deptId ? [deptId] : [],
+    isAdmin: requestedRole === 'President',
+  });
+
+  const obj: any = member.toObject();
+  delete obj.password;
+  return obj;
+}
 
   private async generateMembershipNumber(): Promise<string> {
     const count = await this.userModel.countDocuments({
@@ -97,29 +126,26 @@ export class MembersService {
     return candidate;
   }
 
+  // ─────────────────────────────────────────────
+  //  READ
+  // ─────────────────────────────────────────────
   async findAll(filter: MemberFilter = {}, userId?: string) {
     const query: any = { isAdmin: { $ne: true } };
 
-    // ── Étape 2 : restriction par rôle ──────────────────────────
-    // Chaque rôle ne voit que ce qu'il a le droit de voir.
     if (userId) {
       const role = await this.getActiveRole(userId);
       const globalRoles = ['President', 'Director Executive'];
 
-      // President / Exec Dir : voit TOUS les membres (aucune restriction)
-      // Team Manager : uniquement les membres de SES départements
-      // Responsable : uniquement les membres de SES cellules
-      // Member : se voit lui-même uniquement
       if (!globalRoles.includes(role ?? '')) {
         if (role === 'Team Manager') {
           const deptNames = await this.getTeamManagerDepartmentNames(userId);
           if (deptNames.length === 0) {
-            query._id = { $in: [] }; // aucun département assigné => rien
+            query._id = { $in: [] };
           } else if (filter.departement) {
             if (deptNames.includes(filter.departement)) {
               query.departement = filter.departement;
             } else {
-              query._id = { $in: [] }; // filtre demandé hors de ses départements
+              query._id = { $in: [] };
             }
           } else {
             query.departement = { $in: deptNames };
@@ -130,24 +156,16 @@ export class MembersService {
           query._id = { $in: oids.length ? oids : [new Types.ObjectId()] };
           if (filter.departement) query.departement = filter.departement;
         } else {
-          // simple Member : il ne voit que son propre profil
           query._id = Types.ObjectId.isValid(userId)
             ? new Types.ObjectId(userId)
             : new Types.ObjectId();
         }
       }
     }
-    // ────────────────────────────────────────────────────────────
 
-    if (filter.nom) {
-      query.fullName = { $regex: filter.nom, $options: 'i' };
-    }
-    if (filter.ville) {
-      query.ville = { $regex: filter.ville, $options: 'i' };
-    }
-    if (filter.status) {
-      query.status = filter.status;
-    }
+    if (filter.nom) query.fullName = { $regex: filter.nom, $options: 'i' };
+    if (filter.ville) query.ville = { $regex: filter.ville, $options: 'i' };
+    if (filter.status) query.status = filter.status;
     if (filter.departement && query.departement === undefined) {
       query.departement = filter.departement;
     }
@@ -155,58 +173,131 @@ export class MembersService {
     return this.userModel
       .find(query)
       .select('-password')
+      .populate('memberships.departmentId', 'name')
       .sort({ createdAt: -1 })
       .exec();
   }
 
   async findOne(id: string) {
-    const member = await this.userModel.findById(id).select('-password').exec();
-    if (!member) throw new NotFoundException(`Member ${id} not found`);
-    return member;
-  }
-
-  async update(id: string, dto: UpdateMemberDto, file?: Express.Multer.File) {
-    const memberDoc = await this.userModel.findById(id).exec();
-    if (!memberDoc) throw new NotFoundException(`Member ${id} not found`);
-
-    // Strip `role` from the payload — we never want to write it directly
-    const { role: newRole, ...rest } = dto as any;
-    const data: any = { ...rest };
-
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-    if (file) {
-      data.profileImage = `/uploads/members/${file.filename}`;
-    }
-
-    // If a role was sent, rebuild memberships
-    if (newRole) {
-      const isGlobal = GLOBAL_ROLES.includes(newRole);
-      const membershipDeptId = isGlobal
-        ? null
-        : await this.resolveDepartmentId(rest.departement);
-      const memberships = [
-        {
-          _id: new Types.ObjectId(),
-          departmentId: membershipDeptId,
-          role: newRole,
-        },
-      ];
-      data.memberships = memberships;
-      data.activeMembershipId = memberships[0]._id;
-      data.role = [newRole];
-      data.departement = isGlobal ? [] : (rest.departement || []);
-      data.isAdmin = newRole === 'President';
-    }
-
     const member = await this.userModel
-      .findByIdAndUpdate(id, data, { new: true })
+      .findById(id)
       .select('-password')
+      .populate('memberships.departmentId', 'name')
       .exec();
     if (!member) throw new NotFoundException(`Member ${id} not found`);
     return member;
   }
+
+  // ─────────────────────────────────────────────
+  //  UPDATE
+  // ─────────────────────────────────────────────
+async update(id: string, dto: UpdateMemberDto, file?: Express.Multer.File) {
+  const memberDoc = await this.userModel.findById(id).exec();
+  if (!memberDoc) throw new NotFoundException(`Member ${id} not found`);
+
+  const { role: newRole, departement: newDept, ...rest } = dto as any;
+  const data: any = { ...rest };
+
+  if (data.password) data.password = await bcrypt.hash(data.password, 10);
+  if (file) data.profileImage = `/uploads/members/${file.filename}`;
+
+  // Snapshot existing memberships (plain objects)
+  const existing: any[] = (memberDoc.memberships ?? []).map((m: any) =>
+    typeof m.toObject === 'function' ? m.toObject() : m,
+  );
+
+  // Keep the current global membership around unless the caller explicitly
+  // demotes the user to a *non-global* role.
+  const currentGlobal = existing.find(
+    (m) => !m.departmentId && GLOBAL_ROLES.includes(m.role),
+  );
+
+  // What global role should we end up with?
+  let targetGlobalRole: string | null = currentGlobal?.role ?? null;
+  if (newRole !== undefined) {
+    const roleTrimmed = String(newRole).trim();
+    if (GLOBAL_ROLES.includes(roleTrimmed)) {
+      targetGlobalRole = roleTrimmed;
+    } else if (!currentGlobal) {
+      // Caller sent a non-global role and the user had no global role
+      // before → stay non-global (null).
+      targetGlobalRole = null;
+    }
+    // else: caller sent a non-global role but the user IS a global role →
+    // keep the existing global role (Model 2: coexist).
+  }
+
+  // Start from department memberships only
+  let memberships = existing.filter((m) => !!m.departmentId);
+
+  // Handle department change
+  if (newDept !== undefined) {
+    const deptId = await this.resolveDepartmentId(newDept);
+    if (deptId) {
+      const currentDept = existing.find((m) => !!m.departmentId);
+      const preservedRole =
+        currentDept &&
+        ['Team Manager', 'Responsable'].includes(currentDept.role)
+          ? currentDept.role
+          : 'Member';
+      memberships = memberships.filter(
+        (m) => String(m.departmentId) !== String(deptId),
+      );
+      memberships.push({
+        _id: new Types.ObjectId(),
+        departmentId: deptId,
+        role: preservedRole,
+      });
+    }
+  }
+
+  // Add the global membership back if we have one
+  if (targetGlobalRole) {
+    memberships.push({
+      _id: currentGlobal?._id ?? new Types.ObjectId(),
+      departmentId: null,
+      role: targetGlobalRole,
+    });
+  }
+
+  // Never leave the user with zero memberships
+  if (memberships.length === 0) {
+    memberships.push({
+      _id: new Types.ObjectId(),
+      departmentId: null,
+      role: 'Member',
+    });
+  }
+
+  // activeMembershipId
+  const activeStillValid = memberships.some(
+    (m) => String(m._id) === String(memberDoc.activeMembershipId),
+  );
+  if (!activeStillValid) {
+    const globalMembership = memberships.find((m) => !m.departmentId);
+    data.activeMembershipId = globalMembership?._id ?? memberships[0]._id;
+  }
+
+  // Legacy fields
+  data.memberships = memberships;
+  data.role = Array.from(
+    new Set(memberships.map((m) => m.role).filter(Boolean)),
+  );
+  data.departement = memberships
+    .filter((m) => !!m.departmentId)
+    .map((m) => m.departmentId);
+  data.isAdmin = memberships.some(
+    (m) => !m.departmentId && m.role === 'President',
+  );
+
+  const member = await this.userModel
+    .findByIdAndUpdate(id, data, { new: true })
+    .select('-password')
+    .populate('memberships.departmentId', 'name')
+    .exec();
+  if (!member) throw new NotFoundException(`Member ${id} not found`);
+  return member;
+}
 
   async remove(id: string) {
     const member = await this.userModel.findByIdAndDelete(id).exec();
@@ -215,10 +306,8 @@ export class MembersService {
   }
 
   // ─────────────────────────────────────────────
-  //  Helpers d'accès par rôle (étape 2)
+  //  Helpers
   // ─────────────────────────────────────────────
-
-  // Rôle ACTIF de l'utilisateur (même logique que ActiveRoleGuard)
   private async getActiveRole(userId: string): Promise<string | null> {
     const user = await this.userModel
       .findById(userId)
@@ -235,13 +324,20 @@ export class MembersService {
     return active?.role ?? null;
   }
 
-  // Transforme un NOM de département (ex: "IT") en son _id,
-  // pour le stocker proprement dans memberships.departmentId.
   private async resolveDepartmentId(
     names?: string[] | string,
   ): Promise<Types.ObjectId | null> {
     const name = Array.isArray(names) ? names[0] : (names ?? null);
     if (!name) return null;
+
+    // Accept both _id and name
+    if (Types.ObjectId.isValid(name)) {
+      const exists = await this.departmentModel.exists({
+        _id: new Types.ObjectId(name),
+      });
+      if (exists) return new Types.ObjectId(name);
+    }
+
     const dept = await this.departmentModel
       .findOne({ name })
       .select('_id')
@@ -250,13 +346,14 @@ export class MembersService {
     return dept ? (dept._id as Types.ObjectId) : null;
   }
 
-  // Les DEPARTEMENTS d'un Team Manager = ceux où il est dans `teamManagers`
-  // (assignés par le Président) + ceux dans ses memberships rôle "Team Manager".
-  // On renvoie leurs NOMS (le champ `departement` d'un membre contient des noms).
   private async getTeamManagerDepartmentNames(
     userId: string,
   ): Promise<string[]> {
-    const user = await this.userModel.findById(userId).select('memberships').lean().exec();
+    const user = await this.userModel
+      .findById(userId)
+      .select('memberships')
+      .lean()
+      .exec();
     const deptIds = new Set<string>();
     (user?.memberships ?? []).forEach((m: any) => {
       if (m.role === 'Team Manager' && m.departmentId) {
@@ -284,8 +381,6 @@ export class MembersService {
     return all.map((d) => d.name);
   }
 
-  // Les MEMBRES d'un Responsable = les membres de SES cellules
-  // (cellules dont il est le managerId)
   private async getResponsableMemberIds(userId: string): Promise<string[]> {
     const cellules = await this.celluleModel
       .find({
