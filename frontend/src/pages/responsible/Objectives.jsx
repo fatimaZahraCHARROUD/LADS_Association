@@ -113,8 +113,7 @@ export default function RespObjectives() {
       target: "",
       achievement: "",
       status: "in-progress",
-      departmentId: myDepts[0]?.value || "",
-    });
+     });
     setFormOpen(true);
   };
 
@@ -128,8 +127,7 @@ export default function RespObjectives() {
       target: String(o.target ?? ""),
       achievement: String(o.achievement ?? ""),
       status: o.status || "in-progress",
-      departmentId: o.departmentId?._id || o.departmentId || "",
-    });
+     });
     setFormOpen(true);
   };
 
@@ -143,10 +141,7 @@ export default function RespObjectives() {
       toast.error("Week start and end are required.");
       return;
     }
-    if (!form.departmentId) {
-      toast.error("Please choose a department.");
-      return;
-    }
+    
 
     setSaving(true);
     try {
@@ -158,8 +153,7 @@ export default function RespObjectives() {
         target: Number(form.target) || 0,
         achievement: Number(form.achievement) || 0,
         status: form.status,
-        departmentId: form.departmentId,
-      };
+       };
       if (editing) {
         await api.patch(`/objectives/${editing._id}`, payload);
         toast.success("Objective updated");
@@ -327,19 +321,7 @@ export default function RespObjectives() {
             />
           </Field>
 
-          <Field label="Department" required>
-            <Select
-              value={form.departmentId}
-              onChange={(e) =>
-                setForm({ ...form, departmentId: e.target.value })
-              }
-            >
-              <option value="">Choose a department...</option>
-              {myDepts.map((d) => (
-                <option key={d.value} value={d.value}>{d.name}</option>
-              ))}
-            </Select>
-          </Field>
+         
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Week start" required>

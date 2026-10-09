@@ -23,21 +23,16 @@ import { getUserId } from '../services/jwt/current-user';
 export class ObjectivesController {
   constructor(private readonly objectivesService: ObjectivesService) {}
 
-  // Voir les objectifs : tout le monde (tous les rôles connectés)
   @Get()
-  findAll(
-    @Query('departmentId') departmentId?: string,
-    @Query('status') status?: string,
-  ) {
-    return this.objectivesService.findAll(departmentId, status);
+  findAll(@Req() req: any, @Query('status') status?: string) {
+    return this.objectivesService.findAll(getUserId(req), status);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.objectivesService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.objectivesService.findOne(id, getUserId(req));
   }
 
-  // Créer / modifier / supprimer un objectif : le Responsable (ou le Président)
   @Roles('President', 'Responsable')
   @Post()
   create(@Body() dto: CreateObjectiveDto, @Req() req: any) {
@@ -46,13 +41,17 @@ export class ObjectivesController {
 
   @Roles('President', 'Responsable')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateObjectiveDto) {
-    return this.objectivesService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateObjectiveDto,
+    @Req() req: any,
+  ) {
+    return this.objectivesService.update(id, dto, getUserId(req));
   }
 
   @Roles('President', 'Responsable')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.objectivesService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.objectivesService.remove(id, getUserId(req));
   }
 }
