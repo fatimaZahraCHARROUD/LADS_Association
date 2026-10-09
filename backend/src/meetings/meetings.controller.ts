@@ -33,24 +33,31 @@ export class MeetingsController {
   findAll(
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Req() req?: any,
   ) {
-    return this.meetingsService.findAll(from, to);
+    const userId = req ? getUserId(req) : undefined;
+    return this.meetingsService.findAll(from, to, userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.meetingsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req?: any) {
+    const userId = req ? getUserId(req) : undefined;
+    return this.meetingsService.findOne(id, userId);
   }
 
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateMeetingDto) {
-    return this.meetingsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMeetingDto,
+    @Req() req: any,
+  ) {
+    return this.meetingsService.update(id, dto, getUserId(req));
   }
 
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.meetingsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.meetingsService.remove(id, getUserId(req));
   }
 }

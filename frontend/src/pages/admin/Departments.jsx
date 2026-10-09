@@ -31,8 +31,19 @@ function peopleSummary(people = []) {
 }
 
 function userOptionLabel(user) {
-  const role = Array.isArray(user.role) ? user.role.join(", ") : "Member";
-  return `${userName(user)} (${user.email}) · ${role}`;
+  const name = `${userName(user)} (${user.email})`;
+  const roles = Array.isArray(user.role) ? user.role : [];
+  const globalRoles = roles.filter((r) =>
+    ["President", "Director Executive"].includes(r),
+  );
+  if (!globalRoles.length) return name;
+  return `${name} · ${globalRoles.join(", ")}`;
+}
+
+function toggleInArray(list, value) {
+  return list.includes(value)
+    ? list.filter((v) => v !== value)
+    : [...list, value];
 }
 
 export default function AdminDepartments() {
@@ -186,6 +197,27 @@ export default function AdminDepartments() {
     },
   ];
 
+  // ── Derived: filtered user lists to prevent duplication ──
+  const availableManagers = users.filter(
+    (user) => user._id !== form.viceManager,
+  );
+
+  const availableViceManagers = users.filter(
+    (user) => user._id !== form.manager,
+  );
+
+  const availableTeamManagers = users.filter(
+    (user) =>
+      user._id !== form.manager && user._id !== form.viceManager,
+  );
+
+  const availableMembers = users.filter(
+    (user) =>
+      user._id !== form.manager &&
+      user._id !== form.viceManager &&
+      !form.teamManagers.includes(user._id),
+  );
+
   return (
     <>
       <PageHeader
@@ -254,75 +286,64 @@ export default function AdminDepartments() {
             <Field label="Manager">
               <Select
                 value={form.manager}
-                onChange={(event) => setForm({ ...form, manager: event.target.value })}
+                onChange={(event) =>
+                  setForm({ ...form, manager: event.target.value })
+                }
               >
                 <option value="">Unassigned</option>
-                {users
-                  .filter((user) => user._id !== form.viceManager)
-                  .map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {userOptionLabel(user)}
-                    </option>
-                  ))}
+                {availableManagers.map((user) => (
+                  <option key={user._id} value={user._id}>
+                    {userOptionLabel(user)}
+                  </option>
+                ))}
               </Select>
             </Field>
             <Field label="Vice Manager">
               <Select
                 value={form.viceManager}
-                onChange={(event) => setForm({ ...form, viceManager: event.target.value })}
+                onChange={(event) =>
+                  setForm({ ...form, viceManager: event.target.value })
+                }
               >
                 <option value="">Unassigned</option>
-                {users
-                  .filter((user) => user._id !== form.manager)
-                  .map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {userOptionLabel(user)}
-                    </option>
-                  ))}
+                {availableViceManagers.map((user) => (
+                  <option key={user._id} value={user._id}>
+                    {userOptionLabel(user)}
+                  </option>
+                ))}
               </Select>
             </Field>
           </div>
 
           <Field label="Team Managers">
-            <select
-              multiple
-              size={5}
-              value={form.teamManagers}
-              onChange={(event) =>
+            <CheckboxList
+              users={availableTeamManagers}
+              selected={form.teamManagers}
+              onToggle={(id) =>
                 setForm({
                   ...form,
-                  teamManagers: Array.from(event.target.selectedOptions, (option) => option.value),
+                  teamManagers: toggleInArray(form.teamManagers, id),
+                  // If a user is removed from team managers, ensure they
+                  // don't linger in members as well (optional safety).
+                  members: form.members.filter((m) => m !== id),
                 })
               }
-              className="w-full px-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-            >
-              {users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {userOptionLabel(user)}
-                </option>
-              ))}
-            </select>
+              emptyMessage="All users are already assigned as Manager or Vice Manager."
+            />
           </Field>
 
           <Field label="Members">
-            <select
-              multiple
-              size={7}
-              value={form.members}
-              onChange={(event) =>
+            <CheckboxList
+              users={availableMembers}
+              selected={form.members}
+              onToggle={(id) =>
                 setForm({
                   ...form,
-                  members: Array.from(event.target.selectedOptions, (option) => option.value),
+                  members: toggleInArray(form.members, id),
                 })
               }
-              className="w-full px-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-            >
-              {users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {userOptionLabel(user)}
-                </option>
-              ))}
-            </select>
+              emptyMessage="All users are already assigned as Manager, Vice Manager, or Team Manager."
+            />
           </Field>
         </form>
       </Drawer>
@@ -396,4 +417,70 @@ function PersonList({ label, people = [] }) {
       )}
     </div>
   );
+}
+
+// ── New: checkbox list for multi-select fields ──
+function CheckboxList({ users = [], selected = [], onToggle, emptyMessage }) {
+  if (!users.length) {
+    return (
+      <p className="text-sm text-brand-muted">
+        {emptyMessage || "No users available."}
+      </p>
+    );
+  }
+
+  const isGlobalRole = (user) => {
+    const roles = Array.isArray(user.role) ? user.role : [];
+    return roles.some((r) =>
+      ["President", "Director Executive"].includes(r),
+    );
+  };
+
+  // Global-role users first, then everyone else (stable within groups)
+  const sortedUsers = [...users].sort((a, b) => {
+    const aGlobal = isGlobalRole(a) ? 0 : 1;
+    const bGlobal = isGlobalRole(b) ? 0 : 1;
+    return aGlobal - bGlobal;
+  });
+
+  return (
+    <div className="max-h-60 overflow-y-auto rounded-lg border border-brand-border bg-white">
+      <ul className="divide-y divide-brand-border">
+        {sortedUsers.map((user) => {
+          const checked = selected.includes(user._id);
+          const global = isGlobalRole(user);
+          return (
+            <li key={user._id}>
+              <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggle(user._id)}
+                  className="h-4 w-4 rounded border-brand-border text-brand-primary focus:ring-2 focus:ring-brand-primary/30"
+                />
+                <span
+                  className={
+                    global
+                      ? "text-sm text-red-600 font-medium"
+                      : "text-sm text-brand-text"
+                  }
+                >
+                  {userCheckboxLabel(user)}
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function userCheckboxLabel(user) {
+  const name = `${userName(user)} (${user.email})`;
+  const roles = Array.isArray(user.role) ? user.role : [];
+  const globalRoles = roles.filter((r) =>
+    ["President", "Director Executive"].includes(r),
+  );
+  return globalRoles.length ? `${name} · ${globalRoles.join(", ")}` : name;
 }

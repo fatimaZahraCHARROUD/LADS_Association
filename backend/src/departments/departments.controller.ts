@@ -84,4 +84,6 @@ export class DepartmentsController {
   remove(@Param('id') id: string) {
     return this.departmentsService.remove(id);
   }
+
+  
 }

@@ -48,6 +48,7 @@ import TeamMembers from "./pages/team/Members";
 
 //responsable
 import RespDashboard from "./pages/responsible/Dashboard";
+import RespCellules from "./pages/responsible/Cellules";
 import RespDocument from "./pages/responsible/Document";
 import RespMeeting from "./pages/responsible/Meeting";
 import RespMembers from "./pages/responsible/Members";
@@ -65,6 +66,7 @@ import Membertasks from "./pages/member/tasks";
 import MainLayout from "./Layouts/MainLayout";
 import AdminLayout from "./Layouts/AdminLayout";
 import FormationsPage from "./pages/public/Formations";
+import PublicProjects from "./pages/public/Projects";
 import { useEffect } from "react";
 import i18n from "./utils/tr";
 
@@ -102,6 +104,7 @@ function App() {
           <Route path="/activities" element={<Activities />} />
           <Route path="/activities/:id" element={<ActivitiesDetails />} />
           <Route path="/formations" element={<FormationsPage />} />
+          <Route path="/projects" element={<PublicProjects />} />
           <Route path="/membership" element={<Membership />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
@@ -183,6 +186,7 @@ function App() {
   }
 >
   <Route index element={<RespDashboard />} />
+  <Route path="cellules" element={<RespCellules />} />
   <Route path="members" element={<RespMembers />} />
   <Route path="documents" element={<RespDocument />} />
   <Route path="meetings" element={<RespMeeting />} />

@@ -19,6 +19,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import "../Styles/mainLayout.css";
+import "../utils/projectsI18n";
 
 export default function MainLayout() {
 
@@ -354,6 +355,13 @@ setdesktopLangOpen(false);
             to="/formations"
           >
             {t("layout.nav.formations")}
+          </Link>
+
+          <Link
+            onClick={() => setOpen(false)}
+            to="/projects"
+          >
+            {t("layout.nav.projects")}
           </Link>
 
           <Link

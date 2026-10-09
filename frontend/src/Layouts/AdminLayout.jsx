@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Database, MessageSquare, Calendar, Activity,
   Newspaper, GraduationCap, Mail, Users, Settings, LogOut,
   ChevronDown, ClipboardList, FileText, CalendarClock, Building2, X,
-  BarChart3,FolderKanban
+  BarChart3,FolderKanban, Layers
 } from "lucide-react";
 import Topbar from "../components/admin/Topbar";
 import { TopSearchProvider } from "../contexts/TopSearchContext";
@@ -38,7 +38,7 @@ const MENU = {
   ],
   Responsable: [
     "dashboard",
-    "members", "documents", "meetings",
+    "cellules", "members", "documents", "meetings",
     "objectives", "tasks",
   ],
   Member: [
@@ -163,6 +163,13 @@ function SidebarBody({
         {can("members") && (
           <SidebarLink to={`${base}/members`} icon={Users}>
             Members
+          </SidebarLink>
+        )}
+
+        {/* Cellules (Responsable) */}
+        {can("cellules") && (
+          <SidebarLink to={`${base}/cellules`} icon={Layers}>
+            Cellules
           </SidebarLink>
         )}
 
