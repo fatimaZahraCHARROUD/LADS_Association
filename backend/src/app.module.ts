@@ -18,6 +18,7 @@ import { DepartmentMembersModule } from './department-members/department-members
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
 import { MeetingsModule } from './meetings/meetings.module';
+import { StrategicPlansModule } from './strategic-plans/strategic-plans.module';
 import { ProjectsModule } from './projects/projects.module';
 import { CellulesModule } from './cellules/cellules.module';
 import { ObjectivesModule } from './objectives/objectives.module';
@@ -49,6 +50,7 @@ import { TasksModule } from './tasks/tasks.module';
     DocumentsModule,
     DocumentPermissionsModule,
     MeetingsModule,
+    StrategicPlansModule,
     ProjectsModule,
     CellulesModule,
     ObjectivesModule,
