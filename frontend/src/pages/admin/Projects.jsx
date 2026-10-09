@@ -332,11 +332,7 @@ export default function Projects() {
         </StatusBadge>
       ),
     },
-    {
-      key: "progress",
-      header: "Progress",
-      render: (r) => <ProgressBar value={r.progress} />,
-    },
+   
     {
       key: "isPublished",
       header: "Visibility",

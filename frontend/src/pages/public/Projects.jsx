@@ -138,17 +138,13 @@ export default function Projects() {
                   <p className="project-desc">{p.description}</p>
 
                   <div className="project-info">
-                    <span>
-                      <CalendarDays size={16} />
-                      {fmt(p.startDate)} → {fmt(p.endDate)}
-                    </span>
+                    
                     <span>
                       <Building2 size={16} />
-                      {p.departmentId?.name || t("projects.general")}
+                      { t("projects.general")}
                     </span>
                   </div>
 
-                  <Progress value={p.progress} label={t("projects.progress")} />
                 </div>
               </div>
             ))}
