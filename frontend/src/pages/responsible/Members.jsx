@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Mail, MapPin } from "lucide-react";
+import { Mail, MapPin,Phone } from "lucide-react";
 import { api, API_BASE } from "../../services/api";
 
 import PageHeader from "../../components/admin/PageHeader";
@@ -57,12 +57,44 @@ export default function RespMembers() {
       ),
     },
     {
+      key: "deptRole",
+      header: "Role",
+      render: (r) => {
+        const label = r.deptRole || "Member";
+        const styles =
+          label === "Manager"
+            ? "bg-purple-100 text-purple-700"
+            : label === "Vice Manager"
+              ? "bg-blue-100 text-blue-700"
+              : label === "Team Manager"
+                ? "bg-amber-100 text-amber-700"
+                : "bg-gray-100 text-gray-700";
+        return (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles}`}
+          >
+            {label}
+          </span>
+        );
+      },
+    }
+    ,{
       key: "email",
       header: "Email",
       render: (r) => (
         <span className="inline-flex items-center gap-1.5 text-brand-muted">
           <Mail size={13} />
           {r.email}
+        </span>
+      ),
+    }
+     ,{
+      key: "phone",
+      header: "Phone",
+      render: (r) => (
+        <span className="inline-flex items-center gap-1.5 text-brand-muted">
+          <Phone size={13} />
+          {r.phone || "—"}
         </span>
       ),
     },
@@ -76,11 +108,7 @@ export default function RespMembers() {
         </span>
       ),
     },
-    {
-      key: "departement",
-      header: "Dept",
-      render: (r) => (r.departement?.[0] || "—"),
-    },
+   
     {
       key: "situation",
       header: "Poste",
@@ -95,10 +123,10 @@ export default function RespMembers() {
     <>
       <PageHeader
         title="Members"
-        subtitle="Only the members of YOUR cellules."
+        subtitle="Members of the departments you manage."
       />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-brand-border p-4 mb-4 flex flex-col gap-3 md:flex-row md:items-center">
+      {/* <div className="bg-white rounded-2xl shadow-sm border border-brand-border p-4 mb-4 flex flex-col gap-3 md:flex-row md:items-center">
         <input
           value={nom}
           onChange={(e) => setNom(e.target.value)}
@@ -113,7 +141,7 @@ export default function RespMembers() {
         >
           Apply filter
         </button>
-      </div>
+      </div> */}
 
       <DataTable
         columns={columns}
@@ -124,7 +152,7 @@ export default function RespMembers() {
           (r.email || "").toLowerCase().includes(q) ||
           (r.membershipNumber || "").toLowerCase().includes(q)
         }
-        emptyMessage="No members in your cellules."
+        emptyMessage="No members in your department."
       />
     </>
   );

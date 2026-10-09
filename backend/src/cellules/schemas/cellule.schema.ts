@@ -22,6 +22,8 @@ export class Cellule {
   @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
   managerId!: Types.ObjectId;
 
+
+
   // Tableau de références User (les membres de la cellule)
   @Prop({ type: [SchemaTypes.ObjectId], ref: 'User', default: [] })
   members!: Types.ObjectId[];

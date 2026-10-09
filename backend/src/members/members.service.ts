@@ -129,8 +129,10 @@ export class MembersService {
   // ─────────────────────────────────────────────
   //  READ
   // ─────────────────────────────────────────────
-  async findAll(filter: MemberFilter = {}, userId?: string) {
+    async findAll(filter: MemberFilter = {}, userId?: string) {
     const query: any = { isAdmin: { $ne: true } };
+
+    let scopedRoles: Map<string, string> | null = null;
 
     if (userId) {
       const role = await this.getActiveRole(userId);
@@ -151,11 +153,16 @@ export class MembersService {
             query.departement = { $in: deptNames };
           }
         } else if (role === 'Responsable') {
-          const memberIds = await this.getResponsableMemberIds(userId);
-          const oids = memberIds.map((id) => new Types.ObjectId(id));
-          query._id = { $in: oids.length ? oids : [new Types.ObjectId()] };
-          if (filter.departement) query.departement = filter.departement;
-        } else {
+  const scope = await this.getResponsableScopedMembers(userId, filter.departement);
+
+  if (scope.ids.length === 0) {
+    query._id = { $in: [] };
+  } else {
+    query._id = { $in: scope.ids.map((id) => new Types.ObjectId(id)) };
+  }
+
+  scopedRoles = scope.roles;
+} else {
           query._id = Types.ObjectId.isValid(userId)
             ? new Types.ObjectId(userId)
             : new Types.ObjectId();
@@ -166,16 +173,27 @@ export class MembersService {
     if (filter.nom) query.fullName = { $regex: filter.nom, $options: 'i' };
     if (filter.ville) query.ville = { $regex: filter.ville, $options: 'i' };
     if (filter.status) query.status = filter.status;
-    if (filter.departement && query.departement === undefined) {
+    if (filter.departement && query.departement === undefined && !scopedRoles) {
       query.departement = filter.departement;
     }
 
-    return this.userModel
+    const rows = await this.userModel
       .find(query)
       .select('-password')
       .populate('memberships.departmentId', 'name')
       .sort({ createdAt: -1 })
+      .lean()
       .exec();
+
+    // Attach deptRole for Responsable view
+    if (scopedRoles) {
+      return rows.map((r: any) => ({
+        ...r,
+        deptRole: scopedRoles!.get(String(r._id)) ?? 'Member',
+      }));
+    }
+
+    return rows;
   }
 
   async findOne(id: string) {
@@ -381,20 +399,132 @@ async update(id: string, dto: UpdateMemberDto, file?: Express.Multer.File) {
     return all.map((d) => d.name);
   }
 
-  private async getResponsableMemberIds(userId: string): Promise<string[]> {
-    const cellules = await this.celluleModel
-      .find({
-        managerId: Types.ObjectId.isValid(userId)
-          ? new Types.ObjectId(userId)
-          : userId,
-      })
-      .select('members')
+  //  private async getResponsableMemberIds(userId: string): Promise<string[]> {
+  //   const oid = Types.ObjectId.isValid(userId)
+  //     ? new Types.ObjectId(userId)
+  //     : userId;
+
+  //   // 1. Departments where this user is Responsable (from their memberships)
+  //   const me = await this.userModel
+  //     .findById(userId)
+  //     .select('memberships')
+  //     .lean()
+  //     .exec();
+
+  //   const deptIds = new Set<string>();
+  //   (me?.memberships ?? []).forEach((m: any) => {
+  //     if (m.role === 'Responsable' && m.departmentId) {
+  //       deptIds.add(String(m.departmentId));
+  //     }
+  //   });
+
+  //   // 2. Departments of cellules they manage + members directly in those cellules
+  //   const cellules = await this.celluleModel
+  //     .find({ managerId: oid })
+  //     .select('departmentId members')
+  //     .lean()
+  //     .exec();
+
+  //   const directMemberIds = new Set<string>();
+  //   cellules.forEach((c: any) => {
+  //     if (c.departmentId) deptIds.add(String(c.departmentId));
+  //     (c.members ?? []).forEach((m: any) => directMemberIds.add(String(m)));
+  //   });
+
+  //   if (deptIds.size === 0 && directMemberIds.size === 0) return [];
+
+  //   const deptObjectIds = [...deptIds].map((id) => new Types.ObjectId(id));
+  //   const memberObjectIds = [...directMemberIds].map(
+  //     (id) => new Types.ObjectId(id),
+  //   );
+
+  //   // 3. Members = users whose `departement` array overlaps my departments
+  //   //    OR users directly listed in a cellule I manage.
+  //   const or: any[] = [];
+  //   if (deptObjectIds.length) {
+  //     or.push({ departement: { $in: deptObjectIds } });
+  //     or.push({ 'memberships.departmentId': { $in: deptObjectIds } });
+  //   }
+  //   if (memberObjectIds.length) {
+  //     or.push({ _id: { $in: memberObjectIds } });
+  //   }
+
+  //   const members = await this.userModel
+  //     .find({ $or: or, isAdmin: { $ne: true } })
+  //     .select('_id')
+  //     .lean()
+  //     .exec();
+
+  //   return members.map((m: any) => String(m._id));
+  // }
+
+  /**
+   * A Responsable sees members of the department tied to their
+   * CURRENTLY ACTIVE membership only.
+   *
+   * Returns:
+   *   ids:   unique user ids (as strings)
+   *   roles: Map<userId, 'Manager' | 'Vice Manager' | 'Team Manager' | 'Member'>
+   */
+  private async getResponsableScopedMembers(
+    userId: string,
+    filterDeptName?: string,
+  ): Promise<{ ids: string[]; roles: Map<string, string> }> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return { ids: [], roles: new Map() };
+    }
+    const oid = new Types.ObjectId(userId);
+
+    // 1. Resolve the ACTIVE membership's department
+    const me = await this.userModel
+      .findById(userId)
+      .select('activeMembershipId memberships')
       .lean()
       .exec();
-    const ids = new Set<string>();
-    cellules.forEach((c: any) => {
-      (c.members ?? []).forEach((m: any) => ids.add(String(m)));
-    });
-    return [...ids];
+
+    const activeMembership = (me?.memberships ?? []).find(
+      (m: any) => String(m._id) === String(me?.activeMembershipId),
+    );
+
+    if (!activeMembership || !activeMembership.departmentId) {
+      return { ids: [], roles: new Map() };
+    }
+
+    const activeDeptId = new Types.ObjectId(
+      String(activeMembership.departmentId),
+    );
+
+    // 2. Fetch that single department (with optional name filter for safety)
+    const deptQuery: any = { _id: activeDeptId };
+    if (filterDeptName) deptQuery.name = filterDeptName;
+
+    const department = await this.departmentModel
+      .findOne(deptQuery)
+      .select('manager viceManager teamManagers members name')
+      .lean()
+      .exec();
+
+    if (!department) {
+      return { ids: [], roles: new Map() };
+    }
+
+    // 3. Build userId -> label (priority: Manager > Vice > TeamManager > Member)
+    const roles = new Map<string, string>();
+    const setIfAbsent = (uid: any, label: string) => {
+      const key = String(uid);
+      if (!roles.has(key)) roles.set(key, label);
+    };
+
+    if (department.manager) setIfAbsent(department.manager, 'Manager');
+    if (department.viceManager) setIfAbsent(department.viceManager, 'Vice Manager');
+    (department.teamManagers ?? []).forEach((u: any) =>
+      setIfAbsent(u, 'Team Manager'),
+    );
+    (department.members ?? []).forEach((u: any) => setIfAbsent(u, 'Member'));
+
+    // Don't show the Responsable themselves in the list
+    roles.delete(String(oid));
+
+    return { ids: [...roles.keys()], roles };
   }
 }
