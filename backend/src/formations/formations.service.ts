@@ -23,11 +23,32 @@ export class FormationsService {
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (isPublished !== undefined) filter.isPublished = isPublished;
-    return this.formationModel.find(filter).sort({ date: -1 }).exec();
+        // Public route: the private Drive link is never returned.
+    return this.formationModel
+      .find(filter)
+      .select('-driveUrl')
+      .sort({ date: -1 })
+      .exec();
+  }
+
+  // Member page: published formations only, WITH the Drive recording link.
+  findForMembers() {
+    return this.formationModel
+      .find({ isPublished: true })
+      .sort({ date: -1 })
+      .exec();
+  }
+
+  // Admin page: every formation (drafts included) WITH the Drive link.
+  findAllForAdmin() {
+    return this.formationModel.find().sort({ date: -1 }).exec();
   }
 
   async findOne(id: string) {
-    const formation = await this.formationModel.findById(id).exec();
+       const formation = await this.formationModel
+      .findById(id)
+      .select('-driveUrl')
+      .exec();
     if (!formation) throw new NotFoundException(`Formation ${id} not found`);
     return formation;
   }
