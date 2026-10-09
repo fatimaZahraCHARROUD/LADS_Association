@@ -8,8 +8,12 @@ import {
   Objective,
   ObjectiveSchema,
 } from '../objectives/schemas/objective.schema';
-import { JwtModule } from '../services/jwt/jwt.modul';
-import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import {
+  Department,
+  DepartmentSchema,
+} from '../departments/schemas/department.schema';
+import { JwtModule } from '../services/jwt/jwt.modul';        // 👈 new
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';     // 👈 new
 
 @Module({
   imports: [
@@ -17,11 +21,11 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';
       { name: Task.name, schema: TaskSchema },
       { name: User.name, schema: UserSchema },
       { name: Objective.name, schema: ObjectiveSchema },
+      { name: Department.name, schema: DepartmentSchema },
     ]),
-    JwtModule,
+    JwtModule,                                                 // 👈 new
   ],
   controllers: [TasksController],
-  providers: [TasksService, JwtAuthGuard],
-  exports: [TasksService],
+  providers: [TasksService, JwtAuthGuard],                    // 👈 add guard
 })
 export class TasksModule {}

@@ -7,12 +7,11 @@ export type TaskDocument = Task & Document;
 @Schema({ timestamps: true })
 export class Task {
   @Prop({ required: true, trim: true })
-  title!: string; // ex: "Créer la page login"
+  title!: string;
 
   @Prop({ default: '' })
   description!: string;
 
-  // à qui la tâche est assignée
   @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
   assignedTo!: Types.ObjectId;
 
@@ -20,14 +19,17 @@ export class Task {
   priority!: string;
 
   @Prop({ type: Date, default: null })
-  deadline!: Date | null; // date limite (optionnelle)
+  deadline!: Date | null;
 
   @Prop({ enum: ['todo', 'in-progress', 'done'], default: 'todo' })
-  status!: string; // colonnes du board
+  status!: string;
 
-  // lien optionnel vers un objectif
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Objective', default: null })
   objectiveId!: Types.ObjectId | null;
+
+  // 👇 NEW: the department this task belongs to.
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'Department', default: null })
+  departmentId!: Types.ObjectId | null;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

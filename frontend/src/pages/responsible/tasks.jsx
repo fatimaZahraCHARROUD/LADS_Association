@@ -11,9 +11,30 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import { Field, Select, TextInput, NumberInput } from "../../components/admin/FormField";
 
 const COLUMNS = [
-  { status: "todo", title: "To Do", accent: "border-t-slate-400" },
-  { status: "in-progress", title: "In Progress", accent: "border-t-blue-400" },
-  { status: "done", title: "Done", accent: "border-t-emerald-400" },
+  {
+    status: "todo",
+    title: "To Do",
+    dot: "bg-gray-400",
+    bar: "border-t-gray-400",
+    header: "from-gray-50 to-white",
+    chip: "bg-gray-100 text-gray-700 ring-1 ring-gray-200",
+  },
+  {
+    status: "in-progress",
+    title: "In Progress",
+    dot: "bg-blue-500",
+    bar: "border-t-blue-500",
+    header: "from-blue-50 to-white",
+    chip: "bg-blue-100 text-blue-700 ring-1 ring-blue-200",
+  },
+  {
+    status: "done",
+    title: "Done",
+    dot: "bg-emerald-500",
+    bar: "border-t-emerald-500",
+    header: "from-emerald-50 to-white",
+    chip: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+  },
 ];
 
 const PRIO_STYLE = {
@@ -32,8 +53,6 @@ const EMPTY_FORM = {
   status: "todo",
 };
 
-// Page "Tasks" du Responsable : le Task Board de SES membres.
-// Il crée / modifie / supprime des tâches et les affecte à ses membres.
 export default function RespTasks() {
   const [tasks, setTasks] = useState([]);
   const [myMembers, setMyMembers] = useState([]);
@@ -77,21 +96,7 @@ export default function RespTasks() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadOptions(); }, []);
 
-  // Seules les tâches de SES membres sont affichées
-  const mineIds = useMemo(
-    () => new Set(myMembers.map((m) => String(m._id))),
-    [myMembers]
-  );
-  const visibleTasks = useMemo(
-    () =>
-      tasks.filter((t) =>
-        mineIds.has(String(t.assignedTo?._id || t.assignedTo))
-      ),
-    [tasks, mineIds]
-  );
-
-  const tasksFor = (status) =>
-    visibleTasks.filter((t) => t.status === status);
+  const tasksFor = (status) => tasks.filter((t) => t.status === status);
 
   const openAdd = () => {
     setEditing(null);
@@ -199,9 +204,16 @@ export default function RespTasks() {
         <p className="text-xs text-brand-muted line-clamp-2">{t.description}</p>
       )}
       <div className="text-[11px] text-brand-muted">
-        {t.assignedTo?.fullName || "—"}
-        {t.deadline && ` • ${format(parseISO(t.deadline), "d MMM", { locale: fr })}`}
-      </div>
+  <span>{t.assignedTo?.fullName || "—"}</span>
+  {t.deadline && (
+    <>
+      {" • "}
+      <span className="text-red-600 font-medium">
+        {format(parseISO(t.deadline), "d MMM", { locale: fr })}
+      </span>
+    </>
+  )}
+</div>
       {t.objectiveId && (
         <div className="text-[11px] text-brand-muted truncate">
           Objective: {t.objectiveId.title}
@@ -249,29 +261,32 @@ export default function RespTasks() {
           Loading...
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {COLUMNS.map((col) => (
-            <div
-              key={col.status}
-              className={`rounded-2xl border border-brand-border border-t-4 border-t-slate-400 ${col.accent} bg-brand-bg/40 p-3 min-h-[300px] flex flex-col gap-3`}
-            >
-              <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-semibold text-brand-text">
-                  {col.title}
-                </span>
-                <span className="text-xs text-brand-muted bg-white rounded-full px-2 py-0.5 border border-brand-border">
-                  {tasksFor(col.status).length}
-                </span>
-              </div>
-              {tasksFor(col.status).map((t) => (
-                <div key={t._id}>{renderCard(t)}</div>
-              ))}
-            </div>
-          ))}
-        </div>
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  {COLUMNS.map((col) => (
+    <div
+      key={col.status}
+      className={`rounded-2xl border border-brand-border border-t-4 ${col.bar} bg-brand-bg/40 p-3 min-h-[320px] flex flex-col gap-3`}
+    >
+      <div
+        className={`flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r ${col.header} border border-brand-border`}
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-brand-text">
+          <span className={`w-2 h-2 rounded-full ${col.dot}`} />
+          {col.title}
+        </span>
+        <span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${col.chip}`}>
+          {tasksFor(col.status).length}
+        </span>
+      </div>
+
+      {tasksFor(col.status).map((t) => (
+        <div key={t._id}>{renderCard(t)}</div>
+      ))}
+    </div>
+  ))}
+</div>
       )}
 
-      {/* Create / edit drawer */}
       <Drawer
         open={formOpen}
         onClose={() => !saving && setFormOpen(false)}

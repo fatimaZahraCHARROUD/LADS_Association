@@ -24,36 +24,37 @@ import { getUserId } from '../services/jwt/current-user';
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
-  // Voir les tâches : tous les rôles connectés (le Member voit aussi celles des autres, en gris)
   @Get()
   findAll(
+    @Req() req: any,
     @Query('status') status?: string,
     @Query('assignedTo') assignedTo?: string,
     @Query('priority') priority?: string,
   ) {
-    return this.tasksService.findAll(status, assignedTo, priority);
+    return this.tasksService.findAll(getUserId(req), status, assignedTo, priority);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tasksService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.tasksService.findOne(id, getUserId(req));
   }
 
-  // Assigner / gérer les tâches : managers et Responsable
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Post()
-  create(@Body() dto: CreateTaskDto) {
-    return this.tasksService.create(dto);
+  create(@Body() dto: CreateTaskDto, @Req() req: any) {
+    return this.tasksService.create(dto, getUserId(req));
   }
 
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    return this.tasksService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskDto,
+    @Req() req: any,
+  ) {
+    return this.tasksService.update(id, dto, getUserId(req));
   }
 
-  // Avancer le statut d'une tâche : tout le monde, MAIS le Member ne peut
-  // changer que SES tâches (vérifié dans le service)
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable', 'Member')
   @Patch(':id/status')
   updateStatus(
@@ -66,7 +67,7 @@ export class TasksController {
 
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tasksService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.tasksService.remove(id, getUserId(req));
   }
 }

@@ -89,10 +89,17 @@ export default function MemberTasks() {
           <p className="text-xs text-brand-muted line-clamp-2">{t.description}</p>
         )}
 
-        <div className="text-[11px] text-brand-muted">
-          {t.assignedTo?.fullName || "—"}
-          {t.deadline && ` • ${format(parseISO(t.deadline), "d MMM", { locale: fr })}`}
-        </div>
+       <div className="text-[11px] text-brand-muted">
+  <span>{t.assignedTo?.fullName || "—"}</span>
+  {t.deadline && (
+    <>
+      {" • "}
+      <span className="text-red-600 font-medium">
+        {format(parseISO(t.deadline), "d MMM", { locale: fr })}
+      </span>
+    </>
+  )}
+</div>
 
         {mine ? (
           <div className="flex items-center gap-2 mt-1">
@@ -122,7 +129,7 @@ export default function MemberTasks() {
     <>
       <PageHeader
         title="Task Board"
-        subtitle="Update YOUR tasks — the others are read-only."
+        subtitle="Update YOUR tasks."
       />
 
       {loading ? (

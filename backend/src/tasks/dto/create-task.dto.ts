@@ -2,9 +2,10 @@
 export class CreateTaskDto {
   title!: string;
   description?: string;
-  assignedTo!: string; // _id du membre à qui on assigne la tâche
+  assignedTo!: string;
   priority?: 'low' | 'medium' | 'high';
-  deadline?: string; // date ISO optionnelle
+  deadline?: string;
   status?: 'todo' | 'in-progress' | 'done';
-  objectiveId?: string; // _id d'un Objective (optionnel)
+  objectiveId?: string;
+  departmentId?: string; // 👈 NEW: used only by global roles
 }
