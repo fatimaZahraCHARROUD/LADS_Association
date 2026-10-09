@@ -7,6 +7,10 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UploadModule } from '../upload/upload.module';
 import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
+import {
+  MemberFormationsController,
+  AdminFormationsController,
+} from './formations-private.controller';
 
 @Module({
   imports: [
@@ -16,7 +20,11 @@ import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
     ]),
     JwtModule,UploadModule
   ],
-  controllers: [FormationsController],
+   controllers: [
+    FormationsController,
+    MemberFormationsController,
+    AdminFormationsController,
+  ],
   providers: [FormationsService, JwtAuthGuard],
   exports: [FormationsService],
 })
