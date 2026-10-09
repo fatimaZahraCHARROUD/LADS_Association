@@ -101,11 +101,11 @@ export default function ExecMembers() {
         </span>
       ),
     },
-    {
-      key: "departement",
-      header: "Dept",
-      render: (r) => (r.departement?.[0] || "—"),
-    },
+    // {
+    //   key: "departement",
+    //   header: "Dept",
+    //   render: (r) => (r.departement?.[0] || "—"),
+    // },
     {
       key: "situation",
       header: "Poste",
@@ -140,10 +140,10 @@ export default function ExecMembers() {
     <>
       <PageHeader
         title="Members"
-        subtitle="View all LADS association members (read-only)."
+        subtitle="View all LADS association members."
       />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-brand-border p-4 mb-4 flex flex-col gap-3 md:flex-row md:items-center">
+      {/* <div className="bg-white rounded-2xl shadow-sm border border-brand-border p-4 mb-4 flex flex-col gap-3 md:flex-row md:items-center">
         <input
           value={filters.nom}
           onChange={(e) => setFilters((f) => ({ ...f, nom: e.target.value }))}
@@ -170,7 +170,7 @@ export default function ExecMembers() {
         >
           Apply filters
         </button>
-      </div>
+      </div> */}
 
       <DataTable
         columns={columns}

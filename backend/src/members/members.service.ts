@@ -130,29 +130,71 @@ export class MembersService {
   //  READ
   // ─────────────────────────────────────────────
     async findAll(filter: MemberFilter = {}, userId?: string) {
-    const query: any = { isAdmin: { $ne: true } };
+    console.log('[MEMBERS] userId =', userId, '| type =', typeof userId);
+  console.log('[MEMBERS] activeMembershipId check — firing getActiveRole next');
+      const query: any = { isAdmin: { $ne: true } };
 
     let scopedRoles: Map<string, string> | null = null;
 
     if (userId) {
       const role = await this.getActiveRole(userId);
+     console.log('[MEMBERS] role =', role); 
       const globalRoles = ['President', 'Director Executive'];
+console.log('[MEMBERS] isGlobal =', globalRoles.includes(role ?? ''));
 
       if (!globalRoles.includes(role ?? '')) {
-        if (role === 'Team Manager') {
-          const deptNames = await this.getTeamManagerDepartmentNames(userId);
-          if (deptNames.length === 0) {
-            query._id = { $in: [] };
-          } else if (filter.departement) {
-            if (deptNames.includes(filter.departement)) {
-              query.departement = filter.departement;
-            } else {
-              query._id = { $in: [] };
-            }
-          } else {
-            query.departement = { $in: deptNames };
-          }
-        } else if (role === 'Responsable') {
+  if (role === 'Team Manager') {
+  // Same source of truth as Responsable: the Department doc.
+  const me = await this.userModel
+    .findById(userId)
+    .select('activeMembershipId memberships')
+    .lean()
+    .exec();
+
+  const activeMem = (me?.memberships ?? []).find(
+    (m: any) => String(m._id) === String(me?.activeMembershipId),
+  );
+
+  const activeDeptId = activeMem?.departmentId
+    ? new Types.ObjectId(String(activeMem.departmentId))
+    : null;
+
+  if (!activeDeptId) {
+    query._id = { $in: [] };
+  } else {
+    // Optional filter — must match the active dept.
+    if (filter.departement) {
+      const filterDeptId = await this.resolveDepartmentId(filter.departement);
+      if (!filterDeptId || String(filterDeptId) !== String(activeDeptId)) {
+        query._id = { $in: [] };
+      }
+    }
+
+    // If we didn't just short-circuit, collect ids from the Department doc.
+    if (!query._id) {
+      const dept = await this.departmentModel
+        .findById(activeDeptId)
+        .select('manager viceManager teamManagers members')
+        .lean()
+        .exec();
+
+      const ids = new Set<string>();
+      if (dept?.manager) ids.add(String(dept.manager));
+      if (dept?.viceManager) ids.add(String(dept.viceManager));
+      (dept?.teamManagers ?? []).forEach((u: any) => ids.add(String(u)));
+      (dept?.members ?? []).forEach((u: any) => ids.add(String(u)));
+      // Team Manager sees themselves too — optional, add if you want.
+      // ids.add(String(userId));
+
+      const oids = [...ids]
+        .filter((id) => Types.ObjectId.isValid(id))
+        .map((id) => new Types.ObjectId(id));
+
+      query._id = { $in: oids.length ? oids : [new Types.ObjectId()] };
+    }
+  }
+}
+        else if (role === 'Responsable') {
   const scope = await this.getResponsableScopedMembers(userId, filter.departement);
 
   if (scope.ids.length === 0) {
@@ -173,15 +215,20 @@ export class MembersService {
     if (filter.nom) query.fullName = { $regex: filter.nom, $options: 'i' };
     if (filter.ville) query.ville = { $regex: filter.ville, $options: 'i' };
     if (filter.status) query.status = filter.status;
-    if (filter.departement && query.departement === undefined && !scopedRoles) {
-      query.departement = filter.departement;
-    }
-
+   if (filter.departement && query.departement === undefined) {
+  const deptId = await this.resolveDepartmentId(filter.departement);
+  if (deptId) {
+    query.departement = deptId;
+  } else {
+    query._id = { $in: [] };
+  }
+}
+console.log('[MEMBERS] query =', JSON.stringify(query));
     const rows = await this.userModel
       .find(query)
       .select('-password')
       .populate('memberships.departmentId', 'name')
-      .sort({ createdAt: -1 })
+       .sort({ createdAt: -1 })
       .lean()
       .exec();
 

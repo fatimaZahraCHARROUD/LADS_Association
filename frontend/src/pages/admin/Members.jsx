@@ -267,11 +267,11 @@ const openEdit = (r) => {
         </span>
       ),
     },
-    {
-      key: "departement",
-      header: "Dept",
-      render: (r) => r.departement?.[0] || "—",
-    },
+    // {
+    //   key: "departement",
+    //   header: "Dept",
+    //   render: (r) => r.departement?.[0] || "—",
+    // },
     {
       key: "situation",
       header: "Poste",
