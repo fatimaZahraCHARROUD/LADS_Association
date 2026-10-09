@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   Delete,
+  Req,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -20,6 +21,7 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 import { Roles } from '../services/jwt/roles.decorator';
+import { getUserId } from '../services/jwt/current-user';
 
 @UseGuards(JwtAuthGuard, ActiveRoleGuard)
 @Controller('members')
@@ -37,13 +39,14 @@ export class MembersController {
   }
 
   @Get()
-  findAll() {
-    return this.membersService.findAll();
+  findAll(@Req() req: any) {
+    // Le userId sert à limiter les résultats selon le rôle actif
+    return this.membersService.findAll({}, getUserId(req));
   }
 
   @Get('search')
-  search(@Query() query: MemberFilter) {
-    return this.membersService.findAll(query);
+  search(@Query() query: MemberFilter, @Req() req: any) {
+    return this.membersService.findAll(query, getUserId(req));
   }
 
   @Get(':id')

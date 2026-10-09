@@ -48,6 +48,7 @@ import TeamMembers from "./pages/team/Members";
 
 //responsable
 import RespDashboard from "./pages/responsible/Dashboard";
+import RespCellules from "./pages/responsible/Cellules";
 import RespDocument from "./pages/responsible/Document";
 import RespMeeting from "./pages/responsible/Meeting";
 import RespMembers from "./pages/responsible/Members";
@@ -185,6 +186,7 @@ function App() {
   }
 >
   <Route index element={<RespDashboard />} />
+  <Route path="cellules" element={<RespCellules />} />
   <Route path="members" element={<RespMembers />} />
   <Route path="documents" element={<RespDocument />} />
   <Route path="meetings" element={<RespMeeting />} />
