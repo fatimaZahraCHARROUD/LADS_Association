@@ -112,4 +112,20 @@ export class DocumentsService {
       .lean()
       .exec();
   }
+
+  listMyDepartments(userId: string) {
+    return this.departmentModel
+      .find({
+        $or: [
+          { manager: userId },
+          { viceManager: userId },
+          { teamManagers: userId },
+          { members: userId },
+        ],
+      })
+      .select('_id name')
+      .sort({ name: 1 })
+      .lean()
+      .exec();
+  }
 }

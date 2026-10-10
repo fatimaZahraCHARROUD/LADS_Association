@@ -43,6 +43,12 @@ export class DocumentsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('meta/my-departments')
+  listMyDepartments(@Req() req: any) {
+    return this.documentsService.listMyDepartments(getUserId(req));
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.documentsService.findOne(id);

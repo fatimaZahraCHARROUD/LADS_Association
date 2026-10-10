@@ -46,14 +46,18 @@ export default function AdminDocuments() {
     }
   };
 
+  const [myDepartments, setMyDepartments] = useState([]);
+
   const loadOptions = async () => {
     try {
-      const [deps, mems] = await Promise.all([
+      const [deps, mems, mine] = await Promise.all([
         api.get("/documents/meta/departments"),
         api.get("/members"),
+        api.get("/documents/meta/my-departments"),
       ]);
       setDepartments(Array.isArray(deps) ? deps : []);
       setMembers(Array.isArray(mems) ? mems : []);
+      setMyDepartments(Array.isArray(mine) ? mine : []);
     } catch (err) {
       console.error("Failed to load visibility options:", err.message);
     }
@@ -65,9 +69,20 @@ export default function AdminDocuments() {
     loadOptions();
   }, []);
 
+  const isTeamManager =
+    role.includes("Manager") && !role.includes("President");
+
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_DOCUMENT);
+    if (isTeamManager && myDepartments[0]) {
+      setForm({
+        ...EMPTY_DOCUMENT,
+        visibility: "department",
+        visibilityDepartment: myDepartments[0]._id,
+      });
+    } else {
+      setForm(EMPTY_DOCUMENT);
+    }
     setDrawerOpen(true);
   };
 
