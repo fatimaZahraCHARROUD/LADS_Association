@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { api } from "../../services/api";
+import { api, getCurrentUserRole } from "../../services/api";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -15,10 +15,14 @@ const EMPTY_DOCUMENT = {
   driveUrl: "",
   description: "",
   visibility: "all",
+  visibilityDepartment: "",
+  visibilityMember: "",
 };
 
 export default function AdminDocuments() {
   const [rows, setRows] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -27,24 +31,58 @@ export default function AdminDocuments() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const role = getCurrentUserRole();
+  const canWrite = role.some((r) => ["President", "Manager", "Responsible"].includes(r));
+
   const load = async () => {
     try {
       const data = await api.get("/documents");
       setRows(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error(err.message);
-       console.error("POST /documents failed:", err.message);
+      console.error("GET /documents failed:", err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const [myDepartments, setMyDepartments] = useState([]);
+
+  const loadOptions = async () => {
+    try {
+      const [deps, mems, mine] = await Promise.all([
+        api.get("/documents/meta/departments"),
+        api.get("/members"),
+        api.get("/documents/meta/my-departments"),
+      ]);
+      setDepartments(Array.isArray(deps) ? deps : []);
+      setMembers(Array.isArray(mems) ? mems : []);
+      setMyDepartments(Array.isArray(mine) ? mine : []);
+    } catch (err) {
+      console.error("Failed to load visibility options:", err.message);
+    }
+  };
+
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    loadOptions();
+  }, []);
+
+  const isTeamManager =
+    role.includes("Manager") && !role.includes("President");
 
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_DOCUMENT);
+    if (isTeamManager && myDepartments[0]) {
+      setForm({
+        ...EMPTY_DOCUMENT,
+        visibility: "department",
+        visibilityDepartment: myDepartments[0]._id,
+      });
+    } else {
+      setForm(EMPTY_DOCUMENT);
+    }
     setDrawerOpen(true);
   };
 
@@ -55,7 +93,10 @@ export default function AdminDocuments() {
       category: row.category || "",
       driveUrl: row.driveUrl || "",
       description: row.description || "",
-      visibility: row.visibility === "private" ? "private" : "all",
+      visibility: row.visibility || "all",
+      visibilityDepartment:
+        row.visibilityDepartment?._id || row.visibilityDepartment || "",
+      visibilityMember: row.visibilityMember?._id || row.visibilityMember || "",
     });
     setDrawerOpen(true);
   };
@@ -76,10 +117,28 @@ export default function AdminDocuments() {
       toast.error("Drive link is required.");
       return;
     }
+    if (form.visibility === "department" && !form.visibilityDepartment) {
+      toast.error("Choose a department.");
+      return;
+    }
+    if (form.visibility === "member" && !form.visibilityMember) {
+      toast.error("Choose a member.");
+      return;
+    }
 
     setSaving(true);
     try {
-      const payload = { ...form };
+      const payload = {
+        title: form.title,
+        category: form.category,
+        driveUrl: form.driveUrl,
+        description: form.description,
+        visibility: form.visibility,
+        visibilityDepartment:
+          form.visibility === "department" ? form.visibilityDepartment : null,
+        visibilityMember:
+          form.visibility === "member" ? form.visibilityMember : null,
+      };
       if (editing) {
         await api.patch(`/documents/${editing._id}`, payload);
         toast.success("Document updated");
@@ -111,6 +170,16 @@ export default function AdminDocuments() {
     }
   };
 
+  const visibilityLabel = (r) => {
+    if (r.visibility === "department") {
+      return `Dept: ${r.visibilityDepartment?.name || "—"}`;
+    }
+    if (r.visibility === "member") {
+      return `Member: ${r.visibilityMember?.fullName || "—"}`;
+    }
+    return r.visibility;
+  };
+
   const columns = [
     {
       key: "title",
@@ -126,8 +195,8 @@ export default function AdminDocuments() {
       key: "visibility",
       header: "Visibility",
       render: (r) => (
-        <StatusBadge variant={r.visibility === "private" ? "draft" : "published"}>
-          {r.visibility}
+        <StatusBadge variant={r.visibility === "all" ? "published" : "draft"}>
+          {visibilityLabel(r)}
         </StatusBadge>
       ),
     },
@@ -149,22 +218,25 @@ export default function AdminDocuments() {
       key: "actions",
       header: "",
       tdClassName: "text-right",
-      render: (r) => (
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => openEdit(r)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-brand-border hover:bg-gray-50"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => setConfirmDelete(r)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
-          >
-            Delete
-          </button>
-        </div>
-      ),
+      render: (r) =>
+        canWrite ? (
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => openEdit(r)}
+              className="px-3 py-1.5 text-sm rounded-lg border border-brand-border hover:bg-gray-50"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setConfirmDelete(r)}
+              className="px-3 py-1.5 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        ) : (
+          <span className="text-brand-muted">—</span>
+        ),
     },
   ];
 
@@ -173,7 +245,7 @@ export default function AdminDocuments() {
       <PageHeader
         title="Documents"
         subtitle="Manage shared association documents."
-        onAdd={openCreate}
+        onAdd={canWrite ? openCreate : undefined}
       />
 
       <DataTable
@@ -253,12 +325,57 @@ export default function AdminDocuments() {
           <Field label="Visibility">
             <Select
               value={form.visibility}
-              onChange={(e) => setForm({ ...form, visibility: e.target.value })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  visibility: e.target.value,
+                  visibilityDepartment: "",
+                  visibilityMember: "",
+                })
+              }
             >
               <option value="all">All</option>
               <option value="private">Private</option>
+              <option value="department">Department</option>
+              <option value="member">Member</option>
             </Select>
           </Field>
+
+          {form.visibility === "department" && (
+            <Field label="Department" required>
+              <Select
+                value={form.visibilityDepartment}
+                onChange={(e) =>
+                  setForm({ ...form, visibilityDepartment: e.target.value })
+                }
+              >
+                <option value="">Select a department</option>
+                {departments.map((d) => (
+                  <option key={d._id} value={d._id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+
+          {form.visibility === "member" && (
+            <Field label="Member" required>
+              <Select
+                value={form.visibilityMember}
+                onChange={(e) =>
+                  setForm({ ...form, visibilityMember: e.target.value })
+                }
+              >
+                <option value="">Select a member</option>
+                {members.map((m) => (
+                  <option key={m._id} value={m._id}>
+                    {m.fullName} ({m.email})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </form>
       </Drawer>
 

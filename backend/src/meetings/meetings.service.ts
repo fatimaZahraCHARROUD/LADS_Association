@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,10 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Meeting, MeetingDocument } from './schemas/meeting.schema';
-import {
-  Department,
-  DepartmentDocument,
-} from '../departments/schemas/department.schema';
+import { Department, DepartmentDocument } from '../departments/schemas/department.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
@@ -95,6 +93,7 @@ export class MeetingsService {
 
     const safe: Record<string, unknown> = { ...dto };
     delete safe.createdBy;
+    delete (safe as any).department;
     return this.meetingModel.findByIdAndUpdate(id, safe, { new: true }).exec();
   }
 

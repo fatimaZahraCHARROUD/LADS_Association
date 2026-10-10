@@ -3,16 +3,22 @@ import toast from "react-hot-toast";
 import {
   startOfWeek,
   endOfWeek,
+  startOfMonth,
+  endOfMonth,
   addDays,
   addWeeks,
   subWeeks,
+  addMonths,
+  subMonths,
+  eachDayOfInterval,
   format,
   isSameDay,
+  isSameMonth,
   parseISO,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { api } from "../../services/api";
+import { api, getCurrentUserRole } from "../../services/api";
 
 import PageHeader from "../../components/admin/PageHeader";
 import Drawer from "../../components/admin/Drawer";
@@ -28,6 +34,8 @@ const EMPTY_MEETING = {
   meetingLink: "",
   status: "scheduled",
 };
+
+const MAX_MONTH_ITEMS = 3;
 
 function toLocalInputValue(iso) {
   if (!iso) return "";
@@ -46,9 +54,11 @@ function statusVariant(status) {
 }
 
 export default function AdminMeetings() {
+  const [view, setView] = useState("week"); // "week" | "month"
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+  const [monthAnchor, setMonthAnchor] = useState(() => startOfMonth(new Date()));
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -59,20 +69,39 @@ export default function AdminMeetings() {
   const [deleting, setDeleting] = useState(false);
   const [detailsMeeting, setDetailsMeeting] = useState(null);
 
+  const role = getCurrentUserRole();
+  const canWrite = role.some((r) => ["President", "Manager", "Responsible"].includes(r));
+
   const weekEnd = useMemo(
     () => endOfWeek(weekStart, { weekStartsOn: 1 }),
     [weekStart]
   );
-  const days = useMemo(
+  const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
   );
 
+  const monthGridStart = useMemo(
+    () => startOfWeek(startOfMonth(monthAnchor), { weekStartsOn: 1 }),
+    [monthAnchor]
+  );
+  const monthGridEnd = useMemo(
+    () => endOfWeek(endOfMonth(monthAnchor), { weekStartsOn: 1 }),
+    [monthAnchor]
+  );
+  const monthDays = useMemo(
+    () => eachDayOfInterval({ start: monthGridStart, end: monthGridEnd }),
+    [monthGridStart, monthGridEnd]
+  );
+
+  const rangeStart = view === "week" ? weekStart : monthGridStart;
+  const rangeEnd = view === "week" ? weekEnd : monthGridEnd;
+
   const load = async () => {
     setLoading(true);
     try {
-      const from = weekStart.toISOString();
-      const to = weekEnd.toISOString();
+      const from = rangeStart.toISOString();
+      const to = rangeEnd.toISOString();
       const data = await api.get(
         `/meetings?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
       );
@@ -85,7 +114,7 @@ export default function AdminMeetings() {
   };
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load(); }, [weekStart]);
+  useEffect(() => { load(); }, [view, weekStart, monthAnchor]);
 
   const meetingsForDay = (day) =>
     meetings.filter((m) => isSameDay(parseISO(m.startAt), day));
@@ -170,75 +199,180 @@ export default function AdminMeetings() {
     }
   };
 
+  const goPrev = () => {
+    if (view === "week") setWeekStart((d) => subWeeks(d, 1));
+    else setMonthAnchor((d) => subMonths(d, 1));
+  };
+
+  const goNext = () => {
+    if (view === "week") setWeekStart((d) => addWeeks(d, 1));
+    else setMonthAnchor((d) => addMonths(d, 1));
+  };
+
+  const rangeLabel =
+    view === "week"
+      ? `${format(weekStart, "d MMM", { locale: fr })} – ${format(weekEnd, "d MMM yyyy", { locale: fr })}`
+      : format(monthAnchor, "MMMM yyyy", { locale: fr });
+
   return (
     <>
       <PageHeader
         title="Meetings"
-        subtitle="Weekly view of department meetings."
-        onAdd={() => openCreate(new Date())}
-      />
+        subtitle={
+          view === "week"
+            ? "Weekly view of department meetings."
+            : "Monthly view of department meetings."
+        }
+        onAdd={canWrite ? () => openCreate(new Date()) : undefined}
+      >
+        <div className="inline-flex rounded-lg border border-brand-border overflow-hidden">
+          <button
+            onClick={() => setView("week")}
+            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+              view === "week"
+                ? "bg-brand-primary text-white"
+                : "bg-white text-brand-muted hover:bg-gray-50"
+            }`}
+          >
+            Week
+          </button>
+          <button
+            onClick={() => setView("month")}
+            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+              view === "month"
+                ? "bg-brand-primary text-white"
+                : "bg-white text-brand-muted hover:bg-gray-50"
+            }`}
+          >
+            Month
+          </button>
+        </div>
+      </PageHeader>
 
-      {/* Week navigation */}
+      {/* Navigation */}
       <div className="flex items-center justify-between mb-4">
         <button
-          onClick={() => setWeekStart((d) => subWeeks(d, 1))}
+          onClick={goPrev}
           className="p-2 rounded-lg border border-brand-border hover:bg-gray-50"
-          aria-label="Previous week"
+          aria-label="Previous"
         >
           <ChevronLeft size={18} />
         </button>
-        <div className="text-sm font-medium text-brand-text">
-          {format(weekStart, "d MMM", { locale: fr })} –{" "}
-          {format(weekEnd, "d MMM yyyy", { locale: fr })}
+        <div className="text-sm font-medium text-brand-text capitalize">
+          {rangeLabel}
         </div>
         <button
-          onClick={() => setWeekStart((d) => addWeeks(d, 1))}
+          onClick={goNext}
           className="p-2 rounded-lg border border-brand-border hover:bg-gray-50"
-          aria-label="Next week"
+          aria-label="Next"
         >
           <ChevronRight size={18} />
         </button>
       </div>
 
       {/* Weekly grid */}
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="min-h-[220px] rounded-xl border border-brand-border bg-white p-2 flex flex-col"
-          >
-            <button
-              onClick={() => openCreate(day)}
-              className="text-left mb-2 group"
+      {view === "week" && (
+        <div className="grid grid-cols-7 gap-2">
+          {weekDays.map((day) => (
+            <div
+              key={day.toISOString()}
+              className="min-h-[220px] rounded-xl border border-brand-border bg-white p-2 flex flex-col"
             >
-              <div className="text-xs text-brand-muted uppercase">
-                {format(day, "EEE", { locale: fr })}
-              </div>
-              <div className="text-sm font-semibold text-brand-text group-hover:text-brand-primary">
-                {format(day, "d MMM", { locale: fr })}
-              </div>
-            </button>
+              <button
+                onClick={canWrite ? () => openCreate(day) : undefined}
+                className="text-left mb-2 group"
+              >
+                <div className="text-xs text-brand-muted uppercase">
+                  {format(day, "EEE", { locale: fr })}
+                </div>
+                <div className="text-sm font-semibold text-brand-text group-hover:text-brand-primary">
+                  {format(day, "d MMM", { locale: fr })}
+                </div>
+              </button>
 
-            <div className="flex-1 space-y-1.5 overflow-y-auto">
-              {loading ? (
-                <div className="text-xs text-brand-muted">…</div>
-              ) : (
-                meetingsForDay(day).map((m) => (
-                  <button
-                    key={m._id}
-                    onClick={() => setDetailsMeeting(m)}
-                    className="w-full text-left px-2 py-1.5 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 transition-colors"
-                  >
-                    <div className="text-xs font-medium text-brand-text truncate">
-                      {format(parseISO(m.startAt), "HH:mm")} — {m.title}
-                    </div>
-                  </button>
-                ))
-              )}
+              <div className="flex-1 space-y-1.5 overflow-y-auto">
+                {loading ? (
+                  <div className="text-xs text-brand-muted">…</div>
+                ) : (
+                  meetingsForDay(day).map((m) => (
+                    <button
+                      key={m._id}
+                      onClick={() => setDetailsMeeting(m)}
+                      className="w-full text-left px-2 py-1.5 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 transition-colors"
+                    >
+                      <div className="text-xs font-medium text-brand-text truncate">
+                        {format(parseISO(m.startAt), "HH:mm")} — {m.title}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Monthly grid */}
+      {view === "month" && (
+        <div className="rounded-xl border border-brand-border bg-white overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-brand-border">
+            {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((label) => (
+              <div
+                key={label}
+                className="px-2 py-2 text-xs font-semibold text-brand-muted uppercase text-center"
+              >
+                {label}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-7">
+            {monthDays.map((day) => {
+              const dayMeetings = meetingsForDay(day);
+              const visible = dayMeetings.slice(0, MAX_MONTH_ITEMS);
+              const extra = dayMeetings.length - visible.length;
+              const inCurrentMonth = isSameMonth(day, monthAnchor);
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`min-h-[110px] border-b border-r border-brand-border p-1.5 flex flex-col ${
+                    inCurrentMonth ? "bg-white" : "bg-gray-50"
+                  }`}
+                >
+                  <button
+                    onClick={canWrite ? () => openCreate(day) : undefined}
+                    className={`text-left text-xs font-semibold mb-1 ${
+                      inCurrentMonth ? "text-brand-text" : "text-brand-muted"
+                    } hover:text-brand-primary`}
+                  >
+                    {format(day, "d")}
+                  </button>
+
+                  <div className="flex-1 space-y-1 overflow-hidden">
+                    {!loading &&
+                      visible.map((m) => (
+                        <button
+                          key={m._id}
+                          onClick={() => setDetailsMeeting(m)}
+                          className="w-full text-left px-1.5 py-1 rounded-md bg-brand-primary/10 hover:bg-brand-primary/20 transition-colors"
+                        >
+                          <div className="text-[11px] font-medium text-brand-text truncate">
+                            {format(parseISO(m.startAt), "HH:mm")} {m.title}
+                          </div>
+                        </button>
+                      ))}
+                    {!loading && extra > 0 && (
+                      <div className="text-[11px] text-brand-muted px-1.5">
+                        +{extra} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Meeting details drawer */}
       {detailsMeeting && (
@@ -253,18 +387,22 @@ export default function AdminMeetings() {
           )} – ${format(parseISO(detailsMeeting.endAt), "HH:mm")}`}
           footer={
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmDelete(detailsMeeting)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => openEdit(detailsMeeting)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover"
-              >
-                Edit
-              </button>
+              {canWrite && (
+                <>
+                  <button
+                    onClick={() => setConfirmDelete(detailsMeeting)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => openEdit(detailsMeeting)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover"
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
             </div>
           }
         >

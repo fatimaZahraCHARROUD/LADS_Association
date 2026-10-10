@@ -12,56 +12,56 @@ export class AuthService {
     private jwtService: JwtCustomService,
   ) {}
   
+  async login(email: string, password: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new UnauthorizedException('User not found');
 
- async login(email: string, password: string) {
-  const user = await this.usersService.findByEmail(email);
-  if (!user) throw new UnauthorizedException('User not found');
+    const isMatch = await this.hashService.compare(password, user.password);
+    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
-  const isMatch = await this.hashService.compare(password, user.password);
-  if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+    // auto-pick first membership if none active
+    let activeId: any = user.activeMembershipId;
+    if (!activeId && user.memberships?.length) {
+      activeId = user.memberships[0]._id;
+      await this.usersService.setActiveMembership(String(user._id), String(activeId));
+    }
 
-  // auto-pick first membership if none active
-  let activeId: any = user.activeMembershipId;
-  if (!activeId && user.memberships?.length) {
-  activeId = user.memberships[0]._id;
-await this.usersService.setActiveMembership(String(user._id), String(activeId));
+    const token = this.jwtService.sign({
+      userId: user._id,
+      email: user.email,
+      name: user.fullName,
+      role: user.role, // <-- KEPT HERE
+    });
+
+    return {
+      message: 'Login successful',
+      access_token: token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role, // keep for compatibility
+        memberships: user.memberships ?? [],
+        activeMembershipId: activeId,
+        isAdmin: user.isAdmin,
+      },
+    };
   }
 
-  const token = this.jwtService.sign({
-    userId: user._id,
-    email: user.email,
-    name: user.fullName,
-  });
+  async switchRole(userId: string, membershipId: string) {
+    const user = await this.usersService.findOne(userId);
+    const membership = user.memberships?.find(
+      (m: any) => String(m._id) === String(membershipId),
+    );
+    if (!membership) throw new BadRequestException('Membership not found');
 
-  return {
-    message: 'Login successful',
-    access_token: token,
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role,                       // keep for compatibility
-      memberships: user.memberships ?? [],
-      activeMembershipId: activeId,
-      isAdmin: user.isAdmin,
-    },
-  };
-}
+    await this.usersService.setActiveMembership(userId, membershipId);
 
-async switchRole(userId: string, membershipId: string) {
-  const user = await this.usersService.findOne(userId);
-  const membership = user.memberships?.find(
-    (m: any) => String(m._id) === String(membershipId),
-  );
-  if (!membership) throw new BadRequestException('Membership not found');
-
-  await this.usersService.setActiveMembership(userId, membershipId);
-
-  return {
-    message: 'Role switched',
-    activeMembership: membership,
-  };
-}
+    return {
+      message: 'Role switched',
+      activeMembership: membership,
+    };
+  }
 
   async register(dto: CreateAuthDto) {
     // 1. check if user exists
@@ -96,6 +96,4 @@ async switchRole(userId: string, membershipId: string) {
       access_token: token,
     };
   }
-
-  
 }

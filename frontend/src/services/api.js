@@ -41,6 +41,19 @@ export function getCurrentUserId() {
   }
 }
 
+// Kept from dev3/documents-meetings (useful helper)
+export function getCurrentUserRole() {
+  const token = localStorage.getItem("token");
+  if (!token) return [];
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return Array.isArray(payload.role) ? payload.role : [];
+  } catch {
+    return [];
+  }
+}
+
+// Kept from main (the new api wrapper)
 export const api = {
   get:    (p)      => request(p),
   post:   (p, b)   => request(p, { method: "POST",   body: b }),
