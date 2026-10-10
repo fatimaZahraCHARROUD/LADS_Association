@@ -20,7 +20,7 @@ async function login(email, password) {
   }
 
   localStorage.setItem("token", data.access_token);
-
+localStorage.setItem("user", JSON.stringify(data.user));
   return data;
 }
 
@@ -39,17 +39,36 @@ useEffect(() => {
   });
 }, []);
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
 
-    try {
-      await login(email, password);
+  try {
+    const data = await login(email, password);   // ← capture here
 
-      navigate("/admin");
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+    const user = data.user;
+    const memberships = user.memberships || [];
+    const active = memberships.find(
+      (m) => String(m._id) === String(user.activeMembershipId)   // ← String() both sides
+    );
+
+    const ROLE_ROUTES = {
+      President: "/admin",
+      "Director Executive": "/exec",
+      "Team Manager": "/team",
+      Responsable: "/responsible",
+      Member: "/member",
+    };
+
+    const dest =
+      user.isAdmin || (user.role || []).includes("President")
+        ? "/admin"
+        : ROLE_ROUTES[active?.role] || "/login";
+
+    navigate(dest);
+  } catch (err) {
+    setError(err.message);
+  }
+};
 
   return (
     <div className="login-page">

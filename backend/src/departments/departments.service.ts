@@ -60,7 +60,18 @@ export class DepartmentsService {
       teamManagers,
       members,
     });
-    return this.findOne(String(department._id));
+
+    const deptId = String(department._id);
+    if (manager)
+      await this.syncMembership(String(manager), deptId, 'Responsable');
+    if (viceManager)
+      await this.syncMembership(String(viceManager), deptId, 'Responsable');
+    for (const tm of teamManagers)
+      await this.syncMembership(String(tm), deptId, 'Team Manager');
+    for (const m of members)
+      await this.syncMembership(String(m), deptId, 'Member');
+
+    return this.findOne(deptId);
   }
 
   async update(id: string, dto: UpdateDepartmentDto) {
@@ -68,20 +79,23 @@ export class DepartmentsService {
     const current = await this.departmentModel.findById(id).exec();
     if (!current) throw new NotFoundException(`Department ${id} not found`);
 
+    // ── Snapshot BEFORE state ──
+    const beforeManager = current.manager ? String(current.manager) : null;
+    const beforeVice = current.viceManager ? String(current.viceManager) : null;
+    const beforeTeamManagers = (current.teamManagers ?? []).map(String);
+    const beforeMembers = (current.members ?? []).map(String);
+
+    // ── Build updates object ──
     const updates: Record<string, unknown> = {};
     if (dto.name !== undefined) updates.name = this.validateName(dto.name);
-    if (dto.manager !== undefined) {
+    if (dto.manager !== undefined)
       updates.manager = await this.validateUserId(dto.manager);
-    }
-    if (dto.viceManager !== undefined) {
+    if (dto.viceManager !== undefined)
       updates.viceManager = await this.validateUserId(dto.viceManager);
-    }
-    if (dto.teamManagers !== undefined) {
+    if (dto.teamManagers !== undefined)
       updates.teamManagers = await this.validateUserIds(dto.teamManagers);
-    }
-    if (dto.members !== undefined) {
+    if (dto.members !== undefined)
       updates.members = await this.validateUserIds(dto.members);
-    }
 
     const manager = Object.prototype.hasOwnProperty.call(updates, 'manager')
       ? (updates.manager as Types.ObjectId | null)
@@ -94,10 +108,65 @@ export class DepartmentsService {
       : current.viceManager;
     this.validateDistinctManagers(manager, viceManager);
 
-    await this.departmentModel
+    // ── Apply the department update ──
+    const updated = await this.departmentModel
       .findByIdAndUpdate(id, updates, { new: true, runValidators: true })
       .exec();
-    return this.findOne(id);
+    if (!updated) throw new NotFoundException(`Department ${id} not found`);
+
+    // ── Snapshot AFTER state (must come after the DB update) ──
+    const afterManager = updated.manager ? String(updated.manager) : null;
+    const afterVice = updated.viceManager ? String(updated.viceManager) : null;
+    const afterTeamManagers = (updated.teamManagers ?? []).map(String);
+    const afterMembers = (updated.members ?? []).map(String);
+
+    const deptId = id;
+
+    // ── Sync memberships: Manager ──
+    if (dto.manager !== undefined) {
+      if (beforeManager && beforeManager !== afterManager) {
+        await this.removeMembership(beforeManager, deptId);
+      }
+      if (afterManager) {
+        await this.syncMembership(afterManager, deptId, 'Responsable');
+      }
+    }
+
+    // ── Sync memberships: Vice manager ──
+    if (dto.viceManager !== undefined) {
+      if (beforeVice && beforeVice !== afterVice) {
+        await this.removeMembership(beforeVice, deptId);
+      }
+      if (afterVice) {
+        await this.syncMembership(afterVice, deptId, 'Responsable');
+      }
+    }
+
+    // ── Sync memberships: Team managers (full resync) ──
+    if (dto.teamManagers !== undefined) {
+      for (const uid of afterTeamManagers) {
+        await this.syncMembership(uid, deptId, 'Team Manager');
+      }
+      for (const uid of beforeTeamManagers) {
+        if (!afterTeamManagers.includes(uid)) {
+          await this.removeMembership(uid, deptId);
+        }
+      }
+    }
+
+    // ── Sync memberships: Members (full resync) ──
+    if (dto.members !== undefined) {
+      for (const uid of afterMembers) {
+        await this.syncMembership(uid, deptId, 'Member');
+      }
+      for (const uid of beforeMembers) {
+        if (!afterMembers.includes(uid)) {
+          await this.removeMembership(uid, deptId);
+        }
+      }
+    }
+
+    return this.findOne(deptId);
   }
 
   async assignManager(id: string, userId: string | null) {
@@ -132,8 +201,105 @@ export class DepartmentsService {
     this.validateDepartmentId(id);
     const department = await this.departmentModel.findByIdAndDelete(id).exec();
     if (!department) throw new NotFoundException(`Department ${id} not found`);
+
+    const userIds = new Set<string>();
+    if (department.manager) userIds.add(String(department.manager));
+    if (department.viceManager) userIds.add(String(department.viceManager));
+    (department.teamManagers ?? []).forEach((u) => userIds.add(String(u)));
+    (department.members ?? []).forEach((u) => userIds.add(String(u)));
+
+    for (const uid of userIds) await this.removeMembership(uid, id);
+
     return { deleted: true };
   }
+
+  // ─────────────────────────────────────────────
+  //  Membership sync helpers
+  // ─────────────────────────────────────────────
+
+  private async syncMembership(
+    userId: string,
+    departmentId: string,
+    role: string,
+  ) {
+    if (!Types.ObjectId.isValid(userId)) return;
+    if (!Types.ObjectId.isValid(departmentId)) return;
+
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    // Drop broken entries (no departmentId) so we don't keep them around
+   const existing = (user.memberships ?? []) as any[];
+
+    // Skip if user already has this exact (dept, role) pair
+    const already = existing.some(
+      (m) =>
+        String(m.departmentId) === String(departmentId) && m.role === role,
+    );
+    if (already) return;
+
+    // Drop any prior membership for this department (role change)
+    const filtered = existing.filter(
+      (m) => String(m.departmentId) !== String(departmentId),
+    );
+
+    // Don't touch admins with a global membership
+    // const hasGlobal = filtered.some(
+    //   (m) =>
+    //     !m.departmentId &&
+    //     ['President', 'Director Executive'].includes(m.role),
+    // );
+    // if (hasGlobal) return;
+
+    const newMembership = {
+      _id: new Types.ObjectId(),
+      departmentId: new Types.ObjectId(departmentId),
+      role,
+    };
+
+    const memberships = [...filtered, newMembership];
+
+    const activeValid =
+      user.activeMembershipId &&
+      memberships.some(
+        (m) => String(m._id) === String(user.activeMembershipId),
+      );
+
+    const patch: any = { memberships };
+    if (!activeValid) patch.activeMembershipId = memberships[0]._id;
+
+    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  private async removeMembership(userId: string, departmentId: string) {
+    if (!Types.ObjectId.isValid(userId)) return;
+
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    const existing = (user.memberships ?? []) as any[];
+    const filtered = existing.filter(
+      (m) => String(m.departmentId) !== String(departmentId),
+    );
+    if (filtered.length === existing.length) return;
+
+    const activeValid =
+      user.activeMembershipId &&
+      filtered.some(
+        (m) => String(m._id) === String(user.activeMembershipId),
+      );
+
+    const patch: any = { memberships: filtered };
+    if (!activeValid) {
+      patch.activeMembershipId = filtered[0]?._id ?? null;
+    }
+
+    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  // ─────────────────────────────────────────────
+  //  Validation
+  // ─────────────────────────────────────────────
 
   private validateName(name: string) {
     if (typeof name !== 'string' || !name.trim()) {
@@ -161,31 +327,22 @@ export class DepartmentsService {
   }
 
   private async validateUserIds(userIds: string[]) {
-    if (!Array.isArray(userIds)) {
+    if (!Array.isArray(userIds))
       throw new BadRequestException('User IDs must be an array');
-    }
-    if (
-      userIds.some(
-        (userId) =>
-          typeof userId !== 'string' || !Types.ObjectId.isValid(userId),
-      )
-    ) {
-      throw new BadRequestException('All user IDs must be valid');
-    }
-    const normalizedUserIds = userIds.map((userId) => userId.toLowerCase());
-    if (new Set(normalizedUserIds).size !== normalizedUserIds.length) {
-      throw new BadRequestException('A user cannot be assigned more than once');
-    }
-
-    const objectIds = normalizedUserIds.map(
-      (userId) => new Types.ObjectId(userId),
+    const ids = userIds.map((id) =>
+      typeof id === 'string' ? id.trim() : id,
     );
+    if (ids.some((id) => typeof id !== 'string' || !Types.ObjectId.isValid(id)))
+      throw new BadRequestException('All user IDs must be valid');
+    if (new Set(ids).size !== ids.length)
+      throw new BadRequestException('A user cannot be assigned more than once');
+
+    const objectIds = ids.map((id) => new Types.ObjectId(id));
     const existingCount = await this.userModel.countDocuments({
       _id: { $in: objectIds },
     });
-    if (existingCount !== objectIds.length) {
+    if (existingCount !== objectIds.length)
       throw new BadRequestException('One or more users do not exist');
-    }
     return objectIds;
   }
 
@@ -199,4 +356,85 @@ export class DepartmentsService {
       );
     }
   }
+
+  // ─────────────────────────────────────────────
+  //  One-off resync (temporary, safe to remove later)
+  // ─────────────────────────────────────────────
+ async resyncAllMemberships() {
+  const departments = await this.departmentModel.find().exec();
+  const users = await this.userModel.find({ isAdmin: { $ne: true } }).exec();
+
+  for (const user of users) {
+    const userId = String(user._id);
+    const existing: any[] = (user.memberships ?? []).map((m: any) =>
+      typeof m.toObject === 'function' ? m.toObject() : m,
+    );
+
+    // Preserve GLOBAL memberships
+    const memberships: any[] = existing.filter((m) => !m.departmentId);
+
+    // Rebuild department memberships from the departments collection
+    for (const dept of departments) {
+      const deptId = String(dept._id);
+      if (dept.manager && String(dept.manager) === userId) {
+        memberships.push({
+          _id: new Types.ObjectId(),
+          departmentId: dept._id,
+          role: 'Responsable',
+        });
+      } else if (dept.viceManager && String(dept.viceManager) === userId) {
+        memberships.push({
+          _id: new Types.ObjectId(),
+          departmentId: dept._id,
+          role: 'Responsable',
+        });
+      } else if ((dept.teamManagers ?? []).some((u) => String(u) === userId)) {
+        memberships.push({
+          _id: new Types.ObjectId(),
+          departmentId: dept._id,
+          role: 'Team Manager',
+        });
+      } else if ((dept.members ?? []).some((u) => String(u) === userId)) {
+        memberships.push({
+          _id: new Types.ObjectId(),
+          departmentId: dept._id,
+          role: 'Member',
+        });
+      }
+    }
+
+    if (memberships.length === 0) {
+      memberships.push({
+        _id: new Types.ObjectId(),
+        departmentId: null,
+        role: 'Member',
+      });
+    }
+
+    const activeStillValid = memberships.some(
+      (m) => String(m._id) === String(user.activeMembershipId),
+    );
+    const activeMembershipId = activeStillValid
+      ? user.activeMembershipId
+      : (memberships.find((m) => !m.departmentId)?._id ?? memberships[0]._id);
+
+    await this.userModel.findByIdAndUpdate(userId, {
+      $set: {
+        memberships,
+        activeMembershipId,
+        role: Array.from(
+          new Set(memberships.map((m) => m.role).filter(Boolean)),
+        ),
+        departement: memberships
+          .filter((m) => !!m.departmentId)
+          .map((m) => m.departmentId),
+      },
+    });
+  }
+
+  return { ok: true, departments: departments.length, users: users.length };
+}
+
+
+  
 }

@@ -18,6 +18,16 @@ import { DepartmentMembersModule } from './department-members/department-members
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentPermissionsModule } from './document-permissions/document-permissions.module';
 import { MeetingsModule } from './meetings/meetings.module';
+import { StrategicPlansModule } from './strategic-plans/strategic-plans.module';
+import { ProjectsModule } from './projects/projects.module';
+import { CellulesModule } from './cellules/cellules.module';
+import { ObjectivesModule } from './objectives/objectives.module';
+import { TasksModule } from './tasks/tasks.module';
+// import { APP_GUARD } from '@nestjs/core';
+// import { JwtAuthGuard } from './services/jwt/jwt.guard';
+// import { ActiveRoleGuard } from './services/jwt/active-role.guard';
+// import { MongooseModule } from '@nestjs/mongoose';
+// import { User, UserSchema } from './users/schemas/user.schema';
 
 @Module({
   imports: [
@@ -40,6 +50,13 @@ import { MeetingsModule } from './meetings/meetings.module';
     DocumentsModule,
     DocumentPermissionsModule,
     MeetingsModule,
+    StrategicPlansModule,
+    ProjectsModule,
+    CellulesModule,
+    ObjectivesModule,
+    TasksModule,
+     //MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
+ 
 })
 export class AppModule {}

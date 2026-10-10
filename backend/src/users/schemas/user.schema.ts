@@ -1,7 +1,29 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
+
+@Schema({ _id: true, timestamps: false })
+export class Membership {
+  _id!: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Department', default: null })
+  departmentId!: Types.ObjectId | null;
+
+  @Prop({
+    type: String,
+    required: true,
+    enum: [
+      'President',
+      'Director Executive',
+      'Team Manager',
+      'Responsable',
+      'Member',
+    ],
+  })
+  role!: string;
+}
+export const MembershipSchema = SchemaFactory.createForClass(Membership);
 
 @Schema({ timestamps: true })
 export class User {
@@ -17,11 +39,30 @@ export class User {
   @Prop({ required: true })
   password!: string;
 
-  @Prop({ type: [String], enum: ['President', 'Manager', 'Responsible', 'Member'], default: ['Member'] })
+
+  @Prop({
+    type: [String],
+    enum: [
+      'President',
+      'Manager',
+      'Responsible',
+      'Member',
+      'Director Executive',
+      'Team Manager',
+      'Responsable',
+    ],
+    default: ['Member'],
+  })
   role!: string[];
 
   @Prop({ enum: ['Male', 'Female'], default: 'Male' })
   genre!: string;
+
+  @Prop({ type: [MembershipSchema], default: [] })
+  memberships!: Membership[];
+
+  @Prop({ type: Types.ObjectId, default: null })
+  activeMembershipId!: Types.ObjectId | null;
 
   @Prop({ default: '' })
   profileImage!: string;
@@ -43,9 +84,6 @@ export class User {
 
   @Prop({ default: '' })
   situation!: string;
-
-  @Prop({ type: [String], default: [] })
-  departement!: string[];
 
   @Prop({ default: '' })
   date_adhesion!: string;

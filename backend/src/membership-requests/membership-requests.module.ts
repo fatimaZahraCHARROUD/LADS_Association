@@ -6,9 +6,10 @@ import { MembershipRequest, MembershipRequestSchema } from './schemas/membership
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { MailModule } from '../mail/mail.module';
+import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: MembershipRequest.name, schema: MembershipRequestSchema }]),JwtModule,MailModule],
+  imports: [MongooseModule.forFeature([{ name: MembershipRequest.name, schema: MembershipRequestSchema },{ name: User.name, schema: UserSchema }, ]),JwtModule,MailModule],
   controllers: [MembershipRequestsController],
   providers: [MembershipRequestsService,JwtAuthGuard],
 })

@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Meeting, MeetingDocument } from './schemas/meeting.schema';
 import { Department, DepartmentDocument } from '../departments/schemas/department.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
@@ -22,58 +23,27 @@ export class MeetingsService {
     private userModel: Model<UserDocument>,
   ) {}
 
-  private async getMyDepartmentIds(userId: string): Promise<string[]> {
-    const departments = await this.departmentModel
-      .find({
-        $or: [
-          { manager: userId },
-          { viceManager: userId },
-          { teamManagers: userId },
-          { members: userId },
-        ],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    return departments.map((d) => String(d._id));
-  }
-
+  // POST /meetings
   async create(dto: CreateMeetingDto, userId: string) {
-    const myDepartmentIds = await this.getMyDepartmentIds(userId);
-    const department = myDepartmentIds[0];
-    if (!department) {
-      throw new BadRequestException(
-        'Your account is not assigned to any department',
-      );
+    // Un Team Manager ne peut créer qu'une réunion de SES départements
+    if ((await this.getActiveRole(userId)) === 'Team Manager') {
+      const deptIds = await this.getTeamManagerDepartmentIds(userId);
+      if (!dto.departmentId || !deptIds.includes(dto.departmentId)) {
+        throw new ForbiddenException(
+          'You can only manage meetings of your own departments',
+        );
+      }
     }
-    return this.meetingModel.create({ ...dto, department, createdBy: userId });
-  }
 
-  private async maskLinks(meetings: any[], userId: string) {
-    const user = await this.userModel
-      .findById(userId)
-      .select('role')
-      .lean()
-      .exec();
-    const isPresident = !!user?.role?.includes('President');
-    if (isPresident) return meetings;
-
-    const myDepartmentIds = new Set(await this.getMyDepartmentIds(userId));
-
-    return meetings.map((m) => {
-      const obj = m.toObject ? m.toObject() : m;
-      const deptId = obj.department?._id
-        ? String(obj.department._id)
-        : obj.department
-          ? String(obj.department)
-          : null;
-      const inMyDept = deptId && myDepartmentIds.has(deptId);
-      if (!inMyDept) obj.meetingLink = '';
-      return obj;
+    return this.meetingModel.create({
+      ...dto,
+      departmentId: dto.departmentId ?? null,
+      createdBy: userId,
     });
   }
 
-  async findAll(userId: string, from?: string, to?: string) {
+  // GET /meetings
+  async findAll(from?: string, to?: string, userId?: string) {
     const filter: Record<string, unknown> = {};
     if (from || to) {
       filter.startAt = {
@@ -81,41 +51,114 @@ export class MeetingsService {
         ...(to ? { $lte: new Date(to) } : {}),
       };
     }
-    const meetings = await this.meetingModel
+
+    // Un Team Manager ne voit que les réunions de ses départements
+    if (userId && (await this.getActiveRole(userId)) === 'Team Manager') {
+      const deptIds = await this.getTeamManagerDepartmentIds(userId);
+      if (deptIds.length === 0) {
+        filter._id = { $in: [] }; // aucun département assigné
+      } else {
+        filter.departmentId = { $in: deptIds };
+      }
+    }
+
+    return this.meetingModel
       .find(filter)
       .sort({ startAt: 1 })
       .populate('createdBy', 'fullName email')
       .populate('participants', 'fullName email')
-      .populate('department', 'name')
+      .populate('departmentId', 'name')
       .exec();
-    return this.maskLinks(meetings, userId);
   }
 
-  async findOne(id: string, userId: string) {
+  // GET /meetings/:id
+  async findOne(id: string, userId?: string) {
     const meeting = await this.meetingModel
       .findById(id)
       .populate('createdBy', 'fullName email')
       .populate('participants', 'fullName email')
-      .populate('department', 'name')
+      .populate('departmentId', 'name')
       .exec();
     if (!meeting) throw new NotFoundException(`Meeting ${id} not found`);
-    const [masked] = await this.maskLinks([meeting], userId);
-    return masked;
+
+    if (userId) await this.assertCanManage(meeting, userId);
+    return meeting;
   }
 
-  async update(id: string, dto: UpdateMeetingDto) {
+  // PATCH /meetings/:id
+  async update(id: string, dto: UpdateMeetingDto, userId?: string) {
     const existing = await this.meetingModel.findById(id).exec();
     if (!existing) throw new NotFoundException(`Meeting ${id} not found`);
+    if (userId) await this.assertCanManage(existing, userId);
+
     const safe: Record<string, unknown> = { ...dto };
     delete safe.createdBy;
     delete (safe as any).department;
     return this.meetingModel.findByIdAndUpdate(id, safe, { new: true }).exec();
   }
 
-  async remove(id: string) {
+  // DELETE /meetings/:id
+  async remove(id: string, userId?: string) {
     const existing = await this.meetingModel.findById(id).exec();
     if (!existing) throw new NotFoundException(`Meeting ${id} not found`);
+    if (userId) await this.assertCanManage(existing, userId);
+
     await this.meetingModel.findByIdAndDelete(id).exec();
     return { message: 'Meeting deleted' };
+  }
+
+  // ─────────────────────────────────────────────
+  //  Helpers (étape 2)
+  // ─────────────────────────────────────────────
+
+  // Vérifie que, si l'utilisateur est un Team Manager, la réunion appartient
+  // à un de SES départements (sinon -> Forbidden).
+  private async assertCanManage(meeting: MeetingDocument, userId: string) {
+    if ((await this.getActiveRole(userId)) !== 'Team Manager') return;
+    const deptIds = await this.getTeamManagerDepartmentIds(userId);
+    if (!meeting.departmentId || !deptIds.includes(String(meeting.departmentId))) {
+      throw new ForbiddenException(
+        'You can only manage meetings of your own departments',
+      );
+    }
+  }
+
+  // Rôle actif de l'utilisateur (même logique que ActiveRoleGuard)
+  private async getActiveRole(userId: string): Promise<string | null> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('memberships activeMembershipId isAdmin role')
+      .lean()
+      .exec();
+    if (!user) return null;
+    if (user.isAdmin === true || (user.role ?? []).includes('President')) {
+      return 'President';
+    }
+    const active = (user.memberships ?? []).find(
+      (m: any) => String(m._id) === String(user.activeMembershipId),
+    );
+    return active?.role ?? null;
+  }
+
+  // Les ID des départements que gère un Team Manager
+  private async getTeamManagerDepartmentIds(userId: string): Promise<string[]> {
+    const user = await this.userModel.findById(userId).select('memberships').lean().exec();
+    const deptIds = new Set<string>();
+    (user?.memberships ?? []).forEach((m: any) => {
+      if (m.role === 'Team Manager' && m.departmentId) {
+        deptIds.add(String(m.departmentId));
+      }
+    });
+    const depts = await this.departmentModel
+      .find({
+        teamManagers: Types.ObjectId.isValid(userId)
+          ? new Types.ObjectId(userId)
+          : userId,
+      })
+      .select('_id')
+      .lean()
+      .exec();
+    depts.forEach((d) => deptIds.add(String(d._id)));
+    return [...deptIds];
   }
 }

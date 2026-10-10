@@ -26,6 +26,7 @@ const EMPTY_FORMATION = {
   category: "",
   status: "upcoming",
   registrationLink: "",
+  driveUrl: "",
   isPublished: false,
 };
 
@@ -50,11 +51,11 @@ export default function AdminFormations() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-const [imageFile, setImageFile] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
 
   const load = async () => {
     try {
-      const data = await api.get("/formations");
+      const data = await api.get("/admin/formations");
       setRows(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error(err.message);
@@ -67,92 +68,87 @@ const [imageFile, setImageFile] = useState(null);
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
-  setEditing(null);
-  setForm(EMPTY_FORMATION);
-  setImageFile(null);
-  setDrawerOpen(true);
-};
+    setEditing(null);
+    setForm(EMPTY_FORMATION);
+    setImageFile(null);
+    setDrawerOpen(true);
+  };
 
   const openEdit = (row) => {
-  setEditing(row);
+    setEditing(row);
 
-  setForm({
-    title: ml(row.title),
-    description: ml(row.description),
-    imgUrl: row.imgUrl || "",
-        coverImagePublicId: row.coverImagePublicId || "",
-    date: toFormDate(row.date),
-    heure: row.heure || "",
-    category: row.category || "",
-    status: row.status || "upcoming",
-    registrationLink: row.registrationLink || "",
-    isPublished: !!row.isPublished,
-  });
+    setForm({
+      title: ml(row.title),
+      description: ml(row.description),
+      imgUrl: row.imgUrl || "",
+      coverImagePublicId: row.coverImagePublicId || "",
+      date: toFormDate(row.date),
+      heure: row.heure || "",
+      category: row.category || "",
+      status: row.status || "upcoming",
+      registrationLink: row.registrationLink || "",
+      driveUrl: row.driveUrl || "",
+      isPublished: !!row.isPublished,
+    });
 
-  setImageFile(null);
-
-  setDrawerOpen(true);
-};
+    setImageFile(null);
+    setDrawerOpen(true);
+  };
 
   const closeDrawer = () => {
     if (saving) return;
     setDrawerOpen(false);
   };
 
- const submit = async (e) => {
-  e.preventDefault();
+  const submit = async (e) => {
+    e.preventDefault();
 
-  if (!hasAnyMl(form.title)) {
-    toast.error("Title is required in at least one language.");
-    return;
-  }
-
-  if (!form.date) {
-    toast.error("Date is required.");
-    return;
-  }
-
-  setSaving(true);
-
-  try {
-    let imageUrl = form.imgUrl;
-    let coverImagePublicId = form.coverImagePublicId;
-
-    // upload new image if selected
-    if (imageFile) {
-      const uploaded = await uploadImage(imageFile);
-
-      imageUrl = uploaded.url;
-      coverImagePublicId = uploaded.public_id;
-
-    
+    if (!hasAnyMl(form.title)) {
+      toast.error("Title is required in at least one language.");
+      return;
     }
 
-    const payload = {
-      ...form,
-      imgUrl: imageUrl,
-      coverImagePublicId,
-
-    };
-
-    if (editing) {
-      await api.patch(`/formations/${editing._id}`, payload);
-      toast.success("Formation updated");
-    } else {
-      await api.post("/formations", payload);
-      toast.success("Formation created");
+    if (!form.date) {
+      toast.error("Date is required.");
+      return;
     }
 
-    setDrawerOpen(false);
-    setImageFile(null);
+    setSaving(true);
 
-    await load();
-  } catch (err) {
-    toast.error(err.message);
-  } finally {
-    setSaving(false);
-  }
-};
+    try {
+      let imageUrl = form.imgUrl;
+      let coverImagePublicId = form.coverImagePublicId;
+
+      // upload new image if selected
+      if (imageFile) {
+        const uploaded = await uploadImage(imageFile);
+        imageUrl = uploaded.url;
+        coverImagePublicId = uploaded.public_id;
+      }
+
+      const payload = {
+        ...form,
+        imgUrl: imageUrl,
+        coverImagePublicId,
+      };
+
+      if (editing) {
+        await api.patch(`/formations/${editing._id}`, payload);
+        toast.success("Formation updated");
+      } else {
+        await api.post("/formations", payload);
+        toast.success("Formation created");
+      }
+
+      setDrawerOpen(false);
+      setImageFile(null);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const togglePublish = async (row) => {
     try {
@@ -180,14 +176,14 @@ const [imageFile, setImageFile] = useState(null);
   };
 
   const columns = [
-   {
-  key: "imgUrl",
-  header: "",
-  width: "112px",
-  render: (r) => (
-    <HoverImagePreview src={r.imgUrl} alt={mlDisplay(r.title) || "formation"} />
-  ),
-},
+    {
+      key: "imgUrl",
+      header: "",
+      width: "112px",
+      render: (r) => (
+        <HoverImagePreview src={r.imgUrl} alt={mlDisplay(r.title) || "formation"} />
+      ),
+    },
     {
       key: "title",
       header: "Title",
@@ -347,34 +343,42 @@ const [imageFile, setImageFile] = useState(null);
             </Field>
           </div>
 
-         <Field label="Formation image">
-  <input
-    type="file"
-    accept="image/*"
-    onChange={(e) => setImageFile(e.target.files[0])}
-  />
-</Field>
+          <Field label="Formation image">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files[0])}
+            />
+          </Field>
 
-{(imageFile || form.imgUrl) && (
-  <img
-    src={
-      imageFile
-        ? URL.createObjectURL(imageFile)
-        : form.imgUrl
-    }
-    alt="formation preview"
-    className="w-32 h-32 rounded-lg object-cover border mt-2"
-    onError={(e) => {
-      e.currentTarget.style.display = "none";
-    }}
-  />
-)}
+          {(imageFile || form.imgUrl) && (
+            <img
+              src={
+                imageFile
+                  ? URL.createObjectURL(imageFile)
+                  : form.imgUrl
+              }
+              alt="formation preview"
+              className="w-32 h-32 rounded-lg object-cover border mt-2"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          )}
 
           <Field label="Registration link">
             <UrlInput
               value={form.registrationLink}
               onChange={(e) => setForm({ ...form, registrationLink: e.target.value })}
               placeholder="https://..."
+            />
+          </Field>
+
+          <Field label="Google Drive record link">
+            <UrlInput
+              value={form.driveUrl}
+              onChange={(e) => setForm({ ...form, driveUrl: e.target.value })}
+              placeholder="https://drive.google.com/..."
             />
           </Field>
 

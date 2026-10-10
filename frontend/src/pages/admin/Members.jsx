@@ -12,6 +12,8 @@ import RowActions from "../../components/admin/RowActions";
 const FULL_PHOTO = (p) =>
   p && !p.startsWith("http") ? `${API_BASE}${p}` : p || "";
 
+const GLOBAL_ROLES = ["President", "Director Executive"];
+
 const EMPTY_FORM = {
   fullName: "",
   email: "",
@@ -23,15 +25,21 @@ const EMPTY_FORM = {
   niveau_etude: "",
   specialite_etude: "",
   situation: "Active",
-  departement: "",
+  departement: "", // now holds the department _id
   cotisation_payee: false,
   status: "active",
+  role: "Member",
 };
 
 export default function AdminMembers() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ nom: "", ville: "", status: "", departement: "" });
+  const [filters, setFilters] = useState({
+    nom: "",
+    ville: "",
+    status: "",
+    departement: "",
+  });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -41,6 +49,10 @@ export default function AdminMembers() {
 
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // ── Departments fetched once, used by the form select ──
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
 
   const load = async (f = filters) => {
     setLoading(true);
@@ -59,8 +71,23 @@ export default function AdminMembers() {
     }
   };
 
+  const loadDepartments = async () => {
+    setDepartmentsLoading(true);
+    try {
+      const data = await api.get("/departments");
+      setDepartments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error(err.message || "Could not load departments");
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
+
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    loadDepartments();
+  }, []);
 
   const openAdd = () => {
     setEditing(null);
@@ -69,26 +96,42 @@ export default function AdminMembers() {
     setFormOpen(true);
   };
 
-  const openEdit = (r) => {
-    setEditing(r);
-    setForm({
-      fullName: r.fullName || "",
-      email: r.email || "",
-      password: "",
-      phone: r.phone || "",
-      genre: r.genre || "Male",
-      birthday: r.birthday || "",
-      ville: r.ville || "",
-      niveau_etude: r.niveau_etude || "",
-      specialite_etude: r.specialite_etude || "",
-      situation: r.situation || "Active",
-      departement: r.departement?.[0] || "",
-      cotisation_payee: !!r.cotisation_payee,
-      status: r.status || "active",
-    });
-    setFile(null);
-    setFormOpen(true);
-  };
+const openEdit = (r) => {
+  setEditing(r);
+
+  // Only pick a global role (or "Member"), never a department role.
+  const globalRole = (r.role || []).find((x) =>
+    GLOBAL_ROLES.includes(x)
+  );
+  const formRole = globalRole || "Member";
+
+  const rawDept = r.departement?.[0];
+  let deptId = "";
+  if (rawDept) {
+    const matchById = departments.find((d) => d._id === rawDept);
+    const matchByName = departments.find((d) => d.name === rawDept);
+    deptId = matchById?._id || matchByName?._id || "";
+  }
+
+  setForm({
+    fullName: r.fullName || "",
+    email: r.email || "",
+    password: "",
+    phone: r.phone || "",
+    genre: r.genre || "Male",
+    birthday: r.birthday || "",
+    ville: r.ville || "",
+    niveau_etude: r.niveau_etude || "",
+    specialite_etude: r.specialite_etude || "",
+    situation: r.situation || "Active",
+    departement: deptId,
+    cotisation_payee: !!r.cotisation_payee,
+    status: r.status || "active",
+    role: formRole,   // ← now never a department role
+  });
+  setFile(null);
+  setFormOpen(true);
+};
 
   const set = (key) => (e) =>
     setForm((f) => ({
@@ -117,8 +160,17 @@ export default function AdminMembers() {
         situation: form.situation,
         cotisation_payee: form.cotisation_payee,
         status: form.status,
+        role: form.role,
       };
-      if (form.departement) payload.departement = [form.departement];
+
+      const isGlobal = GLOBAL_ROLES.includes(form.role);
+      if (!isGlobal && form.departement) {
+        // Sending the department _id (matches departmentId: ObjectId in the schema).
+        // If your backend stores a name string instead, change this line to:
+        //   const dept = departments.find((d) => d._id === form.departement);
+        //   payload.departement = dept ? [dept.name] : [];
+        payload.departement = [form.departement];
+      }
       if (form.password) payload.password = form.password;
 
       const fd = new FormData();
@@ -189,7 +241,9 @@ export default function AdminMembers() {
       render: (r) => (
         <div>
           <div className="font-medium text-brand-text">{r.fullName}</div>
-          <div className="text-xs text-brand-muted">{r.membershipNumber || "—"}</div>
+          <div className="text-xs text-brand-muted">
+            {r.membershipNumber || "—"}
+          </div>
         </div>
       ),
     },
@@ -213,15 +267,15 @@ export default function AdminMembers() {
         </span>
       ),
     },
-    {
-      key: "departement",
-      header: "Dept",
-      render: (r) => (r.departement?.[0] || "—"),
-    },
+    // {
+    //   key: "departement",
+    //   header: "Dept",
+    //   render: (r) => r.departement?.[0] || "—",
+    // },
     {
       key: "situation",
       header: "Poste",
-      render: (r) => (r.situation || "—"),
+      render: (r) => r.situation || "—",
     },
     {
       key: "status",
@@ -278,7 +332,9 @@ export default function AdminMembers() {
         />
         <select
           value={filters.status}
-          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, status: e.target.value }))
+          }
           className={fieldClass + " md:max-w-[130px]"}
         >
           <option value="">All statuses</option>
@@ -292,17 +348,23 @@ export default function AdminMembers() {
         >
           <option value="">All cities</option>
           {villes.map((v) => (
-            <option key={v} value={v}>{v}</option>
+            <option key={v} value={v}>
+              {v}
+            </option>
           ))}
         </select>
         <select
           value={filters.departement}
-          onChange={(e) => setFilters((f) => ({ ...f, departement: e.target.value }))}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, departement: e.target.value }))
+          }
           className={fieldClass + " md:max-w-[170px]"}
         >
           <option value="">All depts</option>
           {departements.map((d) => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d} value={d}>
+              {d}
+            </option>
           ))}
         </select>
         <button
@@ -357,7 +419,11 @@ export default function AdminMembers() {
         <form onSubmit={submit} className="space-y-4">
           <div className="flex items-center gap-4">
             <img
-              src={file ? URL.createObjectURL(file) : FULL_PHOTO(editing?.profileImage)}
+              src={
+                file
+                  ? URL.createObjectURL(file)
+                  : FULL_PHOTO(editing?.profileImage)
+              }
               alt="Preview"
               className="w-20 h-20 rounded-full object-cover bg-gray-100 border border-brand-border"
             />
@@ -384,12 +450,27 @@ export default function AdminMembers() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Full name *</label>
-              <input required value={form.fullName} onChange={set("fullName")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Full name *
+              </label>
+              <input
+                required
+                value={form.fullName}
+                onChange={set("fullName")}
+                className={fieldClass}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Email *</label>
-              <input required type="email" value={form.email} onChange={set("email")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Email *
+              </label>
+              <input
+                required
+                type="email"
+                value={form.email}
+                onChange={set("email")}
+                className={fieldClass}
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-brand-text mb-1 block">
@@ -404,43 +485,126 @@ export default function AdminMembers() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Phone</label>
-              <input value={form.phone} onChange={set("phone")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Phone
+              </label>
+              <input
+                value={form.phone}
+                onChange={set("phone")}
+                className={fieldClass}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Genre</label>
-              <select value={form.genre} onChange={set("genre")} className={fieldClass}>
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Genre
+              </label>
+              <select
+                value={form.genre}
+                onChange={set("genre")}
+                className={fieldClass}
+              >
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Birthday</label>
-              <input type="date" value={form.birthday} onChange={set("birthday")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Role *
+              </label>
+              <select
+                value={form.role}
+                onChange={set("role")}
+                className={fieldClass}
+              >
+                <option value="Member">Member</option>
+                <option value="Director Executive">Director Executive</option>
+              </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">City</label>
-              <input value={form.ville} onChange={set("ville")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Birthday
+              </label>
+              <input
+                type="date"
+                value={form.birthday}
+                onChange={set("birthday")}
+                className={fieldClass}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Department</label>
-              <input value={form.departement} onChange={set("departement")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                City
+              </label>
+              <input
+                value={form.ville}
+                onChange={set("ville")}
+                className={fieldClass}
+              />
+            </div>
+
+            {/* ── Department: now a <select> ── */}
+            {/* {!GLOBAL_ROLES.includes(form.role) && (
+              <div>
+                <label className="text-sm font-medium text-brand-text mb-1 block">
+                  Department
+                </label>
+                <select
+                  value={form.departement}
+                  onChange={set("departement")}
+                  className={fieldClass}
+                  disabled={departmentsLoading}
+                >
+                  <option value="">
+                    {departmentsLoading ? "Loading..." : "Unassigned"}
+                  </option>
+                  {departments.map((d) => (
+                    <option key={d._id} value={d._id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )} */}
+
+            <div>
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Niveau d'étude
+              </label>
+              <input
+                value={form.niveau_etude}
+                onChange={set("niveau_etude")}
+                className={fieldClass}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Niveau d'étude</label>
-              <input value={form.niveau_etude} onChange={set("niveau_etude")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Spécialité
+              </label>
+              <input
+                value={form.specialite_etude}
+                onChange={set("specialite_etude")}
+                className={fieldClass}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Spécialité</label>
-              <input value={form.specialite_etude} onChange={set("specialite_etude")} className={fieldClass} />
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Poste (situation)
+              </label>
+              <input
+                value={form.situation}
+                onChange={set("situation")}
+                className={fieldClass}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Poste (situation)</label>
-              <input value={form.situation} onChange={set("situation")} className={fieldClass} />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-brand-text mb-1 block">Status</label>
-              <select value={form.status} onChange={set("status")} className={fieldClass}>
+              <label className="text-sm font-medium text-brand-text mb-1 block">
+                Status
+              </label>
+              <select
+                value={form.status}
+                onChange={set("status")}
+                className={fieldClass}
+              >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>

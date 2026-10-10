@@ -15,10 +15,21 @@ export class DepartmentsAdminGuard implements CanActivate {
     const request = context
       .switchToHttp()
       .getRequest<{ user?: { userId?: string; sub?: string } }>();
+
     const user = await this.usersService.findOne(getUserId(request));
 
-    if (!user.role.includes('President')) {
-      throw new ForbiddenException('Only Presidents can manage departments');
+    if (!user) {
+      throw new ForbiddenException('User not found');
+    }
+
+    const roles: string[] = Array.isArray(user.role) ? user.role : [];
+    const isPresident = roles.includes('President');
+    const isAdmin = user.isAdmin === true;
+
+    if (!isPresident && !isAdmin) {
+      throw new ForbiddenException(
+        'Only Presidents or admins can manage departments',
+      );
     }
 
     return true;

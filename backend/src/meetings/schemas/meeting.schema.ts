@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type MeetingDocument = Meeting & Document;
 
@@ -29,11 +29,16 @@ export class Meeting {
   })
   status!: string;
 
-  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
+  @Prop({ type: [SchemaTypes.ObjectId], ref: 'User', default: [] })
   participants!: Types.ObjectId[];
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
   createdBy!: Types.ObjectId;
+
+  // Département concerné par la réunion
+  // (utile pour limiter le Team Manager à SES départements)
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'Department', default: null })
+  departmentId!: Types.ObjectId | null;
 }
 
 export const MeetingSchema = SchemaFactory.createForClass(Meeting);

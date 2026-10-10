@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleGuard from "./components/RoleGuard";
 
 // Public Pages
 import Home from "./pages/public/Home";
@@ -15,7 +16,7 @@ import EventDetails from "./pages/public/EventDetails";
 import NewsDetails from "./pages/public/NewsDetails";
 import ActivitiesDetails from "./pages/public/ActivitiesDetails";
 
-// Admin Pages
+// Admin Pages (existing)
 import Dashboard from "./pages/admin/Dashboard";
 import AdminEvents from "./pages/admin/Events";
 import AdminEventRegister from "./pages/admin/EventRegister";
@@ -29,19 +30,49 @@ import Info from "./pages/admin/Info";
 import AdminDocuments from "./pages/admin/Documents";
 import AdminMeetings from "./pages/admin/Meetings";
 import AdminDepartments from "./pages/admin/Departments";
+import AdminProjects from "./pages/admin/Projects";
+//exec
+import ExecDashboard from "./pages/exec/Dashboard";
+import ExecDocument from "./pages/exec/Document";
+import ExecFollowup from "./pages/exec/Followup";
+import ExecMeeting from "./pages/exec/Meeting";
+import ExecMembers from "./pages/exec/Members";
+import ExecStrategic from "./pages/exec/Strategic";
+
+//team
+import TeamDashboard from "./pages/team/Dashboard";
+import TeamDocument from "./pages/team/Document";
+import TeamFollowup from "./pages/team/Followup";
+import TeamMeeting from "./pages/team/Meeting";
+import TeamMembers from "./pages/team/Members";
+
+//responsable
+import RespDashboard from "./pages/responsible/Dashboard";
+import RespCellules from "./pages/responsible/Cellules";
+import RespDocument from "./pages/responsible/Document";
+import RespMeeting from "./pages/responsible/Meeting";
+import RespMembers from "./pages/responsible/Members";
+import RespObjectives from "./pages/responsible/Objectives";
+import Resptasks from "./pages/responsible/tasks";
+
+//member
+import MemberDashboard from "./pages/member/Dashboard";
+import MemberDocument from "./pages/member/Document";
+import MemberMeeting from "./pages/member/Meeting";
+import Memberformation from "./pages/member/formation";
+import Membertasks from "./pages/member/tasks";
 
 // Layouts
 import MainLayout from "./Layouts/MainLayout";
 import AdminLayout from "./Layouts/AdminLayout";
 import FormationsPage from "./pages/public/Formations";
+import PublicProjects from "./pages/public/Projects";
 import { useEffect } from "react";
 import i18n from "./utils/tr";
 
 function App() {
-
-   useEffect(() => {
-    document.documentElement.dir =
-      i18n.language === "ar" ? "rtl" : "ltr";
+  useEffect(() => {
+    document.documentElement.dir = i18n.language === "ar" ? "rtl" : "ltr";
   }, [i18n.language]);
 
   return (
@@ -57,7 +88,7 @@ function App() {
             fontSize: "0.9rem",
           },
           success: { iconTheme: { primary: "#10B981", secondary: "#fff" } },
-          error:   { iconTheme: { primary: "#EF4444", secondary: "#fff" } },
+          error: { iconTheme: { primary: "#EF4444", secondary: "#fff" } },
         }}
       />
       <Routes>
@@ -66,83 +97,120 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
-
-          {/* Events */}
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetails />} />
-
-          {/* News */}
           <Route path="/news" element={<News />} />
           <Route path="/news/:id" element={<NewsDetails />} />
-
-          {/* Activities */}
           <Route path="/activities" element={<Activities />} />
           <Route path="/activities/:id" element={<ActivitiesDetails />} />
-
-          {/* Formation */}
           <Route path="/formations" element={<FormationsPage />} />
-
-
-          {/* Membership */}
+          <Route path="/projects" element={<PublicProjects />} />
           <Route path="/membership" element={<Membership />} />
-
-          {/* Contact */}
           <Route path="/contact" element={<Contact />} />
-
-          {/* Login */}
           <Route path="/login" element={<Login />} />
         </Route>
 
-
-        {/* ================= ADMIN ROUTES ================= */}
-          <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminLayout />
-                  </ProtectedRoute>
-                }
-            >
-            <Route index element={<Dashboard />} />
-
-          {/* Manage Events */}
+        {/* ================= PRESIDENT ================= */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <RoleGuard allow={["President"]}>
+                <AdminLayout />
+              </RoleGuard>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
           <Route path="events" element={<AdminEvents />} />
-
-          {/* Manage News */}
           <Route path="news" element={<AdminNews />} />
-
-          {/* Manage Activities */}
           <Route path="activities" element={<AdminActivities />} />
-
-          {/* Manage Formations */}
           <Route path="formations" element={<AdminFormations />} />
-
-          {/* Manage Event Register */}
           <Route path="eventRegister" element={<AdminEventRegister />} />
-
-          {/* Manage Contacts */}
           <Route path="contacts" element={<Contacts />} />
-
-          {/* Membership */}
           <Route path="membership" element={<AdminMembership />} />
-          
-          {/* Manage Members */}
           <Route path="members" element={<AdminMembers />} />
-          
-          {/* Info */}
           <Route path="info" element={<Info />} />
-
-          {/* Documents */}
           <Route path="documents" element={<AdminDocuments />} />
-
-          {/* Meetings */}
           <Route path="meetings" element={<AdminMeetings />} />
-
-          {/* Departments */}
           <Route path="departments" element={<AdminDepartments />} />
-        
+          <Route path="projects" element={<AdminProjects />} />
         </Route>
-     
+
+        {/* ================= DIRECTOR EXECUTIVE ================= */}
+<Route
+  path="/exec"
+  element={
+    <ProtectedRoute>
+      <RoleGuard allow={["Director Executive"]}>
+        <AdminLayout />
+      </RoleGuard>
+    </ProtectedRoute>
+  }
+>
+  <Route index element={<ExecDashboard />} />
+  <Route path="strategic" element={<ExecStrategic />} />
+  <Route path="members" element={<ExecMembers />} />
+  <Route path="documents" element={<ExecDocument />} />
+  <Route path="meetings" element={<ExecMeeting />} />
+  <Route path="followup" element={<ExecFollowup />} />
+</Route>
+
+{/* ================= TEAM MANAGER ================= */}
+<Route
+  path="/team"
+  element={
+    <ProtectedRoute>
+      <RoleGuard allow={["Team Manager"]}>
+        <AdminLayout />
+      </RoleGuard>
+    </ProtectedRoute>
+  }
+>
+  <Route index element={<TeamDashboard />} />
+  <Route path="members" element={<TeamMembers />} />
+  <Route path="documents" element={<TeamDocument />} />
+  <Route path="meetings" element={<TeamMeeting />} />
+  <Route path="followup" element={<TeamFollowup />} />
+</Route>
+
+{/* ================= RESPONSABLE ================= */}
+<Route
+  path="/responsible"
+  element={
+    <ProtectedRoute>
+      <RoleGuard allow={["Responsable"]}>
+        <AdminLayout />
+      </RoleGuard>
+    </ProtectedRoute>
+  }
+>
+  <Route index element={<RespDashboard />} />
+  <Route path="cellules" element={<RespCellules />} />
+  <Route path="members" element={<RespMembers />} />
+  <Route path="documents" element={<RespDocument />} />
+  <Route path="meetings" element={<RespMeeting />} />
+  <Route path="objectives" element={<RespObjectives />} />
+  <Route path="tasks" element={<Resptasks />} />
+</Route>
+
+{/* ================= MEMBER ================= */}
+<Route
+  path="/member"
+  element={
+    <ProtectedRoute>
+      <RoleGuard allow={["Member"]}>
+        <AdminLayout />
+      </RoleGuard>
+    </ProtectedRoute>
+  }
+>
+  <Route index element={<MemberDashboard />} />
+  <Route path="documents" element={<MemberDocument />} />
+  <Route path="meetings" element={<MemberMeeting />} />
+  <Route path="formations" element={<Memberformation />} />
+  <Route path="tasks" element={<Membertasks />} />
+</Route>
       </Routes>
     </Router>
   );

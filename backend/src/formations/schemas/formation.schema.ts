@@ -37,6 +37,9 @@ export class Formation {
 
   @Prop({ default: '' })
   registrationLink!: string;
+    // Google Drive link of the recording (private: logged-in members only)
+  @Prop({ default: '' })
+  driveUrl!: string;
 
   @Prop({ default: false })
   isPublished!: boolean;

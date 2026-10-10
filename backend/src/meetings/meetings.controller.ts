@@ -15,43 +15,48 @@ import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { WriterRoleGuard } from '../services/jwt/writer-role.guard';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard'; // Added missing import
 import { getUserId } from '../services/jwt/current-user';
 
+@UseGuards(JwtAuthGuard, ActiveRoleGuard)
 @Controller('meetings')
 export class MeetingsController {
   constructor(private readonly meetingsService: MeetingsService) {}
 
-  @UseGuards(JwtAuthGuard, WriterRoleGuard)
+  @UseGuards(WriterRoleGuard) // Removed redundant JwtAuthGuard (already on class)
   @Post()
   create(@Body() dto: CreateMeetingDto, @Req() req: any) {
     return this.meetingsService.create(dto, getUserId(req));
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
     @Req() req: any,
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
+    // Removed duplicate @Req() declaration
     return this.meetingsService.findAll(getUserId(req), from, to);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.meetingsService.findOne(id, getUserId(req));
   }
 
-  @UseGuards(JwtAuthGuard, WriterRoleGuard)
+  @UseGuards(WriterRoleGuard) // Removed redundant JwtAuthGuard
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateMeetingDto) {
-    return this.meetingsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMeetingDto,
+    @Req() req: any,
+  ) {
+    return this.meetingsService.update(id, dto, getUserId(req));
   }
 
-  @UseGuards(JwtAuthGuard, WriterRoleGuard)
+  @UseGuards(WriterRoleGuard) // Removed redundant JwtAuthGuard
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.meetingsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.meetingsService.remove(id, getUserId(req));
   }
 }
