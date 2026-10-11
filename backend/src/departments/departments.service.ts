@@ -236,7 +236,21 @@ export class DepartmentsService {
       (m) =>
         String(m.departmentId) === String(departmentId) && m.role === role,
     );
-    if (already) return;
+    if (already) {
+      // Déjà membre : on s'assure juste que `departement` reste à jour
+      await this.userModel
+        .findByIdAndUpdate(
+          userId,
+          {
+            departement: existing
+              .filter((m) => !!m.departmentId)
+              .map((m) => m.departmentId),
+          },
+          { new: true },
+        )
+        .exec();
+      return;
+    }
 
     // Drop any prior membership for this department (role change)
     const filtered = existing.filter(
@@ -265,7 +279,12 @@ export class DepartmentsService {
         (m) => String(m._id) === String(user.activeMembershipId),
       );
 
-    const patch: any = { memberships };
+    const patch: any = {
+      memberships,
+      departement: memberships
+        .filter((m) => !!m.departmentId)
+        .map((m) => m.departmentId),
+    };
     if (!activeValid) patch.activeMembershipId = memberships[0]._id;
 
     await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
@@ -289,7 +308,12 @@ export class DepartmentsService {
         (m) => String(m._id) === String(user.activeMembershipId),
       );
 
-    const patch: any = { memberships: filtered };
+    const patch: any = {
+      memberships: filtered,
+      departement: filtered
+        .filter((m: any) => !!m.departmentId)
+        .map((m: any) => m.departmentId),
+    };
     if (!activeValid) {
       patch.activeMembershipId = filtered[0]?._id ?? null;
     }
