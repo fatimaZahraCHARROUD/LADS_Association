@@ -1,44 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
-
 @Injectable()
 export class MailService {
+  private transporter;
 
-
-private transporter;
-
-
-constructor(){
-
+  constructor() {
     this.transporter = nodemailer.createTransport({
+      service: 'gmail',
 
-        service:"gmail",
-
-        auth:{
-            user:"leaderassociation.contact@gmail.com",
-            pass:"lkxjarnguvyqswqq"
-        }
-
+      auth: {
+        user: 'leaderassociation.contact@gmail.com',
+        pass: 'lkxjarnguvyqswqq',
+      },
     });
+  }
 
-}
-
-
-
-async sendContactEmail(data:any){
-
- 
+  async sendContactEmail(data: any) {
     await this.transporter.sendMail({
+      from: 'leaderassociation.contact@gmail.com',
 
-        from:"leaderassociation.contact@gmail.com",
+      to: 'fatimazahracharroud92@gmail.com',
+      replyTo: data.email,
+      subject: 'New Contact Message',
 
-        to:"fatimazahracharroud92@gmail.com",
-        replyTo: data.email,
-        subject:"New Contact Message",
-
-
-        html:`
+      html: `
 
         <h2>New message</h2>
 
@@ -56,48 +42,40 @@ async sendContactEmail(data:any){
         <b>Message:</b> ${data.message}
         </p>
 
-        `
-
+        `,
     });
+  }
 
- 
+  async sendMembershipRequestEmail(data: any) {
+    await this.transporter.sendMail({
+      from: 'leaderassociation.contact@gmail.com',
+      to: 'fatimazahracharroud92@gmail.com',
 
-}
+      replyTo: data.email,
 
-async sendMembershipRequestEmail(data: any) {
+      subject: 'New Membership Request',
 
-  await this.transporter.sendMail({
-
-    from: "leaderassociation.contact@gmail.com",
-    to: "fatimazahracharroud92@gmail.com",
-
-    replyTo: data.email,
-
-    subject: "New Membership Request",
-
-    html: `
+      html: `
       <h2>New Membership Request</h2>
 
       <p><b>Name:</b> ${data.fullName}</p>
       <p><b>Email:</b> ${data.email}</p>
       <p><b>Phone:</b> ${data.phone}</p>
       <p><b>Message:</b> ${data.motivation}</p>
-    `
-  });
-}
+    `,
+    });
+  }
 
-async sendEventRegistrationEmail(data: any) {
+  async sendEventRegistrationEmail(data: any) {
+    await this.transporter.sendMail({
+      from: 'leaderassociation.contact@gmail.com',
+      to: 'fatimazahracharroud92@gmail.com',
 
-  await this.transporter.sendMail({
+      replyTo: data.email,
 
-    from: "leaderassociation.contact@gmail.com",
-    to: "fatimazahracharroud92@gmail.com",
+      subject: `New Event Registration: ${data.eventTitle}`,
 
-    replyTo: data.email,
-
-    subject: `New Event Registration: ${data.eventTitle}`,
-
-    html: `
+      html: `
       <h2>Event Registration</h2>
 
       <p><b>Name:</b> ${data.fullName}</p>
@@ -105,8 +83,7 @@ async sendEventRegistrationEmail(data: any) {
 
    <p><b>Event:</b> ${data.eventTitle}</p>
     <p><b>Date:</b> ${data.eventDate}</p>
-    `
-  });
-}
-
+    `,
+    });
+  }
 }

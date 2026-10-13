@@ -20,7 +20,7 @@ export class News {
   @Prop({ default: '' })
   thumbnail!: string;
 
-   @Prop({ default: '' })
+  @Prop({ default: '' })
   coverImagePublicId!: string;
 
   @Prop({ type: [String], default: [] })

@@ -23,6 +23,8 @@ import { ProjectsModule } from './projects/projects.module';
 import { CellulesModule } from './cellules/cellules.module';
 import { ObjectivesModule } from './objectives/objectives.module';
 import { TasksModule } from './tasks/tasks.module';
+import { StatisticsModule } from './statistics/statistics.module';
+import { FollowupsModule } from './followups/followups.module';
 // import { APP_GUARD } from '@nestjs/core';
 // import { JwtAuthGuard } from './services/jwt/jwt.guard';
 // import { ActiveRoleGuard } from './services/jwt/active-role.guard';
@@ -55,8 +57,9 @@ import { TasksModule } from './tasks/tasks.module';
     CellulesModule,
     ObjectivesModule,
     TasksModule,
-     //MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    StatisticsModule,
+    FollowupsModule,
+    //MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
- 
 })
 export class AppModule {}

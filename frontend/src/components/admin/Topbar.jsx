@@ -6,6 +6,7 @@ import {
 import { api } from "../../services/api";
 import { useTopSearch } from "../../contexts/TopSearchContext";
 import { useNotifications } from "../../contexts/NotificationsContext";
+import { getEffectiveRole } from "../../utils/activeRole";
 
 function decodeJwt(token) {
   if (!token) return null;
@@ -47,13 +48,7 @@ export default function Topbar({ onOpenSidebar }) {
 
   // Detect the current role from localStorage user
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const activeMembership = (storedUser.memberships || []).find(
-    (m) => String(m._id) === String(storedUser.activeMembershipId)
-  );
-  const activeRole = storedUser.isAdmin
-    ? "President"
-    : activeMembership?.role;
-  const isPresident = activeRole === "President";
+  const isPresident = getEffectiveRole(storedUser) === "President";
 
   const user = decodeJwt(localStorage.getItem("token")) || {};
   const displayName = user.name || user.fullName || user.email || "Admin";

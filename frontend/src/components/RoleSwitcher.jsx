@@ -19,11 +19,11 @@ export default function RoleSwitcher() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-const GLOBAL_ROLES = ["President", "Director Executive"];
+  const GLOBAL_ROLES = ["President", "Director Executive"];
 
-const memberships = (user.memberships || []).filter(
-  (m) => m.departmentId || GLOBAL_ROLES.includes(m.role),
-);
+  const memberships = (user.memberships || []).filter(
+    (m) => m.departmentId || GLOBAL_ROLES.includes(m.role),
+  );
   const activeId = user.activeMembershipId;
 
   if (memberships.length === 0) return null;
@@ -63,7 +63,10 @@ const memberships = (user.memberships || []).filter(
     }
   };
 
-  const active = memberships.find((m) => m._id === activeId);
+  const active =
+    memberships.find(
+      (m) => String(m?._id ?? m?.id) === String(activeId ?? "")
+    ) || memberships[0] || null;
 
   return (
     <>
@@ -90,11 +93,11 @@ const memberships = (user.memberships || []).filter(
                 const scope = scopeLabel(m);
                 return (
                   <button
-                    key={m._id}
+                    key={String(m?._id ?? m?.id)}
                     disabled={loading}
-                    onClick={() => switchTo(m._id)}
+                    onClick={() => switchTo(String(m?._id ?? m?.id))}
                     className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
-                      m._id === activeId
+                      String(m?._id ?? m?.id) === String(activeId ?? "")
                         ? "border-brand-primary bg-brand-primary/10"
                         : "border-brand-border hover:bg-gray-50"
                     }`}

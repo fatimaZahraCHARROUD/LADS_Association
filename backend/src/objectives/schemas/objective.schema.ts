@@ -27,7 +27,10 @@ export class Objective {
   @Prop({ default: 0, min: 0, max: 100 })
   progress!: number; // progression en % (calculée automatiquement)
 
-  @Prop({ enum: ['pending', 'in-progress', 'completed'], default: 'in-progress' })
+  @Prop({
+    enum: ['pending', 'in-progress', 'completed'],
+    default: 'in-progress',
+  })
   status!: string;
 
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Department', default: null })

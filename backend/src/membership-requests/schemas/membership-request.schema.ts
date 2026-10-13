@@ -24,4 +24,5 @@ export class MembershipRequest {
   readAt!: Date | null;
 }
 
-export const MembershipRequestSchema = SchemaFactory.createForClass(MembershipRequest);
+export const MembershipRequestSchema =
+  SchemaFactory.createForClass(MembershipRequest);

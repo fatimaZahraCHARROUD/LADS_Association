@@ -7,5 +7,5 @@ export class CreateTaskDto {
   deadline?: string;
   status?: 'todo' | 'in-progress' | 'done';
   objectiveId?: string;
-  departmentId?: string; // 👈 NEW: used only by global roles
+  departmentId?: string;
 }

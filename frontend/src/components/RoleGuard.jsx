@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { getEffectiveRole } from "../utils/activeRole";
 
 const ROLE_ROUTES = {
   President: "/admin",
@@ -10,20 +11,11 @@ const ROLE_ROUTES = {
 
 export default function RoleGuard({ allow, children }) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const memberships = user.memberships || [];
-  const active = memberships.find((m) => m._id === user.activeMembershipId);
+  const activeRole = getEffectiveRole(user);
+  if (!activeRole) return <Navigate to="/login" replace />;
 
-  const isAdminBypass =
-    user.isAdmin === true ||
-    (user.role || []).includes("President");
-
-  if (isAdminBypass && allow.includes("President")) {
-    return children;
-  }
-  if (!active) return <Navigate to="/login" replace />;
-
-  if (!allow.includes(active.role)) {
-    const fallback = ROLE_ROUTES[active.role] || "/login";
+  if (!allow.includes(activeRole)) {
+    const fallback = ROLE_ROUTES[activeRole] || "/login";
     return <Navigate to={fallback} replace />;
   }
 

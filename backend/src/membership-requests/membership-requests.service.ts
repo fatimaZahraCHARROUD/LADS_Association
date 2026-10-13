@@ -1,46 +1,42 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { MembershipRequest, MembershipRequestDocument } from './schemas/membership-request.schema';
+import {
+  MembershipRequest,
+  MembershipRequestDocument,
+} from './schemas/membership-request.schema';
 import { CreateMembershipRequestDto } from './dto/create-membership-request.dto';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class MembershipRequestsService {
   constructor(
-    @InjectModel(MembershipRequest.name) private membershipModel: Model<MembershipRequestDocument>,
-         private mailService:MailService
-    
+    @InjectModel(MembershipRequest.name)
+    private membershipModel: Model<MembershipRequestDocument>,
+    private mailService: MailService,
   ) {}
 
- async create(dto: CreateMembershipRequestDto) {
+  async create(dto: CreateMembershipRequestDto) {
+    // 1. Save in DB
+    const request = await this.membershipModel.create(dto);
 
-  // 1. Save in DB
-  const request = await this.membershipModel.create(dto);
+    // 2. Send email in background
+    setImmediate(async () => {
+      try {
+        await this.mailService.sendMembershipRequestEmail(dto);
 
-  // 2. Send email in background
-  setImmediate(async () => {
-    try {
+        console.log(`✅ Membership request email sent for ${dto.fullName}`);
+      } catch (error) {
+        console.error(
+          `❌ Failed to send membership request email for ${dto.fullName}:`,
+          error,
+        );
+      }
+    });
 
-      await this.mailService.sendMembershipRequestEmail(dto);
-
-      console.log(
-        `✅ Membership request email sent for ${dto.fullName}`
-      );
-
-    } catch (error) {
-
-      console.error(
-        `❌ Failed to send membership request email for ${dto.fullName}:`,
-        error,
-      );
-
-    }
-  });
-
-  // 3. Return immediately
-  return request;
-}
+    // 3. Return immediately
+    return request;
+  }
 
   findAll() {
     return this.membershipModel.find().sort({ createdAt: -1 }).exec();

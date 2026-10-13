@@ -59,9 +59,7 @@ export class EventsService {
       dto.coverImage !== existing.coverImage
     ) {
       if (existing.coverImagePublicId) {
-        await this.uploadService.deleteImage(
-          existing.coverImagePublicId,
-        );
+        await this.uploadService.deleteImage(existing.coverImagePublicId);
       }
     }
 
@@ -83,9 +81,7 @@ export class EventsService {
 
     // ✅ delete cloudinary image
     if (existing.coverImagePublicId) {
-      await this.uploadService.deleteImage(
-        existing.coverImagePublicId,
-      );
+      await this.uploadService.deleteImage(existing.coverImagePublicId);
     }
 
     await this.eventModel.findByIdAndDelete(id).exec();
