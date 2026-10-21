@@ -9,6 +9,7 @@ import {
 import Topbar from "../components/admin/Topbar";
 import { TopSearchProvider } from "../contexts/TopSearchContext";
 import RoleSwitcher from "../components/RoleSwitcher";
+import { getEffectiveRole } from "../utils/activeRole";
 
 const BASE = {
   President: "/admin",
@@ -22,7 +23,7 @@ const MENU = {
   President: [
     "dashboard", "members", "departments","projects",
     "events", "news", "activities", "formations", "info",
-    "documents", "meetings",
+    "documents", "meetings", "followup",
     "contacts", "membership", "eventRegister",
   ],
   "Director Executive": [
@@ -64,10 +65,7 @@ function AdminShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const active = (user.memberships || []).find(
-    (m) => String(m._id) === String(user.activeMembershipId)
-  );
-  const activeRole = user.isAdmin ? "President" : active?.role;
+  const activeRole = getEffectiveRole(user);
   const base = BASE[activeRole] || "/admin";
   const allowed = MENU[activeRole] || [];
 

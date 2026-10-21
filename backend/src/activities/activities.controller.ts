@@ -1,5 +1,13 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { CreateActivityDto } from './dto/create-activity.dto';
@@ -24,7 +32,8 @@ export class ActivitiesController {
     @Query('status') status?: string,
     @Query('isPublished') isPublished?: string,
   ) {
-    const published = isPublished !== undefined ? isPublished === 'true' : undefined;
+    const published =
+      isPublished !== undefined ? isPublished === 'true' : undefined;
     return this.activitiesService.findAll(status, published);
   }
 

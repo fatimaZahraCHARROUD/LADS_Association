@@ -1,5 +1,13 @@
 import {
-  Controller, Get, Post, Body, Param, Patch, Delete, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { EventRegistrationsService } from './event-registrations.service';
 import { CreateEventRegistrationDto } from './dto/create-event-registration.dto';
@@ -9,7 +17,9 @@ import { Roles } from '../services/jwt/roles.decorator';
 
 @Controller('event-registrations')
 export class EventRegistrationsController {
-  constructor(private readonly eventRegistrationsService: EventRegistrationsService) {}
+  constructor(
+    private readonly eventRegistrationsService: EventRegistrationsService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateEventRegistrationDto) {

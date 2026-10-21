@@ -1,5 +1,12 @@
 import {
-  Controller, Get, Post, Body, Param, Patch, Delete, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { MembershipRequestsService } from './membership-requests.service';
 import { CreateMembershipRequestDto } from './dto/create-membership-request.dto';
@@ -9,7 +16,9 @@ import { Roles } from '../services/jwt/roles.decorator';
 
 @Controller('membership-requests')
 export class MembershipRequestsController {
-  constructor(private readonly membershipRequestsService: MembershipRequestsService) {}
+  constructor(
+    private readonly membershipRequestsService: MembershipRequestsService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateMembershipRequestDto) {

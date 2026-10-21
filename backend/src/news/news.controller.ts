@@ -1,5 +1,13 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
@@ -24,7 +32,8 @@ export class NewsController {
     @Query('isPublished') isPublished?: string,
     @Query('tag') tag?: string,
   ) {
-    const published = isPublished !== undefined ? isPublished === 'true' : undefined;
+    const published =
+      isPublished !== undefined ? isPublished === 'true' : undefined;
     return this.newsService.findAll(published, tag);
   }
 

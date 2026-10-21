@@ -25,4 +25,5 @@ export class EventRegistration {
   readAt!: Date | null;
 }
 
-export const EventRegistrationSchema = SchemaFactory.createForClass(EventRegistration);
+export const EventRegistrationSchema =
+  SchemaFactory.createForClass(EventRegistration);

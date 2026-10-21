@@ -135,6 +135,7 @@ function App() {
           <Route path="meetings" element={<AdminMeetings />} />
           <Route path="departments" element={<AdminDepartments />} />
           <Route path="projects" element={<AdminProjects />} />
+          <Route path="followup" element={<ExecFollowup />} />
         </Route>
 
         {/* ================= DIRECTOR EXECUTIVE ================= */}

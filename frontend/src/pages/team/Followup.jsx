@@ -1,7 +1,5 @@
-import React from 'react'
+import StatisticsFollowupPage from "../shared/StatisticsFollowupPage";
 
 export default function Followup() {
-  return (
-    <div>Followup esraa</div>
-  )
+  return <StatisticsFollowupPage />;
 }

@@ -7,7 +7,9 @@ import { UpdateLadsInfoDto } from './dto/update-lads-info.dto';
 
 @Injectable()
 export class LadsInfoService {
-  constructor(@InjectModel(LadsInfo.name) private ladsInfoModel: Model<LadsInfoDocument>) {}
+  constructor(
+    @InjectModel(LadsInfo.name) private ladsInfoModel: Model<LadsInfoDocument>,
+  ) {}
 
   create(dto: CreateLadsInfoDto) {
     return this.ladsInfoModel.create(dto);

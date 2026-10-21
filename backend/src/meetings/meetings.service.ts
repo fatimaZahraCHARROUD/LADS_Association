@@ -116,7 +116,10 @@ export class MeetingsService {
   private async assertCanManage(meeting: MeetingDocument, userId: string) {
     if ((await this.getActiveRole(userId)) !== 'Team Manager') return;
     const deptIds = await this.getTeamManagerDepartmentIds(userId);
-    if (!meeting.departmentId || !deptIds.includes(String(meeting.departmentId))) {
+    if (
+      !meeting.departmentId ||
+      !deptIds.includes(String(meeting.departmentId))
+    ) {
       throw new ForbiddenException(
         'You can only manage meetings of your own departments',
       );
@@ -142,7 +145,11 @@ export class MeetingsService {
 
   // Les ID des départements que gère un Team Manager
   private async getTeamManagerDepartmentIds(userId: string): Promise<string[]> {
-    const user = await this.userModel.findById(userId).select('memberships').lean().exec();
+    const user = await this.userModel
+      .findById(userId)
+      .select('memberships')
+      .lean()
+      .exec();
     const deptIds = new Set<string>();
     (user?.memberships ?? []).forEach((m: any) => {
       if (m.role === 'Team Manager' && m.departmentId) {

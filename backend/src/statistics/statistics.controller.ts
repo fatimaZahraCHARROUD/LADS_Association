@@ -1,0 +1,46 @@
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
+import { Roles } from '../services/jwt/roles.decorator';
+import { getUserId } from '../services/jwt/current-user';
+import { StatisticsService } from './statistics.service';
+
+@UseGuards(JwtAuthGuard, ActiveRoleGuard)
+@Controller('statistics')
+export class StatisticsController {
+  constructor(private readonly statisticsService: StatisticsService) {}
+
+  @Roles('President', 'Director Executive', 'Team Manager')
+  @Get('dashboard')
+  getDashboard(
+    @Req() req: any,
+    @Query('departmentId') departmentId?: string,
+    @Query('memberId') memberId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('period') period?: string,
+  ) {
+    return this.statisticsService.getDashboard(getUserId(req), {
+      departmentId,
+      memberId,
+      from,
+      to,
+      period,
+    });
+  }
+
+  @Roles('President', 'Director Executive', 'Team Manager')
+  @Get('departments/:departmentId')
+  getDepartment(@Req() req: any, @Param('departmentId') departmentId: string) {
+    return this.statisticsService.getDepartmentSummary(
+      getUserId(req),
+      departmentId,
+    );
+  }
+
+  @Roles('President', 'Director Executive', 'Team Manager')
+  @Get('members/:memberId')
+  getMember(@Req() req: any, @Param('memberId') memberId: string) {
+    return this.statisticsService.getMemberSummary(getUserId(req), memberId);
+  }
+}
