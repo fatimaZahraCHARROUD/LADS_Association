@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Mail, MapPin } from "lucide-react";
 import { api, API_BASE } from "../../services/api";
@@ -17,8 +17,8 @@ export default function TeamMembers() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ nom: "", departement: "" });
 
-  // Départements du TM (noms) : déduits de la liste scoped que le backend renvoie
-  const [deptOptions, setDeptOptions] = useState([]);
+  // Départements du TM : [{ _id, name }] fournis par le backend
+  const [departements, setDepartements] = useState([]);
 
   const load = async (f = filters) => {
     setLoading(true);
@@ -40,24 +40,19 @@ export default function TeamMembers() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
 
-  // Liste complète (déjà limitée à SES départements) -> menu déroulant
+  // Départements du TM fournis par le backend
   useEffect(() => {
     let cancelled = false;
     api
-      .get("/members/search")
+      .get("/members/my-departments")
       .then((data) => {
-        if (cancelled) return;
-        const list = Array.isArray(data) ? data : [];
-        setDeptOptions(
-          [...new Set(list.flatMap((r) => r.departement || []))].filter(Boolean)
-        );
+        if (!cancelled) setDepartements(Array.isArray(data) ? data : []);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setDepartements([]);
+      });
     return () => { cancelled = true; };
   }, []);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const departements = useMemo(() => deptOptions, [deptOptions]);
 
   const columns = [
     {
@@ -104,7 +99,11 @@ export default function TeamMembers() {
     {
       key: "departement",
       header: "Dept",
-      render: (r) => (r.departement?.[0] || "—"),
+      render: (r) => {
+        const id = r.departement?.[0];
+        const d = departements.find((x) => String(x._id) === String(id));
+        return d?.name || "—";
+      },
     },
     {
       key: "situation",
@@ -160,7 +159,7 @@ export default function TeamMembers() {
         >
           <option value="">All my depts</option>
           {departements.map((d) => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d._id} value={d._id}>{d.name}</option>
           ))}
         </select>
         <button

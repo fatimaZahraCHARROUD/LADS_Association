@@ -135,7 +135,119 @@ export class DepartmentsService {
     return { deleted: true };
   }
 
-  private validateName(name: string) {
+   // ─────────────────────────────────────────────
+  //  Membership sync helpers
+  // ─────────────────────────────────────────────
+
+  private async syncMembership(
+    userId: string,
+    departmentId: string,
+    role: string,
+  ) {
+    if (!Types.ObjectId.isValid(userId)) return;
+    if (!Types.ObjectId.isValid(departmentId)) return;
+
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    // Drop broken entries (no departmentId) so we don't keep them around
+   const existing = (user.memberships ?? []) as any[];
+
+    // Skip if user already has this exact (dept, role) pair
+    const already = existing.some(
+      (m) =>
+        String(m.departmentId) === String(departmentId) && m.role === role,
+    );
+    if (already) {
+      // Déjà membre : on s'assure juste que `departement` reste à jour
+      await this.userModel
+        .findByIdAndUpdate(
+          userId,
+          {
+            departement: existing
+              .filter((m) => !!m.departmentId)
+              .map((m) => m.departmentId),
+          },
+          { new: true },
+        )
+        .exec();
+      return;
+    }
+
+    // Drop any prior membership for this department (role change)
+    const filtered = existing.filter(
+      (m) => String(m.departmentId) !== String(departmentId),
+    );
+
+    // Don't touch admins with a global membership
+    // const hasGlobal = filtered.some(
+    //   (m) =>
+    //     !m.departmentId &&
+    //     ['President', 'Director Executive'].includes(m.role),
+    // );
+    // if (hasGlobal) return;
+
+    const newMembership = {
+      _id: new Types.ObjectId(),
+      departmentId: new Types.ObjectId(departmentId),
+      role,
+    };
+
+    const memberships = [...filtered, newMembership];
+
+    const activeValid =
+      user.activeMembershipId &&
+      memberships.some(
+        (m) => String(m._id) === String(user.activeMembershipId),
+      );
+
+    const patch: any = {
+      memberships,
+      departement: memberships
+        .filter((m) => !!m.departmentId)
+        .map((m) => m.departmentId),
+    };
+    if (!activeValid) patch.activeMembershipId = memberships[0]._id;
+
+    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  private async removeMembership(userId: string, departmentId: string) {
+    if (!Types.ObjectId.isValid(userId)) return;
+
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return;
+
+    const existing = (user.memberships ?? []) as any[];
+    const filtered = existing.filter(
+      (m) => String(m.departmentId) !== String(departmentId),
+    );
+    if (filtered.length === existing.length) return;
+
+    const activeValid =
+      user.activeMembershipId &&
+      filtered.some(
+        (m) => String(m._id) === String(user.activeMembershipId),
+      );
+
+    const patch: any = {
+      memberships: filtered,
+      departement: filtered
+        .filter((m: any) => !!m.departmentId)
+        .map((m: any) => m.departmentId),
+    };
+    if (!activeValid) {
+      patch.activeMembershipId = filtered[0]?._id ?? null;
+    }
+
+    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  // ─────────────────────────────────────────────
+  //  Validation
+  // ─────────────────────────────────────────────
+
+   private validateName(name: string) {
     if (typeof name !== 'string' || !name.trim()) {
       throw new BadRequestException('Department name is required');
     }

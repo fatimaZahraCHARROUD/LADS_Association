@@ -147,56 +147,25 @@ console.log('[MEMBERS] isGlobal =', globalRoles.includes(role ?? ''));
 
       if (!globalRoles.includes(role ?? '')) {
   if (role === 'Team Manager') {
-  // Same source of truth as Responsable: the Department doc.
-  const me = await this.userModel
-    .findById(userId)
-    .select('activeMembershipId memberships')
-    .lean()
-    .exec();
+    // TOUS mes départements (manager / viceManager / teamManagers)
+    const deptIds = await this.getTeamManagerDepartmentIds(userId);
 
-  const activeMem = (me?.memberships ?? []).find(
-    (m: any) => String(m._id) === String(me?.activeMembershipId),
-  );
-
-  const activeDeptId = activeMem?.departmentId
-    ? new Types.ObjectId(String(activeMem.departmentId))
-    : null;
-
-  if (!activeDeptId) {
-    query._id = { $in: [] };
-  } else {
-    // Optional filter — must match the active dept.
-    if (filter.departement) {
+    if (deptIds.length === 0) {
+      query._id = { $in: [] }; // aucun département → rien
+    } else if (filter.departement) {
       const filterDeptId = await this.resolveDepartmentId(filter.departement);
-      if (!filterDeptId || String(filterDeptId) !== String(activeDeptId)) {
-        query._id = { $in: [] };
+      const allowed =
+        filterDeptId &&
+        deptIds.some((id) => String(id) === String(filterDeptId));
+      if (!allowed) {
+        query._id = { $in: [] }; // filtre en dehors de mes départements
+      } else {
+        query.departement = filterDeptId; // uniquement ce département
       }
-    }
-
-    // If we didn't just short-circuit, collect ids from the Department doc.
-    if (!query._id) {
-      const dept = await this.departmentModel
-        .findById(activeDeptId)
-        .select('manager viceManager teamManagers members')
-        .lean()
-        .exec();
-
-      const ids = new Set<string>();
-      if (dept?.manager) ids.add(String(dept.manager));
-      if (dept?.viceManager) ids.add(String(dept.viceManager));
-      (dept?.teamManagers ?? []).forEach((u: any) => ids.add(String(u)));
-      (dept?.members ?? []).forEach((u: any) => ids.add(String(u)));
-      // Team Manager sees themselves too — optional, add if you want.
-      // ids.add(String(userId));
-
-      const oids = [...ids]
-        .filter((id) => Types.ObjectId.isValid(id))
-        .map((id) => new Types.ObjectId(id));
-
-      query._id = { $in: oids.length ? oids : [new Types.ObjectId()] };
+    } else {
+      query.departement = { $in: deptIds }; // tous mes départements
     }
   }
-}
         else if (role === 'Responsable') {
   const scope = await this.getResponsableScopedMembers(userId, filter.departement);
 
@@ -414,39 +383,35 @@ console.log('[MEMBERS] query =', JSON.stringify(query));
     return dept ? dept._id : null;
   }
 
-  private async getTeamManagerDepartmentNames(
+  // Tous les départements où user = manager, vice-manager ou team-manager
+  private async getTeamManagerDepartmentIds(
     userId: string,
-  ): Promise<string[]> {
-    const user = await this.userModel
-      .findById(userId)
-      .select('memberships')
-      .lean()
-      .exec();
-    const deptIds = new Set<string>();
-    (user?.memberships ?? []).forEach((m: any) => {
-      if (m.role === 'Team Manager' && m.departmentId) {
-        deptIds.add(String(m.departmentId));
-      }
-    });
+  ): Promise<Types.ObjectId[]> {
+    if (!Types.ObjectId.isValid(userId)) return [];
+    const oid = new Types.ObjectId(userId);
     const depts = await this.departmentModel
       .find({
-        teamManagers: Types.ObjectId.isValid(userId)
-          ? new Types.ObjectId(userId)
-          : userId,
+        $or: [{ manager: oid }, { viceManager: oid }, { teamManagers: oid }],
       })
-      .select('_id name')
+      .select('_id')
       .lean()
       .exec();
-    depts.forEach((d) => deptIds.add(String(d._id)));
+    return depts.map((d: any) => d._id as Types.ObjectId);
+  }
 
-    if (deptIds.size === 0) return [];
-
-    const all = await this.departmentModel
-      .find({ _id: { $in: [...deptIds] } })
-      .select('name')
-      .lean()
-      .exec();
-    return all.map((d) => d.name);
+  // Départements à afficher dans la dropdown du front
+  async getMyDepartments(userId: string) {
+    const role = await this.getActiveRole(userId);
+    if (role === 'Team Manager') {
+      const ids = await this.getTeamManagerDepartmentIds(userId);
+      return this.departmentModel
+        .find({ _id: { $in: ids } })
+        .select('_id name')
+        .lean()
+        .exec();
+    }
+    // Global (President / Director Executive) → tous les départements
+    return this.departmentModel.find().select('_id name').lean().exec();
   }
 
   //  private async getResponsableMemberIds(userId: string): Promise<string[]> {
