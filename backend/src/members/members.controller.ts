@@ -49,6 +49,11 @@ export class MembersController {
     return this.membersService.findAll(query, getUserId(req));
   }
 
+  @Get('my-departments')
+  myDepartments(@Req() req: any) {
+    return this.membersService.getMyDepartments(getUserId(req));
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.membersService.findOne(id);

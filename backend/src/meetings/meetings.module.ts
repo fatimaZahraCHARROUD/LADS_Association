@@ -9,11 +9,6 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { WriterRoleGuard } from '../services/jwt/writer-role.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UsersModule } from '../users/users.module';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import {
-  Department,
-  DepartmentSchema,
-} from '../departments/schemas/department.schema';
 
 @Module({
   imports: [
