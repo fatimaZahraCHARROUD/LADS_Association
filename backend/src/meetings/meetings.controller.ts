@@ -36,7 +36,7 @@ export class MeetingsController {
     @Query('to') to?: string,
   ) {
     // Removed duplicate @Req() declaration
-    return this.meetingsService.findAll(getUserId(req), from, to);
+    return this.meetingsService.findAll(from, to, getUserId(req));
   }
 
   @Get(':id')
