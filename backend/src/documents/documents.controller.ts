@@ -16,7 +16,6 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { WriterRoleGuard } from '../services/jwt/writer-role.guard';
 import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
-import { Roles } from '../services/jwt/roles.decorator';
 import { getUserId } from '../services/jwt/current-user';
 
 @UseGuards(JwtAuthGuard, ActiveRoleGuard)
@@ -24,8 +23,7 @@ import { getUserId } from '../services/jwt/current-user';
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
-  @UseGuards(JwtAuthGuard, WriterRoleGuard)
-  @Roles('President', 'Director Executive', 'Team Manager', 'Responsable', 'Member')
+  @UseGuards(WriterRoleGuard)
   @Post()
   create(@Body() dto: CreateDocumentDto, @Req() req: any) {
     return this.documentsService.create(dto, getUserId(req));
@@ -36,35 +34,34 @@ export class DocumentsController {
     return this.documentsService.findAll(getUserId(req), category);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('meta/departments')
   listDepartmentOptions() {
     return this.documentsService.listDepartmentOptions();
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('meta/my-departments')
   listMyDepartments(@Req() req: any) {
     return this.documentsService.listMyDepartments(getUserId(req));
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.documentsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.documentsService.findOne(id, getUserId(req));
   }
 
-  @UseGuards(JwtAuthGuard, WriterRoleGuard)
-  @Roles('President', 'Director Executive', 'Team Manager', 'Responsable', 'Member')
+  @UseGuards(WriterRoleGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateDocumentDto) {
-    return this.documentsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentDto,
+    @Req() req: any,
+  ) {
+    return this.documentsService.update(id, dto, getUserId(req));
   }
 
-  @UseGuards(JwtAuthGuard, WriterRoleGuard)
-  @Roles('President', 'Director Executive', 'Team Manager', 'Responsable', 'Member')
+  @UseGuards(WriterRoleGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.documentsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.documentsService.remove(id, getUserId(req));
   }
 }
