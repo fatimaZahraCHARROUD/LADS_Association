@@ -201,6 +201,24 @@ export class DocumentsService {
       .exec();
   }
 
+  // Departments the user can share documents with (all for admin/exec)
+  async listWritableDepartments(userId: string) {
+    const ctx = await this.ctx(userId);
+    const filter = this.isGlobal(ctx)
+      ? {}
+      : {
+          _id: {
+            $in: [...ctx.managedDeptIds].map((i) => new Types.ObjectId(i)),
+          },
+        };
+    return this.departmentModel
+      .find(filter)
+      .select('_id name')
+      .sort({ name: 1 })
+      .lean()
+      .exec();
+  }
+
   // Uses memberships AND the departments collection (fixes empty preselect)
   async listMyDepartments(userId: string) {
     const ctx = await this.ctx(userId);

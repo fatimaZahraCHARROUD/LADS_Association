@@ -44,6 +44,11 @@ export class DocumentsController {
     return this.documentsService.listMyDepartments(getUserId(req));
   }
 
+  @Get('meta/writable-departments')
+  listWritableDepartments(@Req() req: any) {
+    return this.documentsService.listWritableDepartments(getUserId(req));
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.documentsService.findOne(id, getUserId(req));

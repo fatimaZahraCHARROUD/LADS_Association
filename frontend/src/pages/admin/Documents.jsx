@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { api, getCurrentUserRole } from "../../services/api";
+import { api, getCurrentUserId } from "../../services/api";
+import { getAccess } from "../../utils/access";
 
 import PageHeader from "../../components/admin/PageHeader";
 import DataTable from "../../components/admin/DataTable";
@@ -31,8 +32,14 @@ export default function AdminDocuments() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const role = getCurrentUserRole();
-  const canWrite = role.some((r) => ["President", "Manager", "Responsible"].includes(r));
+  const access = getAccess();
+  const canWrite = access.canWrite;
+  const myId = String(
+    getCurrentUserId() ||
+      JSON.parse(localStorage.getItem("user") || "{}")._id ||
+      ""
+  );
+  const [writableDepartments, setWritableDepartments] = useState([]);
 
   const load = async () => {
     try {
@@ -46,39 +53,55 @@ export default function AdminDocuments() {
     }
   };
 
-  const [myDepartments, setMyDepartments] = useState([]);
-
   const loadOptions = async () => {
-    try {
-      const [deps, mems, mine] = await Promise.all([
-        api.get("/documents/meta/departments"),
-        api.get("/members"),
-        api.get("/documents/meta/my-departments"),
-      ]);
-      setDepartments(Array.isArray(deps) ? deps : []);
-      setMembers(Array.isArray(mems) ? mems : []);
-      setMyDepartments(Array.isArray(mine) ? mine : []);
-    } catch (err) {
-      console.error("Failed to load visibility options:", err.message);
-    }
+    const results = await Promise.allSettled([
+      api.get("/documents/meta/departments"),
+      api.get("/members"),
+      api.get("/documents/meta/writable-departments"),
+    ]);
+    const list = (r) =>
+      r.status === "fulfilled" && Array.isArray(r.value) ? r.value : [];
+    setDepartments(list(results[0]));
+    setMembers(list(results[1]));
+    setWritableDepartments(list(results[2]));
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        console.error(`Option call #${i} failed:`, r.reason?.message);
+      }
+    });
   };
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     load();
-    loadOptions();
+    if (canWrite) loadOptions();
   }, []);
 
-  const isTeamManager =
-    role.includes("Manager") && !role.includes("President");
+  const managedIds = new Set(writableDepartments.map((d) => String(d._id)));
+
+  // President / Exec Dir: every department. Others: only departments they manage.
+  const departmentOptions = access.isGlobal ? departments : writableDepartments;
+
+  // same rule as the backend (DocumentsService.canManage)
+  const canManage = (r) => {
+    if (!canWrite) return false;
+    if (access.isGlobal) return true;
+    const uploader = String(r.uploadedBy?._id || r.uploadedBy || "");
+    if (myId && uploader === myId) return true;
+    const dep = String(r.visibilityDepartment?._id || r.visibilityDepartment || "");
+    return r.visibility === "department" && !!dep && managedIds.has(dep);
+  };
 
   const openCreate = () => {
     setEditing(null);
-    if (isTeamManager && myDepartments[0]) {
+    if (!access.isGlobal && writableDepartments.length > 0) {
+      const active = writableDepartments.find(
+        (d) => String(d._id) === String(access.activeDepartmentId)
+      );
       setForm({
         ...EMPTY_DOCUMENT,
         visibility: "department",
-        visibilityDepartment: myDepartments[0]._id,
+        visibilityDepartment: (active || writableDepartments[0])._id,
       });
     } else {
       setForm(EMPTY_DOCUMENT);
@@ -192,6 +215,11 @@ export default function AdminDocuments() {
       render: (r) => r.category || "—",
     },
     {
+      key: "uploadedBy",
+      header: "Uploaded by",
+      render: (r) => r.uploadedBy?.fullName || "—",
+    },
+    {
       key: "visibility",
       header: "Visibility",
       render: (r) => (
@@ -219,7 +247,7 @@ export default function AdminDocuments() {
       header: "",
       tdClassName: "text-right",
       render: (r) =>
-        canWrite ? (
+        canManage(r) ? (
           <div className="flex justify-end gap-2">
             <button
               onClick={() => openEdit(r)}
@@ -350,7 +378,7 @@ export default function AdminDocuments() {
                 }
               >
                 <option value="">Select a department</option>
-                {departments.map((d) => (
+                {departmentOptions.map((d) => (
                   <option key={d._id} value={d._id}>
                     {d.name}
                   </option>
