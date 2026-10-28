@@ -1,7 +1,5 @@
-import React from 'react'
+import Meetings from "../admin/Meetings";
 
 export default function Meeting() {
-  return (
-    <div>Meeting ilyas</div>
-  )
+  return <Meetings />;
 }

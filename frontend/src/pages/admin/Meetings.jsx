@@ -18,7 +18,8 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { api, getCurrentUserRole } from "../../services/api";
+import { api } from "../../services/api";
+import { getAccess } from "../../utils/access";
 
 import PageHeader from "../../components/admin/PageHeader";
 import Drawer from "../../components/admin/Drawer";
@@ -33,6 +34,7 @@ const EMPTY_MEETING = {
   endAt: "",
   meetingLink: "",
   status: "scheduled",
+  departmentId: "",
 };
 
 const MAX_MONTH_ITEMS = 3;
@@ -69,8 +71,9 @@ export default function AdminMeetings() {
   const [deleting, setDeleting] = useState(false);
   const [detailsMeeting, setDetailsMeeting] = useState(null);
 
-  const role = getCurrentUserRole();
-  const canWrite = role.some((r) => ["President", "Manager", "Responsible"].includes(r));
+  const access = getAccess();
+  const canWrite = access.canWrite;
+  const [departments, setDepartments] = useState([]);
 
   const weekEnd = useMemo(
     () => endOfWeek(weekStart, { weekStartsOn: 1 }),
@@ -116,13 +119,39 @@ export default function AdminMeetings() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [view, weekStart, monthAnchor]);
 
+  useEffect(() => {
+    if (!canWrite) return;
+    api
+      .get("/meetings/meta/my-departments")
+      .then((d) => setDepartments(Array.isArray(d) ? d : []))
+      .catch(() => setDepartments([]));
+  }, [canWrite]);
+
   const meetingsForDay = (day) =>
     meetings.filter((m) => isSameDay(parseISO(m.startAt), day));
+
+  const defaultDepartmentId = () => {
+    const active = access.activeDepartmentId;
+    if (active && departments.some((d) => String(d._id) === String(active))) {
+      return String(active);
+    }
+    if (departments.length === 1) return String(departments[0]._id);
+    return "";
+  };
+
+  // can the current user edit/delete THIS meeting?
+  const canManage = (m) => {
+    if (!canWrite) return false;
+    if (access.isGlobal) return true;
+    const id = m?.departmentId?._id || m?.departmentId;
+    return !!id && departments.some((d) => String(d._id) === String(id));
+  };
 
   const openCreate = (day) => {
     setEditing(null);
     setForm({
       ...EMPTY_MEETING,
+      departmentId: defaultDepartmentId(),
       startAt: toLocalInputValue(day || new Date()),
       endAt: toLocalInputValue(day || new Date()),
     });
@@ -138,6 +167,7 @@ export default function AdminMeetings() {
       endAt: toLocalInputValue(m.endAt),
       meetingLink: m.meetingLink || "",
       status: m.status || "scheduled",
+      departmentId: m.departmentId?._id || m.departmentId || "",
     });
     setDrawerOpen(true);
     setDetailsMeeting(null);
@@ -160,6 +190,11 @@ export default function AdminMeetings() {
       return;
     }
 
+    if (!access.isGlobal && !form.departmentId) {
+      toast.error("Please choose one of your departments.");
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -167,6 +202,7 @@ export default function AdminMeetings() {
         startAt: new Date(form.startAt).toISOString(),
         endAt: new Date(form.endAt).toISOString(),
       };
+      if (!payload.departmentId) delete payload.departmentId;
       if (editing) {
         await api.patch(`/meetings/${editing._id}`, payload);
         toast.success("Meeting updated");
@@ -387,7 +423,7 @@ export default function AdminMeetings() {
           )} – ${format(parseISO(detailsMeeting.endAt), "HH:mm")}`}
           footer={
             <div className="flex justify-end gap-2">
-              {canWrite && (
+              {canManage(detailsMeeting) && (
                 <>
                   <button
                     onClick={() => setConfirmDelete(detailsMeeting)}
@@ -417,7 +453,13 @@ export default function AdminMeetings() {
               </p>
             )}
 
-            {detailsMeeting.meetingLink && (
+            {detailsMeeting.departmentId?.name && (
+              <p className="text-xs text-brand-muted">
+                Department: {detailsMeeting.departmentId.name}
+              </p>
+            )}
+
+            {detailsMeeting.meetingLink ? (
               <a
                 href={detailsMeeting.meetingLink}
                 target="_blank"
@@ -426,7 +468,11 @@ export default function AdminMeetings() {
               >
                 Join meeting
               </a>
-            )}
+            ) : detailsMeeting.linkVisible === false ? (
+              <p className="text-xs italic text-brand-muted">
+                Link restricted to members of this department.
+              </p>
+            ) : null}
           </div>
         </Drawer>
       )}
@@ -486,6 +532,22 @@ export default function AdminMeetings() {
               />
             </Field>
           </div>
+
+          <Field label="Department" required={!access.isGlobal}>
+            <Select
+              value={form.departmentId}
+              onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+            >
+              <option value="">
+                {access.isGlobal ? "None (whole association)" : "Select a department"}
+              </option>
+              {departments.map((d) => (
+                <option key={d._id} value={d._id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
           <Field label="Meeting link">
             <input

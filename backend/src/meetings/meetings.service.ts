@@ -140,6 +140,24 @@ export class MeetingsService {
   //  Helpers
   // ─────────────────────────────────────────────
 
+  // GET /meetings/meta/my-departments: departments the user can write to
+  async listWritableDepartments(userId: string) {
+    const ctx = await this.getContext(userId);
+    const filter = this.isGlobal(ctx)
+      ? {}
+      : {
+          _id: {
+            $in: [...ctx.managedDeptIds].map((i) => new Types.ObjectId(i)),
+          },
+        };
+    return this.departmentModel
+      .find(filter)
+      .select('_id name')
+      .sort({ name: 1 })
+      .lean()
+      .exec();
+  }
+
   private isGlobal(ctx: Ctx): boolean {
     return ctx.access.role === 'admin' || ctx.access.role === 'exec';
   }

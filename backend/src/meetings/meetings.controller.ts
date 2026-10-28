@@ -39,6 +39,11 @@ export class MeetingsController {
     return this.meetingsService.findAll(from, to, getUserId(req));
   }
 
+  @Get('meta/my-departments')
+  listMyDepartments(@Req() req: any) {
+    return this.meetingsService.listWritableDepartments(getUserId(req));
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.meetingsService.findOne(id, getUserId(req));
