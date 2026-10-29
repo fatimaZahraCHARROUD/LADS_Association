@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 
 import "../../Styles/login.css";
 import { getEffectiveRole } from "../../utils/activeRole";
+import { API_BASE } from "../../services/api";
 
 async function login(email, password) {
-  const res = await fetch("http://localhost:3000/auth/login", {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

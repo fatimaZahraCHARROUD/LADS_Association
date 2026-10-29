@@ -1,8 +1,23 @@
+import { Types } from 'mongoose';
 import { StatisticsService } from './statistics.service';
 
 describe('StatisticsService', () => {
+  type MemberQuery = {
+    select: () => MemberQuery;
+    lean: () => MemberQuery;
+    exec: () => Promise<Array<{ _id: string }>>;
+  };
+  type StatisticsServiceInternals = {
+    userModel: {
+      find: (filter: Record<string, unknown>) => MemberQuery;
+    };
+    getAllMemberIds: () => Promise<string[]>;
+    getMemberIdsForDepartments: (departmentIds: string[]) => Promise<string[]>;
+  };
+
   const buildService = () =>
     new StatisticsService(
+      {} as any,
       {} as any,
       {} as any,
       {} as any,
@@ -28,7 +43,7 @@ describe('StatisticsService', () => {
         {
           assignedTo: 'm1',
           status: 'in-progress',
-          deadline: new Date('2026-10-05'),
+          deadline: new Date('2099-10-05'),
         },
       ],
       meetings: [
@@ -118,5 +133,61 @@ describe('StatisticsService', () => {
     expect(result.meetingsAttended).toBe(1);
     expect(result.recentFollowUpCount).toBe(1);
     expect(result.lastActivityDate).not.toBeNull();
+  });
+
+  it('counts all non-admin users for global dashboard totals', async () => {
+    const service = buildService() as unknown as StatisticsServiceInternals;
+    let queryFilter: Record<string, unknown> | undefined;
+    const query: MemberQuery = {
+      select: () => query,
+      lean: () => query,
+      exec: () => Promise.resolve([{ _id: 'member-1' }, { _id: 'member-2' }]),
+    };
+    service.userModel = {
+      find: (filter) => {
+        queryFilter = filter;
+        return query;
+      },
+    };
+
+    await expect(service.getAllMemberIds()).resolves.toEqual([
+      'member-1',
+      'member-2',
+    ]);
+    expect(queryFilter).toEqual({ isAdmin: { $ne: true } });
+  });
+
+  it('counts scoped users from both membership and legacy department links', async () => {
+    const service = buildService() as unknown as StatisticsServiceInternals;
+    let queryFilter: Record<string, unknown> | undefined;
+    const query: MemberQuery = {
+      select: () => query,
+      lean: () => query,
+      exec: () => Promise.resolve([{ _id: 'member-1' }]),
+    };
+    service.userModel = {
+      find: (filter) => {
+        queryFilter = filter;
+        return query;
+      },
+    };
+    const departmentId = new Types.ObjectId('507f1f77bcf86cd799439011');
+
+    await expect(
+      service.getMemberIdsForDepartments([String(departmentId)]),
+    ).resolves.toEqual(['member-1']);
+    expect(queryFilter).toEqual({
+      isAdmin: { $ne: true },
+      $or: [
+        {
+          memberships: {
+            $elemMatch: {
+              departmentId: { $in: [departmentId] },
+            },
+          },
+        },
+        { departement: { $in: [departmentId] } },
+      ],
+    });
   });
 });

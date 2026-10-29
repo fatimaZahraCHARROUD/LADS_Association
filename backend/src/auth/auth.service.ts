@@ -1,10 +1,11 @@
-
 import {
   BadRequestException,
+  InternalServerErrorException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
+import { Membership } from '../users/schemas/user.schema';
 import { HashService } from '../services/hash.service';
 import { JwtCustomService } from '../services/jwt/jwt.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
@@ -24,25 +25,26 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const isMatch = await this.hashService.compare(
-      password,
-      user.password,
-    );
+    const isMatch = await this.hashService.compare(password, user.password);
 
     if (!isMatch) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    let activeId: any = user.activeMembershipId;
+    const memberships = user.memberships ?? [];
+    let activeMembership = memberships.find(
+      (membership) =>
+        String(membership._id) === String(user.activeMembershipId ?? ''),
+    );
 
-    if (!activeId && user.memberships?.length) {
-      activeId = user.memberships[0]._id;
-
+    if (!activeMembership && memberships.length) {
+      activeMembership = memberships[0];
       await this.usersService.setActiveMembership(
         String(user._id),
-        String(activeId),
+        String(activeMembership._id),
       );
     }
+    const activeId = activeMembership?._id ?? null;
 
     const token = this.jwtService.sign({
       userId: user._id,
@@ -60,7 +62,7 @@ export class AuthService {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
-        memberships: user.memberships ?? [],
+        memberships,
         activeMembershipId: activeId,
         isAdmin: user.isAdmin,
       },
@@ -71,21 +73,31 @@ export class AuthService {
     const user = await this.usersService.findOne(userId);
 
     const membership = user.memberships?.find(
-      (m: any) => String(m._id) === String(membershipId),
+      (m: Membership) => String(m._id) === String(membershipId),
     );
 
     if (!membership) {
       throw new BadRequestException('Membership not found');
     }
 
-    await this.usersService.setActiveMembership(
+    const updatedUser = await this.usersService.setActiveMembership(
       userId,
-      membershipId,
+      membership._id,
     );
+    if (
+      !updatedUser?.activeMembershipId ||
+      String(updatedUser.activeMembershipId) !== String(membership._id)
+    ) {
+      throw new InternalServerErrorException(
+        'The selected membership could not be persisted',
+      );
+    }
 
     return {
       message: 'Role switched',
       activeMembership: membership,
+      activeMembershipId: String(updatedUser.activeMembershipId),
+      memberships: updatedUser.memberships ?? [],
     };
   }
 
