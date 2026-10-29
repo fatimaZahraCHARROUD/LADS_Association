@@ -207,4 +207,228 @@ describe('StatisticsService dashboard endpoints', () => {
       data: { activeProjects: [] },
     });
   });
+
+  it('scopes Responsable members, tasks, and objectives to assigned departments', async () => {
+    const responsableId = new Types.ObjectId();
+    const departmentId = new Types.ObjectId();
+    const memberId = new Types.ObjectId();
+    const objectives = [{ _id: 'objective-1', title: 'Weekly objective' }];
+    const members = [{ _id: memberId, fullName: 'Team member' }];
+    const pendingTasks = [{ _id: 'task-1', title: 'Pending task' }];
+    let memberFilter: Record<string, unknown> | undefined;
+    const departments = {
+      find: jest
+        .fn()
+        .mockReturnValue(query([{ _id: departmentId, members: [memberId] }])),
+    };
+    const users = {
+      findById: jest.fn().mockReturnValue(
+        query({
+          memberships: [{ role: 'Responsable', departmentId }],
+        }),
+      ),
+      countDocuments: (filter: Record<string, unknown>) => {
+        memberFilter = filter;
+        return countQuery(1);
+      },
+      find: () => query(members),
+    };
+    const tasks = {
+      countDocuments: jest.fn().mockReturnValue(countQuery(1)),
+      find: () => query(pendingTasks),
+    };
+    const objectiveModel = {
+      find: jest.fn().mockReturnValue(query(objectives)),
+    };
+    const service = new StatisticsService(
+      departments as never,
+      users as never,
+      {} as never,
+      tasks as never,
+      {} as never,
+      objectiveModel as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.getResponsableDashboard(String(responsableId)),
+    ).resolves.toEqual({
+      overview: {
+        totalMembers: 1,
+        totalPendingTasks: 1,
+        totalCompletedTasks: 1,
+      },
+      data: { objectives, members, pendingTasks },
+    });
+    expect(memberFilter).toEqual({
+      _id: { $ne: responsableId },
+      isAdmin: { $ne: true },
+      $or: [
+        { _id: { $in: [memberId] } },
+        {
+          memberships: {
+            $elemMatch: {
+              departmentId: { $in: [departmentId] },
+              role: 'Member',
+            },
+          },
+        },
+        { departement: { $in: [departmentId] }, role: 'Member' },
+      ],
+    });
+    expect(objectiveModel.find).toHaveBeenCalledWith(
+      expect.objectContaining({ departmentId: { $in: [departmentId] } }),
+    );
+  });
+
+  it('returns zero Responsable counts and empty sections when no team data exists', async () => {
+    const responsableId = new Types.ObjectId();
+    const emptyQuery = query<never[]>([]);
+    const users = {
+      findById: () =>
+        query({
+          memberships: [],
+        }),
+      countDocuments: jest.fn().mockReturnValue(countQuery(null)),
+      find: jest.fn().mockReturnValue(emptyQuery),
+    };
+    const tasks = {
+      countDocuments: jest.fn().mockReturnValue(countQuery(null)),
+      find: jest.fn().mockReturnValue(emptyQuery),
+    };
+    const service = new StatisticsService(
+      {} as never,
+      users as never,
+      {} as never,
+      tasks as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.getResponsableDashboard(String(responsableId)),
+    ).resolves.toEqual({
+      overview: {
+        totalMembers: 0,
+        totalPendingTasks: 0,
+        totalCompletedTasks: 0,
+      },
+      data: { objectives: [], members: [], pendingTasks: [] },
+    });
+  });
+
+  it('returns the authenticated Member profile, assigned tasks, and weekly objectives', async () => {
+    const memberId = new Types.ObjectId();
+    const departmentId = new Types.ObjectId();
+    const objectiveId = new Types.ObjectId();
+    const task = {
+      _id: new Types.ObjectId(),
+      title: 'Member task',
+      status: 'todo',
+      objectiveId,
+      deadline: new Date(),
+    };
+    const objective = {
+      _id: objectiveId,
+      title: 'Member objective',
+      weekStart: new Date(),
+      weekEnd: new Date(),
+    };
+    let taskFilter: Record<string, unknown> | undefined;
+    const users = {
+      findById: jest.fn().mockReturnValue(
+        query({
+          fullName: 'Member Name',
+          memberships: [{ role: 'Member', departmentId }],
+          departement: [],
+        }),
+      ),
+    };
+    const tasks = {
+      find: (filter: Record<string, unknown>) => {
+        taskFilter = filter;
+        return query([task]);
+      },
+      countDocuments: jest
+        .fn()
+        .mockReturnValueOnce(countQuery(2))
+        .mockReturnValueOnce(countQuery(1)),
+    };
+    let objectiveFilter: Record<string, unknown> | undefined;
+    const objectiveModel = {
+      find: (filter: Record<string, unknown>) => {
+        objectiveFilter = filter;
+        return query([objective]);
+      },
+    };
+    const service = new StatisticsService(
+      {} as never,
+      users as never,
+      {} as never,
+      tasks as never,
+      {} as never,
+      objectiveModel as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(service.getMemberDashboard(String(memberId))).resolves.toEqual(
+      {
+        user: { fullName: 'Member Name' },
+        overview: { totalTasks: 2, totalCompletedTasks: 1 },
+        data: {
+          thisWeek: {
+            tasks: [{ ...task, objectiveId: objective }],
+            objectives: [objective],
+          },
+          tasks: [{ ...task, objectiveId: objective }],
+        },
+      },
+    );
+    expect(taskFilter).toEqual({ assignedTo: memberId });
+    expect(objectiveFilter?.$or).toEqual(
+      expect.arrayContaining([
+        { departmentId: { $in: [departmentId] } },
+        { _id: { $in: [objectiveId] } },
+      ]),
+    );
+  });
+
+  it('returns zero Member counts and empty data when no records exist', async () => {
+    const memberId = new Types.ObjectId();
+    const emptyQuery = query<never[]>([]);
+    const users = {
+      findById: () =>
+        query({
+          fullName: 'Member Name',
+          memberships: [],
+          departement: [],
+        }),
+    };
+    const tasks = {
+      find: () => emptyQuery,
+      countDocuments: jest.fn().mockReturnValue(countQuery(null)),
+    };
+    const service = new StatisticsService(
+      {} as never,
+      users as never,
+      {} as never,
+      tasks as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(service.getMemberDashboard(String(memberId))).resolves.toEqual(
+      {
+        user: { fullName: 'Member Name' },
+        overview: { totalTasks: 0, totalCompletedTasks: 0 },
+        data: { thisWeek: { tasks: [], objectives: [] }, tasks: [] },
+      },
+    );
+  });
 });

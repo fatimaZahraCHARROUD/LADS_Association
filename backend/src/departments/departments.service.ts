@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Department, DepartmentDocument } from './schemas/department.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { Membership, User, UserDocument } from '../users/schemas/user.schema';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 
@@ -60,6 +60,7 @@ export class DepartmentsService {
       teamManagers,
       members,
     });
+    await this.syncDepartmentMemberships(department, []);
     return this.findOne(String(department._id));
   }
 
@@ -94,9 +95,14 @@ export class DepartmentsService {
       : current.viceManager;
     this.validateDistinctManagers(manager, viceManager);
 
-    await this.departmentModel
+    const updated = await this.departmentModel
       .findByIdAndUpdate(id, updates, { new: true, runValidators: true })
       .exec();
+    if (!updated) throw new NotFoundException(`Department ${id} not found`);
+    await this.syncDepartmentMemberships(
+      updated,
+      this.getDepartmentUserIds(current),
+    );
     return this.findOne(id);
   }
 
@@ -130,8 +136,14 @@ export class DepartmentsService {
 
   async remove(id: string) {
     this.validateDepartmentId(id);
-    const department = await this.departmentModel.findByIdAndDelete(id).exec();
+    const department = await this.departmentModel.findById(id).exec();
     if (!department) throw new NotFoundException(`Department ${id} not found`);
+    await this.departmentModel.findByIdAndDelete(id).exec();
+    await this.syncDepartmentMemberships(
+      department,
+      this.getDepartmentUserIds(department),
+      true,
+    );
     return { deleted: true };
   }
 
@@ -215,12 +227,11 @@ export class DepartmentsService {
     if (!user) return;
 
     // Drop broken entries (no departmentId) so we don't keep them around
-   const existing = (user.memberships ?? []) as any[];
+    const existing: Membership[] = user.memberships ?? [];
 
     // Skip if user already has this exact (dept, role) pair
     const already = existing.some(
-      (m) =>
-        String(m.departmentId) === String(departmentId) && m.role === role,
+      (m) => String(m.departmentId) === String(departmentId) && m.role === role,
     );
     if (already) {
       // Déjà membre : on s'assure juste que `departement` reste à jour
@@ -260,20 +271,79 @@ export class DepartmentsService {
     const memberships = [...filtered, newMembership];
 
     const activeValid =
-      user.activeMembershipId &&
+      user.activeMembershipId != null &&
       memberships.some(
         (m) => String(m._id) === String(user.activeMembershipId),
       );
 
-    const patch: any = {
+    const patch: Partial<User> = {
       memberships,
-      departement: memberships
-        .filter((m) => !!m.departmentId)
-        .map((m) => m.departmentId),
+      departement: memberships.flatMap((m) =>
+        m.departmentId ? [m.departmentId] : [],
+      ),
     };
-    if (!activeValid) patch.activeMembershipId = memberships[0]._id;
+    if (!activeValid) patch.activeMembershipId = memberships[0]?._id ?? null;
 
     await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  private async syncDepartmentMemberships(
+    department: DepartmentDocument,
+    previousUserIds: string[],
+    removed = false,
+  ) {
+    const departmentId = String(department._id);
+    const assignments = removed
+      ? new Map<string, string>()
+      : this.getDepartmentAssignments(department);
+    const affectedUserIds = new Set([
+      ...previousUserIds,
+      ...assignments.keys(),
+    ]);
+
+    for (const userId of affectedUserIds) {
+      const role = assignments.get(userId);
+      if (role) {
+        await this.syncMembership(userId, departmentId, role);
+      } else {
+        await this.removeMembership(userId, departmentId);
+      }
+    }
+  }
+
+  private getDepartmentAssignments(
+    department: Pick<
+      Department,
+      'manager' | 'viceManager' | 'teamManagers' | 'members'
+    >,
+  ) {
+    const assignments = new Map<string, string>();
+    for (const userId of department.members ?? []) {
+      assignments.set(this.getUserId(userId), 'Member');
+    }
+    for (const userId of department.teamManagers ?? []) {
+      assignments.set(this.getUserId(userId), 'Team Manager');
+    }
+    if (department.manager) {
+      assignments.set(this.getUserId(department.manager), 'Responsable');
+    }
+    if (department.viceManager) {
+      assignments.set(this.getUserId(department.viceManager), 'Responsable');
+    }
+    return assignments;
+  }
+
+  private getDepartmentUserIds(
+    department: Pick<
+      Department,
+      'manager' | 'viceManager' | 'teamManagers' | 'members'
+    >,
+  ) {
+    return Array.from(this.getDepartmentAssignments(department).keys());
+  }
+
+  private getUserId(value: Types.ObjectId | string) {
+    return typeof value === 'string' ? value : value.toHexString();
   }
 
   private async removeMembership(userId: string, departmentId: string) {
@@ -282,23 +352,21 @@ export class DepartmentsService {
     const user = await this.userModel.findById(userId).exec();
     if (!user) return;
 
-    const existing = (user.memberships ?? []) as any[];
+    const existing: Membership[] = user.memberships ?? [];
     const filtered = existing.filter(
       (m) => String(m.departmentId) !== String(departmentId),
     );
     if (filtered.length === existing.length) return;
 
     const activeValid =
-      user.activeMembershipId &&
-      filtered.some(
-        (m) => String(m._id) === String(user.activeMembershipId),
-      );
+      user.activeMembershipId != null &&
+      filtered.some((m) => String(m._id) === String(user.activeMembershipId));
 
-    const patch: any = {
+    const patch: Partial<User> = {
       memberships: filtered,
-      departement: filtered
-        .filter((m: any) => !!m.departmentId)
-        .map((m: any) => m.departmentId),
+      departement: filtered.flatMap((m) =>
+        m.departmentId ? [m.departmentId] : [],
+      ),
     };
     if (!activeValid) {
       patch.activeMembershipId = filtered[0]?._id ?? null;
@@ -311,7 +379,7 @@ export class DepartmentsService {
   //  Validation
   // ─────────────────────────────────────────────
 
-   private validateName(name: string) {
+  private validateName(name: string) {
     if (typeof name !== 'string' || !name.trim()) {
       throw new BadRequestException('Department name is required');
     }

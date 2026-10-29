@@ -34,6 +34,18 @@ export interface DashboardFilters {
   period?: string;
 }
 
+function getCurrentWeekRange() {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  end.setUTCHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
 @Injectable()
 export class StatisticsService {
   constructor(
@@ -195,6 +207,242 @@ export class StatisticsService {
         totalProjects: totalProjects ?? 0,
       },
       data: { activeProjects },
+    };
+  }
+
+  async getResponsableDashboard(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new ForbiddenException('Invalid user session');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userObjectId)
+      .select('memberships')
+      .lean()
+      .exec();
+    if (!user) throw new ForbiddenException('User session is invalid');
+
+    const { start, end } = getCurrentWeekRange();
+    const departmentIds = [
+      ...new Set(
+        (user.memberships ?? [])
+          .filter(
+            (membership) =>
+              membership.role === 'Responsable' && membership.departmentId,
+          )
+          .map((membership) => String(membership.departmentId)),
+      ),
+    ].map((id) => new Types.ObjectId(id));
+
+    const departments = departmentIds.length
+      ? await this.departmentModel
+          .find({ _id: { $in: departmentIds } })
+          .select('members')
+          .lean()
+          .exec()
+      : [];
+    const departmentMemberIds = [
+      ...new Set(
+        departments.flatMap((department) =>
+          (department.members ?? []).map((memberId) => String(memberId)),
+        ),
+      ),
+    ]
+      .filter((memberId) => memberId !== String(userObjectId))
+      .map((memberId) => new Types.ObjectId(memberId));
+
+    const memberFilter = departmentIds.length
+      ? {
+          _id: { $ne: userObjectId },
+          isAdmin: { $ne: true },
+          $or: [
+            { _id: { $in: departmentMemberIds } },
+            {
+              memberships: {
+                $elemMatch: {
+                  departmentId: { $in: departmentIds },
+                  role: 'Member',
+                },
+              },
+            },
+            { departement: { $in: departmentIds }, role: 'Member' },
+          ],
+        }
+      : { _id: { $in: [] } };
+    const [totalMembers, members] = await Promise.all([
+      this.userModel.countDocuments(memberFilter).exec(),
+      this.userModel
+        .find(memberFilter)
+        .select('_id fullName email status')
+        .sort({ fullName: 1 })
+        .lean()
+        .exec(),
+    ]);
+    const teamMemberIds = [
+      ...new Set([
+        ...departmentMemberIds.map(String),
+        ...members.map((member) => String(member._id)),
+      ]),
+    ].map((memberId) => new Types.ObjectId(memberId));
+    const taskScope = {
+      $or: [
+        { departmentId: { $in: departmentIds } },
+        { assignedTo: { $in: teamMemberIds } },
+      ],
+    };
+
+    const [totalPendingTasks, totalCompletedTasks, pendingTasks, objectives] =
+      await Promise.all([
+        this.taskModel
+          .countDocuments({
+            ...taskScope,
+            status: { $in: ['todo', 'in-progress'] },
+          })
+          .exec(),
+        this.taskModel.countDocuments({ ...taskScope, status: 'done' }).exec(),
+        this.taskModel
+          .find({
+            ...taskScope,
+            status: { $in: ['todo', 'in-progress'] },
+          })
+          .select(
+            '_id title description priority deadline status assignedTo departmentId objectiveId',
+          )
+          .populate('assignedTo', 'fullName')
+          .sort({ deadline: 1, createdAt: -1 })
+          .lean()
+          .exec(),
+        departmentIds.length
+          ? this.objectiveModel
+              .find({
+                departmentId: { $in: departmentIds },
+                weekStart: { $lte: end },
+                weekEnd: { $gte: start },
+              })
+              .select(
+                '_id title description weekStart weekEnd target achievement progress status departmentId',
+              )
+              .sort({ weekStart: 1 })
+              .lean()
+              .exec()
+          : Promise.resolve([]),
+      ]);
+
+    return {
+      overview: {
+        totalMembers: totalMembers ?? 0,
+        totalPendingTasks: totalPendingTasks ?? 0,
+        totalCompletedTasks: totalCompletedTasks ?? 0,
+      },
+      data: { objectives, members, pendingTasks },
+    };
+  }
+
+  async getMemberDashboard(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new ForbiddenException('Invalid user session');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userObjectId)
+      .select('fullName memberships departement')
+      .lean()
+      .exec();
+    if (!user) throw new ForbiddenException('User session is invalid');
+
+    const { start, end } = getCurrentWeekRange();
+    const departmentIds = [
+      ...new Set([
+        ...(user.memberships ?? [])
+          .filter(
+            (membership) =>
+              membership.role === 'Member' && membership.departmentId,
+          )
+          .map((membership) => String(membership.departmentId)),
+        ...(user.departement ?? []).map((departmentId) => String(departmentId)),
+      ]),
+    ].map((id) => new Types.ObjectId(id));
+
+    const [tasks, totalTasks, totalCompletedTasks] = await Promise.all([
+      this.taskModel
+        .find({ assignedTo: userObjectId })
+        .select(
+          '_id title description priority deadline status objectiveId departmentId createdAt',
+        )
+        .sort({ deadline: 1, createdAt: -1 })
+        .lean()
+        .exec(),
+      this.taskModel.countDocuments({ assignedTo: userObjectId }).exec(),
+      this.taskModel
+        .countDocuments({ assignedTo: userObjectId, status: 'done' })
+        .exec(),
+    ]);
+
+    const taskObjectiveIds = [
+      ...new Set(
+        tasks
+          .filter((task) => task.objectiveId)
+          .map((task) => String(task.objectiveId)),
+      ),
+    ].map((id) => new Types.ObjectId(id));
+    const objectiveScope = [
+      ...(departmentIds.length
+        ? [{ departmentId: { $in: departmentIds } }]
+        : []),
+      ...(taskObjectiveIds.length ? [{ _id: { $in: taskObjectiveIds } }] : []),
+    ];
+    const objectives = objectiveScope.length
+      ? await this.objectiveModel
+          .find({
+            $or: objectiveScope,
+            weekStart: { $lte: end },
+            weekEnd: { $gte: start },
+          })
+          .select(
+            '_id title description weekStart weekEnd target achievement progress status departmentId',
+          )
+          .sort({ weekStart: 1 })
+          .lean()
+          .exec()
+      : [];
+    const weeklyObjectiveIds = new Set(
+      objectives.map((objective) => String(objective._id)),
+    );
+    const objectivesById = new Map(
+      objectives.map((objective) => [String(objective._id), objective]),
+    );
+    const weeklyTasks = tasks.filter((task) => {
+      const deadline = task.deadline ? new Date(task.deadline) : null;
+      const dueThisWeek =
+        deadline !== null && deadline >= start && deadline <= end;
+      const linkedToWeeklyObjective =
+        task.objectiveId !== null &&
+        task.objectiveId !== undefined &&
+        weeklyObjectiveIds.has(String(task.objectiveId));
+      return dueThisWeek || linkedToWeeklyObjective;
+    });
+    const withObjective = (task: (typeof tasks)[number]) => ({
+      ...task,
+      objectiveId: task.objectiveId
+        ? (objectivesById.get(String(task.objectiveId)) ?? null)
+        : null,
+    });
+
+    return {
+      user: { fullName: user.fullName },
+      overview: {
+        totalTasks: totalTasks ?? 0,
+        totalCompletedTasks: totalCompletedTasks ?? 0,
+      },
+      data: {
+        thisWeek: {
+          tasks: weeklyTasks.map(withObjective),
+          objectives,
+        },
+        tasks: tasks.map(withObjective),
+      },
     };
   }
 

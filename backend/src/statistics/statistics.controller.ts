@@ -26,10 +26,22 @@ export class StatisticsController {
     return this.statisticsService.getTeamManagerDashboard(getUserId(req));
   }
 
+  @Roles('Responsable')
+  @Get('responsable-dashboard')
+  getResponsableDashboard(@Req() req: AuthenticatedRequest) {
+    return this.statisticsService.getResponsableDashboard(getUserId(req));
+  }
+
+  @Roles('Member')
+  @Get('member-dashboard')
+  getMemberDashboard(@Req() req: AuthenticatedRequest) {
+    return this.statisticsService.getMemberDashboard(getUserId(req));
+  }
+
   @Roles('President', 'Director Executive', 'Team Manager')
   @Get('dashboard')
   getDashboard(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('departmentId') departmentId?: string,
     @Query('memberId') memberId?: string,
     @Query('from') from?: string,
@@ -47,7 +59,10 @@ export class StatisticsController {
 
   @Roles('President', 'Director Executive', 'Team Manager')
   @Get('departments/:departmentId')
-  getDepartment(@Req() req: any, @Param('departmentId') departmentId: string) {
+  getDepartment(
+    @Req() req: AuthenticatedRequest,
+    @Param('departmentId') departmentId: string,
+  ) {
     return this.statisticsService.getDepartmentSummary(
       getUserId(req),
       departmentId,
@@ -56,7 +71,10 @@ export class StatisticsController {
 
   @Roles('President', 'Director Executive', 'Team Manager')
   @Get('members/:memberId')
-  getMember(@Req() req: any, @Param('memberId') memberId: string) {
+  getMember(
+    @Req() req: AuthenticatedRequest,
+    @Param('memberId') memberId: string,
+  ) {
     return this.statisticsService.getMemberSummary(getUserId(req), memberId);
   }
 }
