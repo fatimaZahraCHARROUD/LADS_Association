@@ -143,9 +143,7 @@ function App() {
   path="/exec"
   element={
     <ProtectedRoute>
-      <RoleGuard allow={["Director Executive"]}>
-        <AdminLayout />
-      </RoleGuard>
+      <AdminLayout />
     </ProtectedRoute>
   }
 >
@@ -162,9 +160,7 @@ function App() {
   path="/team"
   element={
     <ProtectedRoute>
-      <RoleGuard allow={["Team Manager"]}>
-        <AdminLayout />
-      </RoleGuard>
+      <AdminLayout />
     </ProtectedRoute>
   }
 >

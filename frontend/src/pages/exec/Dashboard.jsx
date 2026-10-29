@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -7,11 +8,12 @@ import {
   Users,
 } from "lucide-react";
 import StatCard from "../../components/statcard";
+import { api } from "../../services/api";
 
 const stats = [
-  { label: "Departments", value: 6, color: "text-brand-primary", ring: "#2563eb", change: 1 },
-  { label: "Members", value: 84, color: "text-indigo-500", ring: "#6366f1", change: 8 },
-  { label: "Projects", value: 12, color: "text-emerald-500", ring: "#10b981", change: 2 },
+  { label: "Departments", key: "totalDepartments", color: "text-brand-primary", ring: "#2563eb" },
+  { label: "Members", key: "totalMembers", color: "text-indigo-500", ring: "#6366f1" },
+  { label: "Projects", key: "totalProjects", color: "text-emerald-500", ring: "#10b981" },
   { label: "Upcoming Meetings", value: 3, color: "text-orange-500", ring: "#f97316", change: 1 },
 ];
 
@@ -19,12 +21,6 @@ const meetings = [
   { title: "Executive Board Check-in", date: "Thu, Oct 08", time: "10:00 AM", detail: "Quarterly priorities review" },
   { title: "Department Leads Forum", date: "Sat, Oct 10", time: "2:00 PM", detail: "Cross-team project updates" },
   { title: "Partnerships Review", date: "Thu, Oct 15", time: "11:30 AM", detail: "Community partner planning" },
-];
-
-const plans = [
-  { title: "Expand community outreach", owner: "Communications", progress: 72, color: "bg-brand-primary", due: "Due Nov 15" },
-  { title: "Launch the mentorship program", owner: "Member Experience", progress: 48, color: "bg-emerald-500", due: "Due Dec 02" },
-  { title: "Strengthen partner network", owner: "Partnerships", progress: 31, color: "bg-amber-500", due: "Due Dec 18" },
 ];
 
 const departments = [
@@ -40,7 +36,84 @@ const activities = [
   { title: "Monthly leadership meeting scheduled", detail: "Operations", time: "Oct 01", icon: CalendarDays, color: "text-orange-600 bg-orange-50" },
 ];
 
+const planStatusLabels = {
+  planned: "Planned",
+  in_progress: "In progress",
+  "in-progress": "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  on_hold: "On hold",
+};
+
+const planStatusColors = {
+  planned: "bg-slate-100 text-slate-700",
+  in_progress: "bg-blue-50 text-blue-700",
+  "in-progress": "bg-blue-50 text-blue-700",
+  completed: "bg-emerald-50 text-emerald-700",
+  cancelled: "bg-rose-50 text-rose-700",
+  on_hold: "bg-amber-50 text-amber-700",
+};
+
+const formatDate = (value) => (
+  value ? new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit" }) : "—"
+);
+
 export default function ExecDashboard() {
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+  const overview = dashboard?.overview;
+  const plans = dashboard
+    ? [
+        ...dashboard.data.objectives.map((objective) => ({
+          ...objective,
+          _id: `objective-${objective._id}`,
+          type: "Objective",
+          objective: objective.description || (
+            objective.target ? `${objective.achievement}/${objective.target} achieved` : ""
+          ),
+          deadline: objective.weekEnd,
+          status: objective.status === "in-progress" ? "in_progress" : objective.status,
+        })),
+        ...dashboard.data.projects.map((project) => ({
+          ...project,
+          _id: `project-${project._id}`,
+          type: "Project",
+          objective: project.description || project.departmentId?.name || "",
+          deadline: project.endDate,
+        })),
+      ].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    : [];
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.getExecDashboard({ signal: controller.signal })
+      .then((data) => {
+        const counts = data?.overview;
+        const requiredCounts = ["totalDepartments", "totalMembers", "totalProjects"];
+        if (!counts || !requiredCounts.every((key) => Number.isFinite(counts[key]))) {
+          throw new Error("Statistics response is missing required counts.");
+        }
+        if (
+          !Array.isArray(data?.data?.objectives) ||
+          !Array.isArray(data?.data?.projects)
+        ) {
+          throw new Error("Unexpected executive dashboard response.");
+        }
+        setDashboard(data);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setDashboardError(error.message || "Unable to load dashboard data.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDashboardLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -55,9 +128,24 @@ export default function ExecDashboard() {
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Organization statistics">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} def={stat} stat={{ value: stat.value, ring: 68, change: stat.change }} pillSuffix="this month" />
-        ))}
+        {stats.map((stat) => {
+          const isDynamic = Boolean(stat.key);
+          return (
+            <StatCard
+              key={stat.label}
+              def={stat}
+              stat={{
+                value: isDynamic ? overview?.[stat.key] ?? 0 : stat.value,
+                ring: 68,
+                change: stat.change ?? 0,
+              }}
+              loading={isDynamic && dashboardLoading}
+              error={isDynamic ? dashboardError : null}
+              showChange={!isDynamic}
+              pillSuffix="this month"
+            />
+          );
+        })}
       </section>
 
       <section className="rounded-2xl border border-brand-border bg-white p-5 sm:p-6">
@@ -89,17 +177,21 @@ export default function ExecDashboard() {
             <FileText className="text-brand-primary" size={20} />
           </div>
           <div className="space-y-5">
+            {dashboardLoading && <p className="text-sm text-brand-muted">Loading strategic plans…</p>}
+            {dashboardError && <p role="alert" className="text-sm text-rose-700">{dashboardError}</p>}
+            {!dashboardLoading && !dashboardError && plans.length === 0 && (
+              <p className="text-sm text-brand-muted">No strategic plans found.</p>
+            )}
             {plans.map((plan) => (
-              <div key={plan.title}>
+              <div key={plan._id}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium text-brand-text">{plan.title}</p>
-                    <p className="mt-1 text-xs text-brand-muted">{plan.owner} <span className="px-1">·</span> {plan.due}</p>
+                    <p className="mt-1 text-xs text-brand-muted">{plan.type} {plan.objective && <><span className="px-1">·</span>{plan.objective}</>} <span className="px-1">·</span> Due {formatDate(plan.deadline)}</p>
                   </div>
-                  <span className="text-sm font-semibold text-brand-text">{plan.progress}%</span>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className={`h-full rounded-full ${plan.color}`} style={{ width: `${plan.progress}%` }} />
+                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${planStatusColors[plan.status] || planStatusColors.planned}`}>
+                    {planStatusLabels[plan.status] || plan.status || "Planned"}
+                  </span>
                 </div>
               </div>
             ))}

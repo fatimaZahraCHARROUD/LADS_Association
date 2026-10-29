@@ -5,10 +5,26 @@ import { Roles } from '../services/jwt/roles.decorator';
 import { getUserId } from '../services/jwt/current-user';
 import { StatisticsService } from './statistics.service';
 
+type AuthenticatedRequest = {
+  user?: { userId?: string; sub?: string };
+};
+
 @UseGuards(JwtAuthGuard, ActiveRoleGuard)
 @Controller('statistics')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
+
+  @Roles('Director Executive')
+  @Get('executive-dashboard')
+  getExecutiveDashboard() {
+    return this.statisticsService.getExecutiveDashboard();
+  }
+
+  @Roles('Team Manager')
+  @Get('team-dashboard')
+  getTeamManagerDashboard(@Req() req: AuthenticatedRequest) {
+    return this.statisticsService.getTeamManagerDashboard(getUserId(req));
+  }
 
   @Roles('President', 'Director Executive', 'Team Manager')
   @Get('dashboard')

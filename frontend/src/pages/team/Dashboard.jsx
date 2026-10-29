@@ -1,17 +1,13 @@
+import { useEffect, useState } from "react";
 import { CalendarDays, Circle, Clock3, FolderKanban } from "lucide-react";
 import StatCard from "../../components/statcard";
+import { api } from "../../services/api";
 
 const stats = [
-  { label: "Departments", value: 6, color: "text-brand-primary", ring: "#2563eb", change: 1 },
-  { label: "Members", value: 84, color: "text-indigo-500", ring: "#6366f1", change: 8 },
-  { label: "Projects", value: 12, color: "text-emerald-500", ring: "#10b981", change: 2 },
+  { label: "Departments", key: "totalDepartments", color: "text-brand-primary", ring: "#2563eb" },
+  { label: "Members", key: "totalMembers", color: "text-indigo-500", ring: "#6366f1" },
+  { label: "Projects", key: "totalProjects", color: "text-emerald-500", ring: "#10b981" },
   { label: "Upcoming Meetings", value: 3, color: "text-orange-500", ring: "#f97316", change: 1 },
-];
-
-const projects = [
-  { name: "Volunteer onboarding refresh", department: "Member Experience", progress: 68, due: "Oct 18", color: "bg-brand-primary" },
-  { name: "Winter community drive", department: "Communications", progress: 42, due: "Nov 04", color: "bg-emerald-500" },
-  { name: "Partner resource directory", department: "Partnerships", progress: 86, due: "Oct 12", color: "bg-orange-500" },
 ];
 
 const tasks = [
@@ -20,7 +16,44 @@ const tasks = [
   { title: "Share monthly progress update", owner: "Nadia El Idrissi", due: "Oct 11", priority: "Normal" },
 ];
 
+const projectColors = ["bg-brand-primary", "bg-emerald-500", "bg-orange-500", "bg-indigo-500"];
+const formatDate = (value) => (
+  value ? new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit" }) : "—"
+);
+
 export default function TeamDashboard() {
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+  const overview = dashboard?.overview;
+  const projects = dashboard?.data?.activeProjects ?? [];
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.getTeamDashboard({ signal: controller.signal })
+      .then((data) => {
+        const counts = data?.overview;
+        const requiredCounts = ["totalDepartments", "totalMembers", "totalProjects"];
+        if (!counts || !requiredCounts.every((key) => Number.isFinite(counts[key]))) {
+          throw new Error("Statistics response is missing required counts.");
+        }
+        if (!Array.isArray(data?.data?.activeProjects)) {
+          throw new Error("Unexpected team dashboard response.");
+        }
+        setDashboard(data);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setDashboardError(error.message || "Unable to load dashboard data.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDashboardLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -33,9 +66,24 @@ export default function TeamDashboard() {
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Team statistics">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} def={stat} stat={{ value: stat.value, ring: 68, change: stat.change }} pillSuffix="this month" />
-        ))}
+        {stats.map((stat) => {
+          const isDynamic = Boolean(stat.key);
+          return (
+            <StatCard
+              key={stat.label}
+              def={stat}
+              stat={{
+                value: isDynamic ? overview?.[stat.key] ?? 0 : stat.value,
+                ring: 68,
+                change: stat.change ?? 0,
+              }}
+              loading={isDynamic && dashboardLoading}
+              error={isDynamic ? dashboardError : null}
+              showChange={!isDynamic}
+              pillSuffix="this month"
+            />
+          );
+        })}
       </section>
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-5">
@@ -43,22 +91,35 @@ export default function TeamDashboard() {
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold text-brand-text">Active projects</h2>
-              <p className="mt-1 text-sm text-brand-muted">3 projects underway across your departments</p>
+              <p className="mt-1 text-sm text-brand-muted">
+                {dashboardLoading
+                  ? "Loading active projects…"
+                  : dashboardError
+                    ? "Unable to load active projects."
+                    : `${projects.length} projects underway across your departments`}
+              </p>
             </div>
             <FolderKanban className="text-brand-primary" size={20} />
           </div>
           <div className="space-y-1">
-            {projects.map((project) => (
-              <article key={project.name} className="rounded-xl px-1 py-4 first:pt-2">
+            {dashboardError && <p role="alert" className="py-2 text-sm text-rose-700">{dashboardError}</p>}
+            {!dashboardLoading && !dashboardError && projects.length === 0 && (
+              <p className="py-2 text-sm text-brand-muted">No active projects.</p>
+            )}
+            {projects.map((project, index) => (
+              <article key={project._id} className="rounded-xl px-1 py-4 first:pt-2">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-medium text-brand-text">{project.name}</h3>
-                    <p className="mt-1 text-xs text-brand-muted">{project.department} <span className="px-1">·</span> Due {project.due}</p>
+                    <h3 className="text-sm font-medium text-brand-text">{project.title}</h3>
+                    <p className="mt-1 text-xs text-brand-muted">{project.departmentId?.name || "Unassigned department"} <span className="px-1">·</span> Due {formatDate(project.endDate)}</p>
                   </div>
                   <span className="text-sm font-semibold text-brand-text">{project.progress}%</span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className={`h-full rounded-full ${project.color}`} style={{ width: `${project.progress}%` }} />
+                  <div
+                    className={`h-full rounded-full ${projectColors[index % projectColors.length]}`}
+                    style={{ width: `${Math.max(0, Math.min(100, Number(project.progress) || 0))}%` }}
+                  />
                 </div>
               </article>
             ))}
