@@ -116,6 +116,12 @@ export class StatisticsService {
 
     const activities = await this.activityModel
       .find({
+        ...(filters.departmentId
+          ? { departmentId: new Types.ObjectId(filters.departmentId) }
+          : {}),
+        ...(filters.memberId
+          ? { memberId: new Types.ObjectId(filters.memberId) }
+          : {}),
         ...(fromDate ? { createdAt: { $gte: fromDate, $lte: toDate } } : {}),
       })
       .lean()

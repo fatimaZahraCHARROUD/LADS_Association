@@ -1,10 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Activity, ActivityDocument } from './schemas/activity.schema';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import { UploadService } from '../upload/upload.service';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import {
+  Department,
+  DepartmentDocument,
+} from '../departments/schemas/department.schema';
 
 @Injectable()
 export class ActivitiesService {
@@ -12,10 +21,72 @@ export class ActivitiesService {
     @InjectModel(Activity.name)
     private activityModel: Model<ActivityDocument>,
 
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+
+    @InjectModel(Department.name)
+    private readonly departmentModel: Model<DepartmentDocument>,
+
     private uploadService: UploadService,
   ) {}
-  create(dto: CreateActivityDto) {
-    return this.activityModel.create(dto);
+  async create(userId: string, dto: CreateActivityDto) {
+    if (
+      (dto.departmentId && !Types.ObjectId.isValid(dto.departmentId)) ||
+      (dto.memberId && !Types.ObjectId.isValid(dto.memberId))
+    ) {
+      throw new BadRequestException('Invalid department or member ID');
+    }
+
+    const departmentId = dto.departmentId
+      ? new Types.ObjectId(dto.departmentId)
+      : null;
+    const memberId = dto.memberId ? new Types.ObjectId(dto.memberId) : null;
+
+    let department: {
+      manager?: Types.ObjectId | null;
+      viceManager?: Types.ObjectId | null;
+      teamManagers?: Types.ObjectId[];
+      members?: Types.ObjectId[];
+    } | null = null;
+    if (departmentId) {
+      department = await this.departmentModel
+        .findById(departmentId)
+        .select('manager viceManager teamManagers members')
+        .lean()
+        .exec();
+      if (!department) {
+        throw new BadRequestException('Department not found');
+      }
+    }
+
+    if (memberId) {
+      const memberExists = await this.userModel.exists({ _id: memberId });
+      if (!memberExists) {
+        throw new BadRequestException('Member not found');
+      }
+      if (departmentId) {
+        const belongsToDepartment = [
+          department?.manager,
+          department?.viceManager,
+          ...(department?.teamManagers ?? []),
+          ...(department?.members ?? []),
+        ].some(
+          (assignedMemberId) => String(assignedMemberId) === String(memberId),
+        );
+        if (!belongsToDepartment) {
+          throw new BadRequestException(
+            'The member does not belong to the selected department',
+          );
+        }
+      }
+    }
+
+    return this.activityModel.create({
+      ...dto,
+      createdBy: new Types.ObjectId(userId),
+      departmentId,
+      memberId,
+    });
   }
 
   findAll(status?: string, isPublished?: boolean) {

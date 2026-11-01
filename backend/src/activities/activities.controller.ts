@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
@@ -15,6 +16,7 @@ import { UpdateActivityDto } from './dto/update-activity.dto';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 import { Roles } from '../services/jwt/roles.decorator';
+import { getUserId } from '../services/jwt/current-user';
 
 @Controller('activities')
 export class ActivitiesController {
@@ -23,8 +25,11 @@ export class ActivitiesController {
   @UseGuards(JwtAuthGuard, ActiveRoleGuard)
   @Roles('President', 'Director Executive')
   @Post()
-  create(@Body() dto: CreateActivityDto) {
-    return this.activitiesService.create(dto);
+  create(
+    @Req() req: { user?: { userId?: string; sub?: string } },
+    @Body() dto: CreateActivityDto,
+  ) {
+    return this.activitiesService.create(getUserId(req), dto);
   }
 
   @Get()

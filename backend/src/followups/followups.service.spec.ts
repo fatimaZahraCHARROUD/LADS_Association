@@ -170,13 +170,19 @@ describe('FollowupsService', () => {
         noteType: 'warning',
         author: expect.anything(),
         memberId: expect.anything(),
-        departmentId: { $in: [expect.anything()] },
+        departmentId: expect.anything(),
         createdAt: expect.objectContaining({
           $gte: expect.any(Date),
           $lte: expect.any(Date),
         }),
       }),
     );
+    expect(
+      followupModel.find.mock.calls[0][0].createdAt.$lte.toISOString(),
+    ).toBe('2026-01-31T23:59:59.999Z');
+    expect(
+      String(followupModel.find.mock.calls[0][0].departmentId),
+    ).toBe('507f1f77bcf86cd799439013');
 
     userModel.findById.mockReturnValueOnce({
       select: jest.fn().mockReturnThis(),

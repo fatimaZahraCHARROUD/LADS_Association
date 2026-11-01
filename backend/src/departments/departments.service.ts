@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Department, DepartmentDocument } from './schemas/department.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { Membership, User, UserDocument } from '../users/schemas/user.schema';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 
@@ -128,6 +128,53 @@ export class DepartmentsService {
     return this.update(id, { members: userIds });
   }
 
+  async resyncAllMemberships() {
+    const departments = await this.departmentModel
+      .find()
+      .select('_id manager viceManager teamManagers members')
+      .exec();
+    let membershipsSynced = 0;
+    let skippedAssignments = 0;
+
+    for (const department of departments) {
+      const assignments = new Map<string, string>();
+      const assign = (userId: Types.ObjectId | null, role: string) => {
+        if (userId && !assignments.has(String(userId))) {
+          assignments.set(String(userId), role);
+        }
+      };
+
+      assign(department.manager, 'Responsable');
+      assign(department.viceManager, 'Responsable');
+      for (const userId of department.teamManagers ?? []) {
+        assign(userId, 'Team Manager');
+      }
+      for (const userId of department.members ?? []) {
+        assign(userId, 'Member');
+      }
+
+      for (const [userId, role] of assignments) {
+        if (
+          await this.syncMembership(
+            userId,
+            String(department._id),
+            role,
+          )
+        ) {
+          membershipsSynced += 1;
+        } else {
+          skippedAssignments += 1;
+        }
+      }
+    }
+
+    return {
+      departmentsProcessed: departments.length,
+      membershipsSynced,
+      skippedAssignments,
+    };
+  }
+
   async remove(id: string) {
     this.validateDepartmentId(id);
     const department = await this.departmentModel.findByIdAndDelete(id).exec();
@@ -143,73 +190,71 @@ export class DepartmentsService {
     userId: string,
     departmentId: string,
     role: string,
-  ) {
-    if (!Types.ObjectId.isValid(userId)) return;
-    if (!Types.ObjectId.isValid(departmentId)) return;
-
-    const user = await this.userModel.findById(userId).exec();
-    if (!user) return;
-
-    // Drop broken entries (no departmentId) so we don't keep them around
-   const existing = (user.memberships ?? []) as any[];
-
-    // Skip if user already has this exact (dept, role) pair
-    const already = existing.some(
-      (m) =>
-        String(m.departmentId) === String(departmentId) && m.role === role,
-    );
-    if (already) {
-      // Déjà membre : on s'assure juste que `departement` reste à jour
-      await this.userModel
-        .findByIdAndUpdate(
-          userId,
-          {
-            departement: existing
-              .filter((m) => !!m.departmentId)
-              .map((m) => m.departmentId),
-          },
-          { new: true },
-        )
-        .exec();
-      return;
+  ): Promise<boolean> {
+    if (
+      !Types.ObjectId.isValid(userId) ||
+      !Types.ObjectId.isValid(departmentId)
+    ) {
+      return false;
     }
 
-    // Drop any prior membership for this department (role change)
-    const filtered = existing.filter(
-      (m) => String(m.departmentId) !== String(departmentId),
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) return false;
+
+    const existing = (user.memberships ?? []) as Membership[];
+    const departmentMemberships = existing.filter(
+      (membership) => String(membership.departmentId) === departmentId,
+    );
+    const canonicalMembership =
+      departmentMemberships.find(
+        (membership) =>
+          String(membership._id) === String(user.activeMembershipId),
+      ) ?? departmentMemberships[0];
+    const memberships = existing.filter(
+      (membership) =>
+        String(membership.departmentId) !== departmentId ||
+        String(membership._id) === String(canonicalMembership?._id),
     );
 
-    // Don't touch admins with a global membership
-    // const hasGlobal = filtered.some(
-    //   (m) =>
-    //     !m.departmentId &&
-    //     ['President', 'Director Executive'].includes(m.role),
-    // );
-    // if (hasGlobal) return;
+    if (canonicalMembership) {
+      canonicalMembership.role = role;
+    } else {
+      memberships.push({
+        _id: new Types.ObjectId(),
+        departmentId: new Types.ObjectId(departmentId),
+        role,
+      });
+    }
 
-    const newMembership = {
-      _id: new Types.ObjectId(),
-      departmentId: new Types.ObjectId(departmentId),
-      role,
-    };
-
-    const memberships = [...filtered, newMembership];
+    const departmentIds: Types.ObjectId[] = [];
+    for (const membership of memberships) {
+      const membershipDepartmentId = membership.departmentId;
+      if (
+        membershipDepartmentId &&
+        !departmentIds.some((id) => id.equals(membershipDepartmentId))
+      ) {
+        departmentIds.push(membershipDepartmentId);
+      }
+    }
 
     const activeValid =
       user.activeMembershipId &&
       memberships.some(
-        (m) => String(m._id) === String(user.activeMembershipId),
+        (membership) =>
+          String(membership._id) === String(user.activeMembershipId),
       );
-
-    const patch: any = {
-      memberships,
-      departement: memberships
-        .filter((m) => !!m.departmentId)
-        .map((m) => m.departmentId),
-    };
-    if (!activeValid) patch.activeMembershipId = memberships[0]._id;
+    const patch: {
+      memberships: Membership[];
+      departement: Types.ObjectId[];
+      activeMembershipId?: Types.ObjectId | null;
+    } = { memberships, departement: departmentIds };
+    if (!activeValid) {
+      const firstMembership = memberships[0];
+      patch.activeMembershipId = firstMembership?._id ?? null;
+    }
 
     await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+    return true;
   }
 
   private async removeMembership(userId: string, departmentId: string) {
