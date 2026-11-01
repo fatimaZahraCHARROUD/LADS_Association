@@ -48,14 +48,23 @@ export class FollowupsService {
     if (filters.from || filters.to) {
       query.createdAt = {
         ...(filters.from ? { $gte: new Date(filters.from) } : {}),
-        ...(filters.to ? { $lte: new Date(filters.to) } : {}),
+        ...(filters.to ? { $lte: endOfDay(filters.to) } : {}),
       };
     }
 
     if (!scope.allowAllDepartments) {
-      query.departmentId = {
-        $in: scope.allowedDepartmentIds.map((id) => new Types.ObjectId(id)),
-      };
+      if (filteredId(filters.departmentId)) {
+        if (!scope.allowedDepartmentIds.includes(String(filters.departmentId))) {
+          throw new ForbiddenException(
+            'You do not have access to this department',
+          );
+        }
+        query.departmentId = new Types.ObjectId(filters.departmentId);
+      } else {
+        query.departmentId = {
+          $in: scope.allowedDepartmentIds.map((id) => new Types.ObjectId(id)),
+        };
+      }
     }
 
     return this.followupModel
@@ -238,4 +247,10 @@ export class FollowupsService {
 
 function filteredId(value?: string | null): boolean {
   return !!value && Types.ObjectId.isValid(value);
+}
+
+function endOfDay(value: string): Date {
+  const date = new Date(value);
+  date.setUTCHours(23, 59, 59, 999);
+  return date;
 }

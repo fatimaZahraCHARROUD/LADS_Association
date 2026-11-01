@@ -1,4 +1,5 @@
 import { LocalizedStringDto } from '../../events/dto/create-event.dto';
+import { IsMongoId, IsOptional } from 'class-validator';
 
 export class CreateActivityDto {
   title!: LocalizedStringDto;
@@ -10,5 +11,12 @@ export class CreateActivityDto {
   categorie?: string;
   status?: 'upcoming' | 'completed';
   isPublished?: boolean;
-  createdBy?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  departmentId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  memberId?: string;
 }

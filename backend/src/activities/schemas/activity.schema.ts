@@ -40,6 +40,12 @@ export class Activity {
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   createdBy!: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Department', default: null })
+  departmentId!: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  memberId!: Types.ObjectId | null;
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);
