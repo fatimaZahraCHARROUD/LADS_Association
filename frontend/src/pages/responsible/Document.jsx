@@ -1,7 +1,5 @@
-import React from 'react'
+import Documents from "../admin/Documents";
 
 export default function Document() {
-  return (
-    <div>Document ilyas</div>
-  )
+  return <Documents />;
 }

@@ -14,8 +14,8 @@ import { UsersModule } from '../users/users.module';
   imports: [
     MongooseModule.forFeature([
       { name: Meeting.name, schema: MeetingSchema },
-      { name: User.name, schema: UserSchema },
       { name: Department.name, schema: DepartmentSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     JwtModule,
     UsersModule,
