@@ -17,6 +17,7 @@ import {
   Objective,
   ObjectiveSchema,
 } from '../objectives/schemas/objective.schema';
+import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
@@ -32,6 +33,7 @@ import { StatisticsService } from './statistics.service';
       { name: Task.name, schema: TaskSchema },
       { name: Meeting.name, schema: MeetingSchema },
       { name: Objective.name, schema: ObjectiveSchema },
+      { name: Project.name, schema: ProjectSchema },
       { name: Activity.name, schema: ActivitySchema },
       { name: FollowupNote.name, schema: FollowupNoteSchema },
     ]),

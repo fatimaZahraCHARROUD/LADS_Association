@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -23,6 +22,7 @@ import {
   Objective,
   ObjectiveDocument,
 } from '../objectives/schemas/objective.schema';
+import { Project, ProjectDocument } from '../projects/schemas/project.schema';
 import { Task, TaskDocument } from '../tasks/schemas/task.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 
@@ -34,6 +34,18 @@ export interface DashboardFilters {
   period?: string;
 }
 
+function getCurrentWeekRange() {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  end.setUTCHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
 @Injectable()
 export class StatisticsService {
   constructor(
@@ -41,6 +53,8 @@ export class StatisticsService {
     private readonly departmentModel: Model<DepartmentDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Project.name)
+    private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     @InjectModel(Meeting.name)
@@ -52,6 +66,385 @@ export class StatisticsService {
     @InjectModel(FollowupNote.name)
     private readonly followupModel: Model<FollowupNoteDocument>,
   ) {}
+
+  async getExecutiveDashboard() {
+    const [
+      totalDepartments,
+      totalMembers,
+      totalProjects,
+      objectives,
+      projects,
+    ] = await Promise.all([
+      this.departmentModel.countDocuments({}).exec(),
+      this.userModel.countDocuments({ isAdmin: { $ne: true } }).exec(),
+      this.projectModel.countDocuments({}).exec(),
+      this.objectiveModel
+        .find({})
+        .select(
+          '_id title description weekStart weekEnd target achievement progress status',
+        )
+        .sort({ weekEnd: 1 })
+        .lean()
+        .exec(),
+      this.projectModel
+        .find({})
+        .select('_id title description departmentId endDate status progress')
+        .populate('departmentId', 'name')
+        .sort({ endDate: 1 })
+        .lean()
+        .exec(),
+    ]);
+
+    return {
+      overview: {
+        totalDepartments: totalDepartments ?? 0,
+        totalMembers: totalMembers ?? 0,
+        totalProjects: totalProjects ?? 0,
+      },
+      data: { objectives, projects },
+    };
+  }
+
+  async getTeamManagerDashboard(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new ForbiddenException('Invalid user session');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userObjectId)
+      .select('isAdmin role memberships')
+      .lean()
+      .exec();
+    if (!user) throw new ForbiddenException('User session is invalid');
+
+    const isGlobalAdmin =
+      user.isAdmin === true || (user.role ?? []).includes('President');
+    const memberships = user.memberships ?? [];
+    const membershipDepartmentIds = memberships
+      .filter(
+        (membership) =>
+          membership.role === 'Team Manager' && membership.departmentId,
+      )
+      .map((membership) => new Types.ObjectId(String(membership.departmentId)));
+
+    const departments = isGlobalAdmin
+      ? []
+      : await this.departmentModel
+          .find({
+            $or: [
+              { manager: userObjectId },
+              { viceManager: userObjectId },
+              { teamManagers: userObjectId },
+              { _id: { $in: membershipDepartmentIds } },
+            ],
+          })
+          .select('_id manager viceManager teamManagers members')
+          .lean()
+          .exec();
+
+    const departmentIds = departments.map(
+      (department) => new Types.ObjectId(String(department._id)),
+    );
+    const departmentMemberIds = departments.flatMap((department) => [
+      ...(department.members ?? []),
+      ...(department.teamManagers ?? []),
+      ...(department.manager ? [department.manager] : []),
+      ...(department.viceManager ? [department.viceManager] : []),
+    ]);
+
+    const projectScope = isGlobalAdmin
+      ? {}
+      : {
+          $or: [
+            { departmentId: { $in: departmentIds } },
+            { managerIds: userObjectId },
+            { memberIds: userObjectId },
+          ],
+        };
+    const memberScope = isGlobalAdmin
+      ? { isAdmin: { $ne: true } }
+      : departmentIds.length
+        ? {
+            isAdmin: { $ne: true },
+            $or: [
+              { _id: { $in: departmentMemberIds } },
+              {
+                memberships: {
+                  $elemMatch: { departmentId: { $in: departmentIds } },
+                },
+              },
+              { departement: { $in: departmentIds } },
+            ],
+          }
+        : { _id: { $in: [] } };
+
+    const departmentScope = isGlobalAdmin
+      ? {}
+      : { _id: { $in: departmentIds } };
+    const activeProjectFilter = {
+      status: 'in_progress',
+      ...projectScope,
+    };
+    const [totalDepartments, totalMembers, totalProjects, activeProjects] =
+      await Promise.all([
+        this.departmentModel.countDocuments(departmentScope).exec(),
+        this.userModel.countDocuments(memberScope).exec(),
+        this.projectModel.countDocuments(projectScope).exec(),
+        this.projectModel
+          .find(activeProjectFilter)
+          .select('_id title description departmentId endDate status progress')
+          .populate('departmentId', 'name')
+          .sort({ endDate: 1 })
+          .lean()
+          .exec(),
+      ]);
+
+    return {
+      overview: {
+        totalDepartments: totalDepartments ?? 0,
+        totalMembers: totalMembers ?? 0,
+        totalProjects: totalProjects ?? 0,
+      },
+      data: { activeProjects },
+    };
+  }
+
+  async getResponsableDashboard(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new ForbiddenException('Invalid user session');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userObjectId)
+      .select('memberships')
+      .lean()
+      .exec();
+    if (!user) throw new ForbiddenException('User session is invalid');
+
+    const { start, end } = getCurrentWeekRange();
+    const departmentIds = [
+      ...new Set(
+        (user.memberships ?? [])
+          .filter(
+            (membership) =>
+              membership.role === 'Responsable' && membership.departmentId,
+          )
+          .map((membership) => String(membership.departmentId)),
+      ),
+    ].map((id) => new Types.ObjectId(id));
+
+    const departments = departmentIds.length
+      ? await this.departmentModel
+          .find({ _id: { $in: departmentIds } })
+          .select('members')
+          .lean()
+          .exec()
+      : [];
+    const departmentMemberIds = [
+      ...new Set(
+        departments.flatMap((department) =>
+          (department.members ?? []).map((memberId) => String(memberId)),
+        ),
+      ),
+    ]
+      .filter((memberId) => memberId !== String(userObjectId))
+      .map((memberId) => new Types.ObjectId(memberId));
+
+    const memberFilter = departmentIds.length
+      ? {
+          _id: { $ne: userObjectId },
+          isAdmin: { $ne: true },
+          $or: [
+            { _id: { $in: departmentMemberIds } },
+            {
+              memberships: {
+                $elemMatch: {
+                  departmentId: { $in: departmentIds },
+                  role: 'Member',
+                },
+              },
+            },
+            { departement: { $in: departmentIds }, role: 'Member' },
+          ],
+        }
+      : { _id: { $in: [] } };
+    const [totalMembers, members] = await Promise.all([
+      this.userModel.countDocuments(memberFilter).exec(),
+      this.userModel
+        .find(memberFilter)
+        .select('_id fullName email status')
+        .sort({ fullName: 1 })
+        .lean()
+        .exec(),
+    ]);
+    const teamMemberIds = [
+      ...new Set([
+        ...departmentMemberIds.map(String),
+        ...members.map((member) => String(member._id)),
+      ]),
+    ].map((memberId) => new Types.ObjectId(memberId));
+    const taskScope = {
+      $or: [
+        { departmentId: { $in: departmentIds } },
+        { assignedTo: { $in: teamMemberIds } },
+      ],
+    };
+
+    const [totalPendingTasks, totalCompletedTasks, pendingTasks, objectives] =
+      await Promise.all([
+        this.taskModel
+          .countDocuments({
+            ...taskScope,
+            status: { $in: ['todo', 'in-progress'] },
+          })
+          .exec(),
+        this.taskModel.countDocuments({ ...taskScope, status: 'done' }).exec(),
+        this.taskModel
+          .find({
+            ...taskScope,
+            status: { $in: ['todo', 'in-progress'] },
+          })
+          .select(
+            '_id title description priority deadline status assignedTo departmentId objectiveId',
+          )
+          .populate('assignedTo', 'fullName')
+          .sort({ deadline: 1, createdAt: -1 })
+          .lean()
+          .exec(),
+        departmentIds.length
+          ? this.objectiveModel
+              .find({
+                departmentId: { $in: departmentIds },
+                weekStart: { $lte: end },
+                weekEnd: { $gte: start },
+              })
+              .select(
+                '_id title description weekStart weekEnd target achievement progress status departmentId',
+              )
+              .sort({ weekStart: 1 })
+              .lean()
+              .exec()
+          : Promise.resolve([]),
+      ]);
+
+    return {
+      overview: {
+        totalMembers: totalMembers ?? 0,
+        totalPendingTasks: totalPendingTasks ?? 0,
+        totalCompletedTasks: totalCompletedTasks ?? 0,
+      },
+      data: { objectives, members, pendingTasks },
+    };
+  }
+
+  async getMemberDashboard(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new ForbiddenException('Invalid user session');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userObjectId)
+      .select('fullName memberships departement')
+      .lean()
+      .exec();
+    if (!user) throw new ForbiddenException('User session is invalid');
+
+    const { start, end } = getCurrentWeekRange();
+    const departmentIds = [
+      ...new Set([
+        ...(user.memberships ?? [])
+          .filter(
+            (membership) =>
+              membership.role === 'Member' && membership.departmentId,
+          )
+          .map((membership) => String(membership.departmentId)),
+        ...(user.departement ?? []).map((departmentId) => String(departmentId)),
+      ]),
+    ].map((id) => new Types.ObjectId(id));
+
+    const [tasks, totalTasks, totalCompletedTasks] = await Promise.all([
+      this.taskModel
+        .find({ assignedTo: userObjectId })
+        .select(
+          '_id title description priority deadline status objectiveId departmentId createdAt',
+        )
+        .sort({ deadline: 1, createdAt: -1 })
+        .lean()
+        .exec(),
+      this.taskModel.countDocuments({ assignedTo: userObjectId }).exec(),
+      this.taskModel
+        .countDocuments({ assignedTo: userObjectId, status: 'done' })
+        .exec(),
+    ]);
+
+    const taskObjectiveIds = [
+      ...new Set(
+        tasks
+          .filter((task) => task.objectiveId)
+          .map((task) => String(task.objectiveId)),
+      ),
+    ].map((id) => new Types.ObjectId(id));
+    const objectiveScope = [
+      ...(departmentIds.length
+        ? [{ departmentId: { $in: departmentIds } }]
+        : []),
+      ...(taskObjectiveIds.length ? [{ _id: { $in: taskObjectiveIds } }] : []),
+    ];
+    const objectives = objectiveScope.length
+      ? await this.objectiveModel
+          .find({
+            $or: objectiveScope,
+            weekStart: { $lte: end },
+            weekEnd: { $gte: start },
+          })
+          .select(
+            '_id title description weekStart weekEnd target achievement progress status departmentId',
+          )
+          .sort({ weekStart: 1 })
+          .lean()
+          .exec()
+      : [];
+    const weeklyObjectiveIds = new Set(
+      objectives.map((objective) => String(objective._id)),
+    );
+    const objectivesById = new Map(
+      objectives.map((objective) => [String(objective._id), objective]),
+    );
+    const weeklyTasks = tasks.filter((task) => {
+      const deadline = task.deadline ? new Date(task.deadline) : null;
+      const dueThisWeek =
+        deadline !== null && deadline >= start && deadline <= end;
+      const linkedToWeeklyObjective =
+        task.objectiveId !== null &&
+        task.objectiveId !== undefined &&
+        weeklyObjectiveIds.has(String(task.objectiveId));
+      return dueThisWeek || linkedToWeeklyObjective;
+    });
+    const withObjective = (task: (typeof tasks)[number]) => ({
+      ...task,
+      objectiveId: task.objectiveId
+        ? (objectivesById.get(String(task.objectiveId)) ?? null)
+        : null,
+    });
+
+    return {
+      user: { fullName: user.fullName },
+      overview: {
+        totalTasks: totalTasks ?? 0,
+        totalCompletedTasks: totalCompletedTasks ?? 0,
+      },
+      data: {
+        thisWeek: {
+          tasks: weeklyTasks.map(withObjective),
+          objectives,
+        },
+        tasks: tasks.map(withObjective),
+      },
+    };
+  }
 
   async getDashboard(userId: string, filters: DashboardFilters = {}) {
     const access = await this.resolveAccess(
@@ -80,11 +473,22 @@ export class StatisticsService {
       .lean()
       .exec();
 
-    const memberIds = await this.getMemberIdsForDepartments(
-      access.allowAllDepartments ? departmentIds : departmentIds,
-    );
+    const memberIds = access.allowAllDepartments
+      ? await this.getAllMemberIds()
+      : await this.getMemberIdsForDepartments(departmentIds);
 
     const resolvedMemberIds = filters.memberId ? [filters.memberId] : memberIds;
+    const totalProjects = await this.projectModel
+      .countDocuments(
+        access.allowAllDepartments
+          ? {}
+          : {
+              departmentId: {
+                $in: departmentIds.map((id) => new Types.ObjectId(id)),
+              },
+            },
+      )
+      .exec();
 
     const tasks = await this.taskModel
       .find({
@@ -198,6 +602,7 @@ export class StatisticsService {
     const overview = {
       totalDepartments: departmentList.length,
       totalMembers: resolvedMemberIds.length,
+      totalProjects,
       totalTasks: tasks.length,
       completedTasks: tasks.filter(
         (task) => String(task.status).toLowerCase() === 'done',
@@ -551,9 +956,26 @@ export class StatisticsService {
   }
 
   private async getMemberIdsForDepartments(departmentIds: string[]) {
+    if (departmentIds.length === 0) return [];
+
     const ids = departmentIds.map((id) => new Types.ObjectId(id));
     const members = await this.userModel
-      .find({ memberships: { $elemMatch: { departmentId: { $in: ids } } } })
+      .find({
+        isAdmin: { $ne: true },
+        $or: [
+          { memberships: { $elemMatch: { departmentId: { $in: ids } } } },
+          { departement: { $in: ids } },
+        ],
+      })
+      .select('_id')
+      .lean()
+      .exec();
+    return members.map((member) => String(member._id));
+  }
+
+  private async getAllMemberIds() {
+    const members = await this.userModel
+      .find({ isAdmin: { $ne: true } })
       .select('_id')
       .lean()
       .exec();
