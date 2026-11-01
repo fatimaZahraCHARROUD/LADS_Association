@@ -19,7 +19,9 @@ export default tseslint.config(
       },
       sourceType: 'commonjs',
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['scripts/seed-dashboard-sample.ts'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
