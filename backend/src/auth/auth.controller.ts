@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
@@ -14,13 +22,13 @@ export class AuthController {
   login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body.email, body.password);
   }
-@UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('switch-role')
-switchRole(@Body() body: { membershipId: string }, @Req() req: any) {
-  return this.authService.switchRole(getUserId(req), body.membershipId);
-}
+  switchRole(@Body() body: { membershipId: string }, @Req() req: any) {
+    return this.authService.switchRole(getUserId(req), body.membershipId);
+  }
 
-   @Post('register')
+  @Post('register')
   register(@Body() dto: CreateAuthDto) {
     return this.authService.register(dto);
   }

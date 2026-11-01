@@ -55,6 +55,8 @@ export class TasksController {
     return this.tasksService.update(id, dto, getUserId(req));
   }
 
+  // Avancer le statut d'une tâche : tout le monde, MAIS le Member ne peut
+  // changer que SES tâches (vérifié dans le service)
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable', 'Member')
   @Patch(':id/status')
   updateStatus(

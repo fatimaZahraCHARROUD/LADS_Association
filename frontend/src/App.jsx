@@ -135,6 +135,7 @@ function App() {
           <Route path="meetings" element={<AdminMeetings />} />
           <Route path="departments" element={<AdminDepartments />} />
           <Route path="projects" element={<AdminProjects />} />
+          <Route path="followup" element={<ExecFollowup />} />
         </Route>
 
         {/* ================= DIRECTOR EXECUTIVE ================= */}
@@ -142,9 +143,7 @@ function App() {
   path="/exec"
   element={
     <ProtectedRoute>
-      <RoleGuard allow={["Director Executive"]}>
-        <AdminLayout />
-      </RoleGuard>
+      <AdminLayout />
     </ProtectedRoute>
   }
 >
@@ -161,9 +160,7 @@ function App() {
   path="/team"
   element={
     <ProtectedRoute>
-      <RoleGuard allow={["Team Manager"]}>
-        <AdminLayout />
-      </RoleGuard>
+      <AdminLayout />
     </ProtectedRoute>
   }
 >

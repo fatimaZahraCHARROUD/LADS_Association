@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import "../../Styles/login.css";
+import { getEffectiveRole } from "../../utils/activeRole";
+import { API_BASE } from "../../services/api";
 
 async function login(email, password) {
-  const res = await fetch("http://localhost:3000/auth/login", {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -46,10 +48,7 @@ useEffect(() => {
     const data = await login(email, password);   // ← capture here
 
     const user = data.user;
-    const memberships = user.memberships || [];
-    const active = memberships.find(
-      (m) => String(m._id) === String(user.activeMembershipId)   // ← String() both sides
-    );
+    const activeRole = getEffectiveRole(user);
 
     const ROLE_ROUTES = {
       President: "/admin",
@@ -59,10 +58,7 @@ useEffect(() => {
       Member: "/member",
     };
 
-    const dest =
-      user.isAdmin || (user.role || []).includes("President")
-        ? "/admin"
-        : ROLE_ROUTES[active?.role] || "/login";
+    const dest = ROLE_ROUTES[activeRole] || "/login";
 
     navigate(dest);
   } catch (err) {

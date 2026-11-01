@@ -159,7 +159,8 @@ export class ObjectivesService {
 
     if (dto.title !== undefined) updates.title = dto.title.trim();
     if (dto.description !== undefined) updates.description = dto.description;
-    if (dto.weekStart !== undefined) updates.weekStart = new Date(dto.weekStart);
+    if (dto.weekStart !== undefined)
+      updates.weekStart = new Date(dto.weekStart);
     if (dto.weekEnd !== undefined) updates.weekEnd = new Date(dto.weekEnd);
     if (dto.status !== undefined) updates.status = dto.status;
 

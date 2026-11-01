@@ -1,4 +1,3 @@
-
 export class CreateAuthDto {
   fullName!: string;
 

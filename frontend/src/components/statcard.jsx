@@ -1,6 +1,6 @@
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
-function StatCard({ def, stat, pillSuffix, loading = false, error = null }) {
+function StatCard({ def, stat, pillSuffix, loading = false, error = null, showChange = true }) {
   const percent = Math.max(0, Math.min(100, Number(stat?.ring) || 0));
   const ringData = [
     { value: percent },
@@ -14,9 +14,21 @@ function StatCard({ def, stat, pillSuffix, loading = false, error = null }) {
         <p className="mt-2 text-3xl font-bold text-brand-text">
           {loading ? "..." : error ? "-" : stat?.value ?? 0}
         </p>
-        <p className={`mt-2 text-xs font-medium ${def.color}`}>
-          {loading ? "Loading..." : error ? "Unavailable" : `${stat?.change ?? 0} new ${pillSuffix}`}
-        </p>
+        {(showChange || loading || error) && (
+          <p
+            role={error ? "alert" : undefined}
+            title={error || undefined}
+            className={`mt-2 break-words text-xs font-medium ${error ? "text-rose-700" : def.color}`}
+          >
+            {loading
+              ? "Loading..."
+              : error
+                ? error
+                : showChange
+                  ? `${stat?.change ?? 0} new ${pillSuffix}`
+                  : ""}
+          </p>
+        )}
       </div>
       <div className="relative w-14 h-14 shrink-0" aria-label={`${percent}% progress`}>
         <ResponsiveContainer

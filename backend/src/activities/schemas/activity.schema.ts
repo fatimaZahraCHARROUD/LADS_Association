@@ -23,7 +23,7 @@ export class Activity {
   @Prop({ default: '' })
   location!: string;
 
-  @Prop({ default:'' })
+  @Prop({ default: '' })
   image!: string;
 
   @Prop({ default: '' })

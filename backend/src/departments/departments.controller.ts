@@ -35,6 +35,12 @@ export class DepartmentsController {
     return this.departmentsService.findAll();
   }
 
+  @Roles('President', 'Director Executive')
+  @Post('resync')
+  resync() {
+    return this.departmentsService.resyncAllMemberships();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.departmentsService.findOne(id);
@@ -84,6 +90,4 @@ export class DepartmentsController {
   remove(@Param('id') id: string) {
     return this.departmentsService.remove(id);
   }
-
-  
 }

@@ -8,20 +8,21 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { WriterRoleGuard } from '../services/jwt/writer-role.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UsersModule } from '../users/users.module';
-import { User, UserSchema } from '../users/schemas/user.schema'; 
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: LadsDocument.name, schema: DocumentSchema },
       { name: Department.name, schema: DepartmentSchema },
-      {name: User.name, schema: UserSchema}
+      { name: User.name, schema: UserSchema },
     ]),
     JwtModule,
     UsersModule,
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, JwtAuthGuard, WriterRoleGuard],
+  providers: [DocumentsService, JwtAuthGuard, WriterRoleGuard, ActiveRoleGuard],
   exports: [DocumentsService],
 })
 export class DocumentsModule {}

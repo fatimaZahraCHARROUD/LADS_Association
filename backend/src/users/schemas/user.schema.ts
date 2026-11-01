@@ -64,6 +64,9 @@ export class User {
   @Prop({ type: Types.ObjectId, default: null })
   activeMembershipId!: Types.ObjectId | null;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Department' }], default: [] })
+  departement!: Types.ObjectId[];
+
   @Prop({ default: '' })
   profileImage!: string;
 

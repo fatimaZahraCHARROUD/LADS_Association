@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Department, DepartmentDocument } from './schemas/department.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { Membership, User, UserDocument } from '../users/schemas/user.schema';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 
@@ -60,18 +60,8 @@ export class DepartmentsService {
       teamManagers,
       members,
     });
-
-    const deptId = String(department._id);
-    if (manager)
-      await this.syncMembership(String(manager), deptId, 'Responsable');
-    if (viceManager)
-      await this.syncMembership(String(viceManager), deptId, 'Responsable');
-    for (const tm of teamManagers)
-      await this.syncMembership(String(tm), deptId, 'Team Manager');
-    for (const m of members)
-      await this.syncMembership(String(m), deptId, 'Member');
-
-    return this.findOne(deptId);
+    await this.syncDepartmentMemberships(department, []);
+    return this.findOne(String(department._id));
   }
 
   async update(id: string, dto: UpdateDepartmentDto) {
@@ -79,23 +69,20 @@ export class DepartmentsService {
     const current = await this.departmentModel.findById(id).exec();
     if (!current) throw new NotFoundException(`Department ${id} not found`);
 
-    // ── Snapshot BEFORE state ──
-    const beforeManager = current.manager ? String(current.manager) : null;
-    const beforeVice = current.viceManager ? String(current.viceManager) : null;
-    const beforeTeamManagers = (current.teamManagers ?? []).map(String);
-    const beforeMembers = (current.members ?? []).map(String);
-
-    // ── Build updates object ──
     const updates: Record<string, unknown> = {};
     if (dto.name !== undefined) updates.name = this.validateName(dto.name);
-    if (dto.manager !== undefined)
+    if (dto.manager !== undefined) {
       updates.manager = await this.validateUserId(dto.manager);
-    if (dto.viceManager !== undefined)
+    }
+    if (dto.viceManager !== undefined) {
       updates.viceManager = await this.validateUserId(dto.viceManager);
-    if (dto.teamManagers !== undefined)
+    }
+    if (dto.teamManagers !== undefined) {
       updates.teamManagers = await this.validateUserIds(dto.teamManagers);
-    if (dto.members !== undefined)
+    }
+    if (dto.members !== undefined) {
       updates.members = await this.validateUserIds(dto.members);
+    }
 
     const manager = Object.prototype.hasOwnProperty.call(updates, 'manager')
       ? (updates.manager as Types.ObjectId | null)
@@ -108,65 +95,15 @@ export class DepartmentsService {
       : current.viceManager;
     this.validateDistinctManagers(manager, viceManager);
 
-    // ── Apply the department update ──
     const updated = await this.departmentModel
       .findByIdAndUpdate(id, updates, { new: true, runValidators: true })
       .exec();
     if (!updated) throw new NotFoundException(`Department ${id} not found`);
-
-    // ── Snapshot AFTER state (must come after the DB update) ──
-    const afterManager = updated.manager ? String(updated.manager) : null;
-    const afterVice = updated.viceManager ? String(updated.viceManager) : null;
-    const afterTeamManagers = (updated.teamManagers ?? []).map(String);
-    const afterMembers = (updated.members ?? []).map(String);
-
-    const deptId = id;
-
-    // ── Sync memberships: Manager ──
-    if (dto.manager !== undefined) {
-      if (beforeManager && beforeManager !== afterManager) {
-        await this.removeMembership(beforeManager, deptId);
-      }
-      if (afterManager) {
-        await this.syncMembership(afterManager, deptId, 'Responsable');
-      }
-    }
-
-    // ── Sync memberships: Vice manager ──
-    if (dto.viceManager !== undefined) {
-      if (beforeVice && beforeVice !== afterVice) {
-        await this.removeMembership(beforeVice, deptId);
-      }
-      if (afterVice) {
-        await this.syncMembership(afterVice, deptId, 'Responsable');
-      }
-    }
-
-    // ── Sync memberships: Team managers (full resync) ──
-    if (dto.teamManagers !== undefined) {
-      for (const uid of afterTeamManagers) {
-        await this.syncMembership(uid, deptId, 'Team Manager');
-      }
-      for (const uid of beforeTeamManagers) {
-        if (!afterTeamManagers.includes(uid)) {
-          await this.removeMembership(uid, deptId);
-        }
-      }
-    }
-
-    // ── Sync memberships: Members (full resync) ──
-    if (dto.members !== undefined) {
-      for (const uid of afterMembers) {
-        await this.syncMembership(uid, deptId, 'Member');
-      }
-      for (const uid of beforeMembers) {
-        if (!afterMembers.includes(uid)) {
-          await this.removeMembership(uid, deptId);
-        }
-      }
-    }
-
-    return this.findOne(deptId);
+    await this.syncDepartmentMemberships(
+      updated,
+      this.getDepartmentUserIds(current),
+    );
+    return this.findOne(id);
   }
 
   async assignManager(id: string, userId: string | null) {
@@ -199,18 +136,79 @@ export class DepartmentsService {
 
   async remove(id: string) {
     this.validateDepartmentId(id);
-    const department = await this.departmentModel.findByIdAndDelete(id).exec();
+    const department = await this.departmentModel.findById(id).exec();
     if (!department) throw new NotFoundException(`Department ${id} not found`);
-
-    const userIds = new Set<string>();
-    if (department.manager) userIds.add(String(department.manager));
-    if (department.viceManager) userIds.add(String(department.viceManager));
-    (department.teamManagers ?? []).forEach((u) => userIds.add(String(u)));
-    (department.members ?? []).forEach((u) => userIds.add(String(u)));
-
-    for (const uid of userIds) await this.removeMembership(uid, id);
-
+    await this.departmentModel.findByIdAndDelete(id).exec();
+    await this.syncDepartmentMemberships(
+      department,
+      this.getDepartmentUserIds(department),
+      true,
+    );
     return { deleted: true };
+  }
+
+  async resyncAllMemberships() {
+    const departments = await this.departmentModel
+      .find()
+      .select('_id manager viceManager teamManagers members')
+      .exec();
+    const assignments = new Map<string, Map<string, string>>();
+
+    for (const department of departments) {
+      const departmentId = String(department._id);
+      const departmentAssignments = new Map<string, string>();
+
+      for (const userId of department.members ?? []) {
+        departmentAssignments.set(String(userId), 'Member');
+      }
+      for (const userId of department.teamManagers ?? []) {
+        departmentAssignments.set(String(userId), 'Team Manager');
+      }
+      if (department.manager) {
+        departmentAssignments.set(String(department.manager), 'Responsable');
+      }
+      if (department.viceManager) {
+        departmentAssignments.set(
+          String(department.viceManager),
+          'Responsable',
+        );
+      }
+
+      assignments.set(departmentId, departmentAssignments);
+      for (const [userId, role] of departmentAssignments) {
+        await this.syncMembership(userId, departmentId, role);
+      }
+    }
+
+    const users = await this.userModel.find().select('memberships').exec();
+    let removedMemberships = 0;
+    for (const user of users) {
+      const userId = String(user._id);
+      const userAssignments = user.memberships ?? [];
+      const staleDepartmentIds = new Set(
+        userAssignments
+          .filter((membership) => {
+            if (!membership.departmentId) return false;
+            const departmentId = String(membership.departmentId);
+            return !assignments.get(departmentId)?.has(userId);
+          })
+          .map((membership) => String(membership.departmentId)),
+      );
+
+      for (const departmentId of staleDepartmentIds) {
+        await this.removeMembership(userId, departmentId);
+        removedMemberships += 1;
+      }
+    }
+
+    return {
+      departments: departments.length,
+      memberships: Array.from(assignments.values()).reduce(
+        (total, departmentAssignments) => total + departmentAssignments.size,
+        0,
+      ),
+      removedMemberships,
+    };
   }
 
   // ─────────────────────────────────────────────
@@ -229,14 +227,27 @@ export class DepartmentsService {
     if (!user) return;
 
     // Drop broken entries (no departmentId) so we don't keep them around
-   const existing = (user.memberships ?? []) as any[];
+    const existing: Membership[] = user.memberships ?? [];
 
     // Skip if user already has this exact (dept, role) pair
     const already = existing.some(
-      (m) =>
-        String(m.departmentId) === String(departmentId) && m.role === role,
+      (m) => String(m.departmentId) === String(departmentId) && m.role === role,
     );
-    if (already) return;
+    if (already) {
+      // Déjà membre : on s'assure juste que `departement` reste à jour
+      await this.userModel
+        .findByIdAndUpdate(
+          userId,
+          {
+            departement: existing
+              .filter((m) => !!m.departmentId)
+              .map((m) => m.departmentId),
+          },
+          { new: true },
+        )
+        .exec();
+      return;
+    }
 
     // Drop any prior membership for this department (role change)
     const filtered = existing.filter(
@@ -260,15 +271,79 @@ export class DepartmentsService {
     const memberships = [...filtered, newMembership];
 
     const activeValid =
-      user.activeMembershipId &&
+      user.activeMembershipId != null &&
       memberships.some(
         (m) => String(m._id) === String(user.activeMembershipId),
       );
 
-    const patch: any = { memberships };
-    if (!activeValid) patch.activeMembershipId = memberships[0]._id;
+    const patch: Partial<User> = {
+      memberships,
+      departement: memberships.flatMap((m) =>
+        m.departmentId ? [m.departmentId] : [],
+      ),
+    };
+    if (!activeValid) patch.activeMembershipId = memberships[0]?._id ?? null;
 
     await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+  }
+
+  private async syncDepartmentMemberships(
+    department: DepartmentDocument,
+    previousUserIds: string[],
+    removed = false,
+  ) {
+    const departmentId = String(department._id);
+    const assignments = removed
+      ? new Map<string, string>()
+      : this.getDepartmentAssignments(department);
+    const affectedUserIds = new Set([
+      ...previousUserIds,
+      ...assignments.keys(),
+    ]);
+
+    for (const userId of affectedUserIds) {
+      const role = assignments.get(userId);
+      if (role) {
+        await this.syncMembership(userId, departmentId, role);
+      } else {
+        await this.removeMembership(userId, departmentId);
+      }
+    }
+  }
+
+  private getDepartmentAssignments(
+    department: Pick<
+      Department,
+      'manager' | 'viceManager' | 'teamManagers' | 'members'
+    >,
+  ) {
+    const assignments = new Map<string, string>();
+    for (const userId of department.members ?? []) {
+      assignments.set(this.getUserId(userId), 'Member');
+    }
+    for (const userId of department.teamManagers ?? []) {
+      assignments.set(this.getUserId(userId), 'Team Manager');
+    }
+    if (department.manager) {
+      assignments.set(this.getUserId(department.manager), 'Responsable');
+    }
+    if (department.viceManager) {
+      assignments.set(this.getUserId(department.viceManager), 'Responsable');
+    }
+    return assignments;
+  }
+
+  private getDepartmentUserIds(
+    department: Pick<
+      Department,
+      'manager' | 'viceManager' | 'teamManagers' | 'members'
+    >,
+  ) {
+    return Array.from(this.getDepartmentAssignments(department).keys());
+  }
+
+  private getUserId(value: Types.ObjectId | string) {
+    return typeof value === 'string' ? value : value.toHexString();
   }
 
   private async removeMembership(userId: string, departmentId: string) {
@@ -277,19 +352,22 @@ export class DepartmentsService {
     const user = await this.userModel.findById(userId).exec();
     if (!user) return;
 
-    const existing = (user.memberships ?? []) as any[];
+    const existing: Membership[] = user.memberships ?? [];
     const filtered = existing.filter(
       (m) => String(m.departmentId) !== String(departmentId),
     );
     if (filtered.length === existing.length) return;
 
     const activeValid =
-      user.activeMembershipId &&
-      filtered.some(
-        (m) => String(m._id) === String(user.activeMembershipId),
-      );
+      user.activeMembershipId != null &&
+      filtered.some((m) => String(m._id) === String(user.activeMembershipId));
 
-    const patch: any = { memberships: filtered };
+    const patch: Partial<User> = {
+      memberships: filtered,
+      departement: filtered.flatMap((m) =>
+        m.departmentId ? [m.departmentId] : [],
+      ),
+    };
     if (!activeValid) {
       patch.activeMembershipId = filtered[0]?._id ?? null;
     }
@@ -327,22 +405,31 @@ export class DepartmentsService {
   }
 
   private async validateUserIds(userIds: string[]) {
-    if (!Array.isArray(userIds))
+    if (!Array.isArray(userIds)) {
       throw new BadRequestException('User IDs must be an array');
-    const ids = userIds.map((id) =>
-      typeof id === 'string' ? id.trim() : id,
-    );
-    if (ids.some((id) => typeof id !== 'string' || !Types.ObjectId.isValid(id)))
+    }
+    if (
+      userIds.some(
+        (userId) =>
+          typeof userId !== 'string' || !Types.ObjectId.isValid(userId),
+      )
+    ) {
       throw new BadRequestException('All user IDs must be valid');
-    if (new Set(ids).size !== ids.length)
+    }
+    const normalizedUserIds = userIds.map((userId) => userId.toLowerCase());
+    if (new Set(normalizedUserIds).size !== normalizedUserIds.length) {
       throw new BadRequestException('A user cannot be assigned more than once');
+    }
 
-    const objectIds = ids.map((id) => new Types.ObjectId(id));
+    const objectIds = normalizedUserIds.map(
+      (userId) => new Types.ObjectId(userId),
+    );
     const existingCount = await this.userModel.countDocuments({
       _id: { $in: objectIds },
     });
-    if (existingCount !== objectIds.length)
+    if (existingCount !== objectIds.length) {
       throw new BadRequestException('One or more users do not exist');
+    }
     return objectIds;
   }
 
@@ -356,85 +443,4 @@ export class DepartmentsService {
       );
     }
   }
-
-  // ─────────────────────────────────────────────
-  //  One-off resync (temporary, safe to remove later)
-  // ─────────────────────────────────────────────
- async resyncAllMemberships() {
-  const departments = await this.departmentModel.find().exec();
-  const users = await this.userModel.find({ isAdmin: { $ne: true } }).exec();
-
-  for (const user of users) {
-    const userId = String(user._id);
-    const existing: any[] = (user.memberships ?? []).map((m: any) =>
-      typeof m.toObject === 'function' ? m.toObject() : m,
-    );
-
-    // Preserve GLOBAL memberships
-    const memberships: any[] = existing.filter((m) => !m.departmentId);
-
-    // Rebuild department memberships from the departments collection
-    for (const dept of departments) {
-      const deptId = String(dept._id);
-      if (dept.manager && String(dept.manager) === userId) {
-        memberships.push({
-          _id: new Types.ObjectId(),
-          departmentId: dept._id,
-          role: 'Responsable',
-        });
-      } else if (dept.viceManager && String(dept.viceManager) === userId) {
-        memberships.push({
-          _id: new Types.ObjectId(),
-          departmentId: dept._id,
-          role: 'Responsable',
-        });
-      } else if ((dept.teamManagers ?? []).some((u) => String(u) === userId)) {
-        memberships.push({
-          _id: new Types.ObjectId(),
-          departmentId: dept._id,
-          role: 'Team Manager',
-        });
-      } else if ((dept.members ?? []).some((u) => String(u) === userId)) {
-        memberships.push({
-          _id: new Types.ObjectId(),
-          departmentId: dept._id,
-          role: 'Member',
-        });
-      }
-    }
-
-    if (memberships.length === 0) {
-      memberships.push({
-        _id: new Types.ObjectId(),
-        departmentId: null,
-        role: 'Member',
-      });
-    }
-
-    const activeStillValid = memberships.some(
-      (m) => String(m._id) === String(user.activeMembershipId),
-    );
-    const activeMembershipId = activeStillValid
-      ? user.activeMembershipId
-      : (memberships.find((m) => !m.departmentId)?._id ?? memberships[0]._id);
-
-    await this.userModel.findByIdAndUpdate(userId, {
-      $set: {
-        memberships,
-        activeMembershipId,
-        role: Array.from(
-          new Set(memberships.map((m) => m.role).filter(Boolean)),
-        ),
-        departement: memberships
-          .filter((m) => !!m.departmentId)
-          .map((m) => m.departmentId),
-      },
-    });
-  }
-
-  return { ok: true, departments: departments.length, users: users.length };
-}
-
-
-  
 }

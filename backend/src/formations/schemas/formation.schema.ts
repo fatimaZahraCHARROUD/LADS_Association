@@ -20,7 +20,7 @@ export class Formation {
   @Prop({ default: '' })
   imgUrl!: string;
 
-   @Prop({ default: '' })
+  @Prop({ default: '' })
   coverImagePublicId!: string;
 
   @Prop({ required: true })

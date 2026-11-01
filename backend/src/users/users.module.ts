@@ -7,9 +7,12 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),JwtModule],
+  imports: [
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    JwtModule,
+  ],
   controllers: [UsersController],
-  providers: [UsersService,JwtAuthGuard],
+  providers: [UsersService, JwtAuthGuard],
   exports: [UsersService],
 })
 export class UsersModule {}

@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsArray, IsBoolean, IsEmail } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  IsBoolean,
+  IsEmail,
+} from 'class-validator';
 
 export class CreateMemberDto {
   @IsString()
@@ -10,39 +16,51 @@ export class CreateMemberDto {
   @IsString()
   password!: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   phone?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   genre?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   birthday?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   ville?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   niveau_etude?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   specialite_etude?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   situation?: string;
 
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   departement?: string[];
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   date_adhesion?: string;
 
-  @IsOptional() @IsBoolean()
+  @IsOptional()
+  @IsBoolean()
   cotisation_payee?: boolean;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   status?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   role?: string;
 }

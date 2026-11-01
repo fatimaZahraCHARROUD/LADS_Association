@@ -1,5 +1,12 @@
 import {
-  Controller, Get, Post, Body, Param, Patch, Delete, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ContactMessagesService } from './contact-messages.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
@@ -9,7 +16,9 @@ import { Roles } from '../services/jwt/roles.decorator';
 
 @Controller('contact-messages')
 export class ContactMessagesController {
-  constructor(private readonly contactMessagesService: ContactMessagesService) {}
+  constructor(
+    private readonly contactMessagesService: ContactMessagesService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateContactMessageDto) {

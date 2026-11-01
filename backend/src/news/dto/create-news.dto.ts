@@ -4,7 +4,7 @@ export class CreateNewsDto {
   title!: LocalizedStringDto;
   content!: LocalizedStringDto;
   thumbnail?: string;
-    coverImagePublicId?: string;
+  coverImagePublicId?: string;
 
   tags?: string[];
   isPublished?: boolean;

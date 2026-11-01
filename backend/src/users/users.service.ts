@@ -20,22 +20,22 @@ export class UsersService {
     return this.userModel.find().select('-password').exec();
   }
 
- async findByEmail(email: string) {
-  return this.userModel
-    .findOne({ email })
-    .populate('memberships.departmentId', 'name')
-    .exec();
-}
+  async findByEmail(email: string) {
+    return this.userModel
+      .findOne({ email })
+      .populate('memberships.departmentId', 'name')
+      .exec();
+  }
 
- async findOne(id: string) {
-  const user = await this.userModel
-    .findById(id)
-    .select('-password')
-    .populate('memberships.departmentId', 'name')
-    .exec();
-  if (!user) throw new NotFoundException(`User ${id} not found`);
-  return user;
-}
+  async findOne(id: string) {
+    const user = await this.userModel
+      .findById(id)
+      .select('-password')
+      .populate('memberships.departmentId', 'name')
+      .exec();
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
+  }
 
   async update(id: string, dto: UpdateUserDto) {
     const user = await this.userModel
@@ -52,16 +52,16 @@ export class UsersService {
     return { deleted: true };
   }
 
- async setActiveMembership(
-  userId: string | Types.ObjectId,
-  membershipId: string | Types.ObjectId,
-) {
-  return this.userModel
-    .findByIdAndUpdate(
-      userId,
-      { activeMembershipId: membershipId },
-      { new: true },
-    )
-    .exec();
-}
+  async setActiveMembership(
+    userId: string | Types.ObjectId,
+    membershipId: string | Types.ObjectId,
+  ) {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { activeMembershipId: membershipId },
+        { new: true },
+      )
+      .exec();
+  }
 }

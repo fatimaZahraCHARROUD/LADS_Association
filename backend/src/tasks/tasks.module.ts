@@ -14,6 +14,7 @@ import {
 } from '../departments/schemas/department.schema';
 import { JwtModule } from '../services/jwt/jwt.modul';        // 👈 new
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';     // 👈 new
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 
 @Module({
   imports: [
@@ -26,6 +27,6 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';     // 👈 new
     JwtModule,                                                 // 👈 new
   ],
   controllers: [TasksController],
-  providers: [TasksService, JwtAuthGuard],                    // 👈 add guard
+  providers: [TasksService, JwtAuthGuard, ActiveRoleGuard],    // 👈 add guard
 })
 export class TasksModule {}

@@ -6,7 +6,6 @@ import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import { UploadService } from '../upload/upload.service';
 
-
 @Injectable()
 export class ActivitiesService {
   constructor(
@@ -32,53 +31,45 @@ export class ActivitiesService {
     return activity;
   }
 
- async update(id: string, dto: UpdateActivityDto) {
-  const existing = await this.activityModel.findById(id).exec();
+  async update(id: string, dto: UpdateActivityDto) {
+    const existing = await this.activityModel.findById(id).exec();
 
-  if (!existing) {
-    throw new NotFoundException(`Activity ${id} not found`);
-  }
-
-  // ✅ delete old image if replaced
-  if (
-    dto.image &&
-    existing.image &&
-    dto.image !== existing.image
-  ) {
-    if (existing.coverImagePublicId) {
-      await this.uploadService.deleteImage(
-        existing.coverImagePublicId,
-      );
+    if (!existing) {
+      throw new NotFoundException(`Activity ${id} not found`);
     }
+
+    // ✅ delete old image if replaced
+    if (dto.image && existing.image && dto.image !== existing.image) {
+      if (existing.coverImagePublicId) {
+        await this.uploadService.deleteImage(existing.coverImagePublicId);
+      }
+    }
+
+    const updated = await this.activityModel
+      .findByIdAndUpdate(id, dto, { new: true })
+      .exec();
+
+    return updated;
   }
 
-  const updated = await this.activityModel
-    .findByIdAndUpdate(id, dto, { new: true })
-    .exec();
+  async remove(id: string) {
+    const existing = await this.activityModel.findById(id).exec();
 
-  return updated;
-}
+    if (!existing) {
+      throw new NotFoundException(`Activity ${id} not found`);
+    }
 
- async remove(id: string) {
-  const existing = await this.activityModel.findById(id).exec();
+    // ✅ delete cloudinary image
+    if (existing.coverImagePublicId) {
+      await this.uploadService.deleteImage(existing.coverImagePublicId);
+    }
 
-  if (!existing) {
-    throw new NotFoundException(`Activity ${id} not found`);
+    await this.activityModel.findByIdAndDelete(id).exec();
+
+    return {
+      message: 'Activity deleted',
+    };
   }
-
-  // ✅ delete cloudinary image
-  if (existing.coverImagePublicId) {
-    await this.uploadService.deleteImage(
-      existing.coverImagePublicId,
-    );
-  }
-
-  await this.activityModel.findByIdAndDelete(id).exec();
-
-  return {
-    message: 'Activity deleted',
-  };
-}
 
   async togglePublish(id: string) {
     const activity = await this.activityModel.findById(id).exec();

@@ -373,7 +373,10 @@ export class TasksService {
     return new Types.ObjectId(id);
   }
 
-  private async validateUser(id: string, label: string): Promise<Types.ObjectId> {
+  private async validateUser(
+    id: string,
+    label: string,
+  ): Promise<Types.ObjectId> {
     const oid = this.toObjectId(id, label);
     const exists = await this.userModel.exists({ _id: oid });
     if (!exists) throw new BadRequestException(`${label} does not exist`);

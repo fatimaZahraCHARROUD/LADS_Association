@@ -11,8 +11,7 @@ export class FormationsService {
   constructor(
     @InjectModel(Formation.name)
     private formationModel: Model<FormationDocument>,
-        private uploadService: UploadService,
-
+    private uploadService: UploadService,
   ) {}
 
   create(dto: CreateFormationDto) {
@@ -54,52 +53,44 @@ export class FormationsService {
   }
 
   async update(id: string, dto: UpdateFormationDto) {
-  const existing = await this.formationModel.findById(id).exec();
+    const existing = await this.formationModel.findById(id).exec();
 
-  if (!existing) {
-    throw new NotFoundException(`Formation ${id} not found`);
-  }
-
-  // ✅ delete old image if replaced
-  if (
-    dto.imgUrl &&
-    existing.imgUrl &&
-    dto.imgUrl !== existing.imgUrl
-  ) {
-    if (existing.coverImagePublicId) {
-      await this.uploadService.deleteImage(
-        existing.coverImagePublicId,
-      );
+    if (!existing) {
+      throw new NotFoundException(`Formation ${id} not found`);
     }
+
+    // ✅ delete old image if replaced
+    if (dto.imgUrl && existing.imgUrl && dto.imgUrl !== existing.imgUrl) {
+      if (existing.coverImagePublicId) {
+        await this.uploadService.deleteImage(existing.coverImagePublicId);
+      }
+    }
+
+    const updated = await this.formationModel
+      .findByIdAndUpdate(id, dto, { new: true })
+      .exec();
+
+    return updated;
   }
-
-  const updated = await this.formationModel
-    .findByIdAndUpdate(id, dto, { new: true })
-    .exec();
-
-  return updated;
-}
 
   async remove(id: string) {
-  const existing = await this.formationModel.findById(id).exec();
+    const existing = await this.formationModel.findById(id).exec();
 
-  if (!existing) {
-    throw new NotFoundException(`Formation ${id} not found`);
+    if (!existing) {
+      throw new NotFoundException(`Formation ${id} not found`);
+    }
+
+    // ✅ delete image from Cloudinary
+    if (existing.coverImagePublicId) {
+      await this.uploadService.deleteImage(existing.coverImagePublicId);
+    }
+
+    await this.formationModel.findByIdAndDelete(id).exec();
+
+    return {
+      message: 'Formation deleted',
+    };
   }
-
-  // ✅ delete image from Cloudinary
-  if (existing.coverImagePublicId) {
-    await this.uploadService.deleteImage(
-      existing.coverImagePublicId,
-    );
-  }
-
-  await this.formationModel.findByIdAndDelete(id).exec();
-
-  return {
-    message: 'Formation deleted',
-  };
-}
 
   async togglePublish(id: string) {
     const formation = await this.formationModel.findById(id).exec();

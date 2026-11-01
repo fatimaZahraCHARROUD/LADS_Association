@@ -1,5 +1,13 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -24,7 +32,8 @@ export class EventsController {
     @Query('status') status?: string,
     @Query('isPublished') isPublished?: string,
   ) {
-    const published = isPublished !== undefined ? isPublished === 'true' : undefined;
+    const published =
+      isPublished !== undefined ? isPublished === 'true' : undefined;
     return this.eventsService.findAll(status, published);
   }
 

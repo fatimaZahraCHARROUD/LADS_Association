@@ -17,11 +17,16 @@ export class Event {
   @Prop({ type: localizedString, _id: false, required: true })
   description!: { en: string; fr: string; ar: string };
 
-  @Prop({  type: localizedString ,_id: false,required: true,  default: {
-    en: '',
-    fr: '',
-    ar: '',
-  }, })
+  @Prop({
+    type: localizedString,
+    _id: false,
+    required: true,
+    default: {
+      en: '',
+      fr: '',
+      ar: '',
+    },
+  })
   category!: { en: string; fr: string; ar: string };
 
   @Prop({ required: true })
@@ -39,9 +44,9 @@ export class Event {
   @Prop({ default: '' })
   coverImage!: string;
 
-   @Prop({ default: '' })
+  @Prop({ default: '' })
   coverImagePublicId!: string;
-  
+
   @Prop({ default: '' })
   registerLink!: string;
 

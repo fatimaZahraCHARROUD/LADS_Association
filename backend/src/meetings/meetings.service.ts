@@ -140,7 +140,7 @@ export class MeetingsService {
   //  Helpers
   // ─────────────────────────────────────────────
 
-  // GET /meetings/meta/my-departments: departments the user can write to
+   // GET /meetings/meta/my-departments: departments the user can write to
   async listWritableDepartments(userId: string) {
     const ctx = await this.getContext(userId);
     const filter = this.isGlobal(ctx)
@@ -192,7 +192,7 @@ export class MeetingsService {
       .select('memberships activeMembershipId isAdmin role')
       .lean()
       .exec();
-    if (!user) throw new ForbiddenException('User not found');
+     if (!user) throw new ForbiddenException('User not found');
 
     const access = resolveAccess(user);
     const memberDeptIds = new Set<string>(access.departmentIds);
@@ -205,6 +205,7 @@ export class MeetingsService {
         (m.role === 'Team Manager' || m.role === 'Responsable')
       ) {
         managedDeptIds.add(String(m.departmentId));
+
       }
     });
 

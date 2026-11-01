@@ -24,4 +24,5 @@ export class ContactMessage {
   readAt!: Date | null;
 }
 
-export const ContactMessageSchema = SchemaFactory.createForClass(ContactMessage);
+export const ContactMessageSchema =
+  SchemaFactory.createForClass(ContactMessage);

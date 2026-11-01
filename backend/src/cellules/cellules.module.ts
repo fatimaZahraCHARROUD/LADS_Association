@@ -10,6 +10,7 @@ import {
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { JwtAuthGuard } from '../services/jwt/jwt.guard';
     JwtModule,
   ],
   controllers: [CellulesController],
-  providers: [CellulesService, JwtAuthGuard],
+  providers: [CellulesService, JwtAuthGuard, ActiveRoleGuard],
   exports: [CellulesService],
 })
 export class CellulesModule {}

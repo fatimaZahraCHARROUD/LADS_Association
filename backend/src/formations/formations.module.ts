@@ -6,7 +6,8 @@ import { Formation, FormationSchema } from './schemas/formation.schema';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UploadModule } from '../upload/upload.module';
-import { User, UserSchema } from '../users/schemas/user.schema';   // ← NEW
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 import {
   MemberFormationsController,
   AdminFormationsController,
@@ -16,16 +17,17 @@ import {
   imports: [
     MongooseModule.forFeature([
       { name: Formation.name, schema: FormationSchema },
-       { name: User.name, schema: UserSchema }, 
+      { name: User.name, schema: UserSchema },
     ]),
-    JwtModule,UploadModule
+    JwtModule,
+    UploadModule,
   ],
-   controllers: [
+  controllers: [
     FormationsController,
     MemberFormationsController,
     AdminFormationsController,
   ],
-  providers: [FormationsService, JwtAuthGuard],
+  providers: [FormationsService, JwtAuthGuard, ActiveRoleGuard],
   exports: [FormationsService],
 })
 export class FormationsModule {}

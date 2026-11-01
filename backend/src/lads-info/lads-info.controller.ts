@@ -1,5 +1,12 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Delete, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { LadsInfoService } from './lads-info.service';
 import { CreateLadsInfoDto } from './dto/create-lads-info.dto';

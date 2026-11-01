@@ -15,4 +15,5 @@ export class DepartmentMember {
   status!: string;
 }
 
-export const DepartmentMemberSchema = SchemaFactory.createForClass(DepartmentMember);
+export const DepartmentMemberSchema =
+  SchemaFactory.createForClass(DepartmentMember);
