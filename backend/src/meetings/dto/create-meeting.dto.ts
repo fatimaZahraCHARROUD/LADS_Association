@@ -7,5 +7,6 @@ export class CreateMeetingDto {
   meetingLink?: string;
   status?: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
   participants?: string[];
+  scope?: 'department' | 'association' | 'bureau';
   departmentId?: string; // _id du département concerné (obligatoire pour un Team Manager)
 }

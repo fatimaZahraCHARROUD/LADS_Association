@@ -35,6 +35,7 @@ const EMPTY_MEETING = {
   meetingLink: "",
   status: "scheduled",
   departmentId: "",
+  scope: "department",
 };
 
 const MAX_MONTH_ITEMS = 3;
@@ -168,6 +169,7 @@ export default function AdminMeetings() {
       meetingLink: m.meetingLink || "",
       status: m.status || "scheduled",
       departmentId: m.departmentId?._id || m.departmentId || "",
+      scope: m.scope || "department",
     });
     setDrawerOpen(true);
     setDetailsMeeting(null);
@@ -190,7 +192,7 @@ export default function AdminMeetings() {
       return;
     }
 
-    if (!access.isGlobal && !form.departmentId) {
+    if (form.scope === "department" && !form.departmentId) {
       toast.error("Please choose one of your departments.");
       return;
     }
@@ -202,7 +204,9 @@ export default function AdminMeetings() {
         startAt: new Date(form.startAt).toISOString(),
         endAt: new Date(form.endAt).toISOString(),
       };
-      if (!payload.departmentId) delete payload.departmentId;
+      if (payload.scope !== "department" || !payload.departmentId) {
+        delete payload.departmentId;
+      }
       if (editing) {
         await api.patch(`/meetings/${editing._id}`, payload);
         toast.success("Meeting updated");
@@ -453,6 +457,12 @@ export default function AdminMeetings() {
               </p>
             )}
 
+            {detailsMeeting.scope === "association" && (
+              <p className="text-xs text-brand-muted">Toute l'association</p>
+            )}
+            {detailsMeeting.scope === "bureau" && (
+              <p className="text-xs text-brand-muted">Réunion du bureau</p>
+            )}
             {detailsMeeting.departmentId?.name && (
               <p className="text-xs text-brand-muted">
                 Department: {detailsMeeting.departmentId.name}
@@ -533,14 +543,26 @@ export default function AdminMeetings() {
             </Field>
           </div>
 
-          <Field label="Department" required={!access.isGlobal}>
+          {access.isGlobal && (
+            <Field label="Type de réunion" required>
+              <Select
+                value={form.scope}
+                onChange={(e) => setForm({ ...form, scope: e.target.value })}
+              >
+                <option value="department">Département</option>
+                <option value="association">Toute l'association</option>
+                <option value="bureau">Bureau</option>
+              </Select>
+            </Field>
+          )}
+
+          {form.scope === "department" && (
+          <Field label="Department" required>
             <Select
               value={form.departmentId}
               onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
             >
-              <option value="">
-                {access.isGlobal ? "None (whole association)" : "Select a department"}
-              </option>
+              <option value="">Select a department</option>
               {departments.map((d) => (
                 <option key={d._id} value={d._id}>
                   {d.name}
@@ -548,6 +570,7 @@ export default function AdminMeetings() {
               ))}
             </Select>
           </Field>
+          )}
 
           <Field label="Meeting link">
             <input

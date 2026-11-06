@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -21,6 +22,8 @@ interface Ctx {
   memberDeptIds: Set<string>;
   /** departments the user can manage (write access) */
   managedDeptIds: Set<string>;
+  /** membre du bureau (voit les réunions bureau) */
+  isBureau: boolean;
 }
 
 @Injectable()
@@ -38,8 +41,17 @@ export class MeetingsService {
   async create(dto: CreateMeetingDto, userId: string) {
     const ctx = await this.getContext(userId);
     let departmentId: any = dto.departmentId ?? null;
+    const scope: string =
+      (dto as any).scope ?? (departmentId ? 'department' : 'association');
 
-    if (!this.isGlobal(ctx)) {
+    if (scope !== 'department') {
+      if (!this.isGlobal(ctx)) {
+        throw new ForbiddenException(
+          'Only the President or the Executive Director can create association or bureau meetings',
+        );
+      }
+      departmentId = null;
+    } else if (!this.isGlobal(ctx)) {
       if (!departmentId) {
         const active = ctx.access.activeDepartmentId;
         if (active && ctx.managedDeptIds.has(active)) departmentId = active;
@@ -53,9 +65,16 @@ export class MeetingsService {
       }
     }
 
+    if (scope === 'department' && !departmentId) {
+      throw new BadRequestException(
+        'A department is required for a department meeting',
+      );
+    }
+
     return this.meetingModel.create({
       ...dto,
       departmentId,
+      scope,
       createdBy: userId,
     });
   }
@@ -70,6 +89,10 @@ export class MeetingsService {
       };
     }
 
+    const ctx = userId ? await this.getContext(userId) : null;
+    // les réunions bureau sont cachées à tous ceux qui ne sont pas du bureau
+    if (!ctx?.isBureau) filter.scope = { $ne: 'bureau' };
+
     const meetings: any[] = await this.meetingModel
       .find(filter)
       .sort({ startAt: 1 })
@@ -79,7 +102,6 @@ export class MeetingsService {
       .lean()
       .exec();
 
-    const ctx = userId ? await this.getContext(userId) : null;
     return meetings.map((m) => this.maskLink(m, ctx));
   }
 
@@ -95,6 +117,9 @@ export class MeetingsService {
     if (!meeting) throw new NotFoundException(`Meeting ${id} not found`);
 
     const ctx = userId ? await this.getContext(userId) : null;
+    if (this.scopeOf(meeting) === 'bureau' && !ctx?.isBureau) {
+      throw new NotFoundException(`Meeting ${id} not found`);
+    }
     return this.maskLink(meeting, ctx);
   }
 
@@ -109,6 +134,25 @@ export class MeetingsService {
     const safe: Record<string, any> = { ...dto };
     delete safe.createdBy;
     delete safe.department;
+
+    // les réunions association / bureau n'ont pas de département
+    const newScope = safe.scope ?? this.scopeOf(existing);
+    if (newScope !== 'department') {
+      if (!this.isGlobal(ctx)) {
+        throw new ForbiddenException(
+          'Only the President or the Executive Director can manage association or bureau meetings',
+        );
+      }
+      safe.scope = newScope;
+      safe.departmentId = null;
+    } else {
+      safe.scope = 'department';
+      if (!safe.departmentId && !(existing as any).departmentId) {
+        throw new BadRequestException(
+          'A department is required for a department meeting',
+        );
+      }
+    }
 
     // a non-global writer cannot move a meeting to a department they don't manage
     if (
@@ -158,12 +202,22 @@ export class MeetingsService {
       .exec();
   }
 
+  // anciennes réunions sans scope : pas de département = association, sinon département
+  private scopeOf(m: any): 'department' | 'association' | 'bureau' {
+    return m.scope ?? (m.departmentId ? 'department' : 'association');
+  }
+
   private isGlobal(ctx: Ctx): boolean {
     return ctx.access.role === 'admin' || ctx.access.role === 'exec';
   }
 
   private assertCanManage(meeting: MeetingDocument, ctx: Ctx) {
     if (this.isGlobal(ctx)) return;
+    if (this.scopeOf(meeting) !== 'department') {
+      throw new ForbiddenException(
+        'Only the President or the Executive Director can manage association or bureau meetings',
+      );
+    }
     const dept = (meeting as any).departmentId;
     if (!dept || !ctx.managedDeptIds.has(String(dept))) {
       throw new ForbiddenException(
@@ -175,12 +229,16 @@ export class MeetingsService {
   // Hide meetingLink unless admin/exec or the meeting is in the user's department
   private maskLink(meeting: any, ctx: Ctx | null) {
     const deptId = meeting.departmentId?._id ?? meeting.departmentId;
+    const scope = this.scopeOf(meeting);
     const visible =
       !!ctx &&
-      (ctx.access.canSeeAllLinks ||
+      (scope === 'association' ||
+        scope === 'bureau' ||
+        ctx.access.canSeeAllLinks ||
         (!!deptId && ctx.memberDeptIds.has(String(deptId))));
     return {
       ...meeting,
+      scope,
       meetingLink: visible ? meeting.meetingLink : null,
       linkVisible: visible,
     };
@@ -197,6 +255,7 @@ export class MeetingsService {
     const access = resolveAccess(user);
     const memberDeptIds = new Set<string>(access.departmentIds);
     const managedDeptIds = new Set<string>();
+    let leadsDepartment = false; // manager ou vice-manager d'un département
 
     // from memberships
     (user.memberships ?? []).forEach((m: any) => {
@@ -232,9 +291,16 @@ export class MeetingsService {
           String(d.viceManager) === userId ||
           (d.teamManagers ?? []).some((t: any) => String(t) === userId);
         if (manages) managedDeptIds.add(String(d._id));
+        if (String(d.manager) === userId || String(d.viceManager) === userId) {
+          leadsDepartment = true;
+        }
       });
     }
 
-    return { access, memberDeptIds, managedDeptIds };
+    const isBureau =
+      ['admin', 'exec', 'team_manager', 'responsable'].includes(access.role) ||
+      leadsDepartment;
+
+    return { access, memberDeptIds, managedDeptIds, isBureau };
   }
 }

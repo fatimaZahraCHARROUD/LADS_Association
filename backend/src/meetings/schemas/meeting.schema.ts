@@ -14,6 +14,10 @@ export class Meeting {
   @Prop({ type: Types.ObjectId, ref: 'Department', default: null })
   department!: Types.ObjectId | null;
 
+  // department = un département | association = tout le monde | bureau = direction uniquement
+  @Prop({ enum: ['department', 'association', 'bureau'], default: 'department' })
+  scope!: string;
+
   @Prop({ required: true })
   startAt!: Date;
 
