@@ -15,6 +15,7 @@ import Login from "./pages/public/Login";
 import EventDetails from "./pages/public/EventDetails";
 import NewsDetails from "./pages/public/NewsDetails";
 import ActivitiesDetails from "./pages/public/ActivitiesDetails";
+import MyProjectPage from "./pages/projects/MyProjectPage";
 
 // Admin Pages (existing)
 import Dashboard from "./pages/admin/Dashboard";
@@ -139,75 +140,78 @@ function App() {
         </Route>
 
         {/* ================= DIRECTOR EXECUTIVE ================= */}
-<Route
-  path="/exec"
-  element={
-    <ProtectedRoute>
-      <AdminLayout />
-    </ProtectedRoute>
-  }
->
-  <Route index element={<ExecDashboard />} />
-  <Route path="strategic" element={<ExecStrategic />} />
-  <Route path="members" element={<ExecMembers />} />
-  <Route path="documents" element={<ExecDocument />} />
-  <Route path="meetings" element={<ExecMeeting />} />
-  <Route path="followup" element={<ExecFollowup />} />
-</Route>
+        <Route
+          path="/exec"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ExecDashboard />} />
+          <Route path="strategic" element={<ExecStrategic />} />
+          <Route path="members" element={<ExecMembers />} />
+          <Route path="documents" element={<ExecDocument />} />
+          <Route path="meetings" element={<ExecMeeting />} />
+          <Route path="followup" element={<ExecFollowup />} />
+        </Route>
 
-{/* ================= TEAM MANAGER ================= */}
-<Route
-  path="/team"
-  element={
-    <ProtectedRoute>
-      <AdminLayout />
-    </ProtectedRoute>
-  }
->
-  <Route index element={<TeamDashboard />} />
-  <Route path="members" element={<TeamMembers />} />
-  <Route path="documents" element={<TeamDocument />} />
-  <Route path="meetings" element={<TeamMeeting />} />
-  <Route path="followup" element={<TeamFollowup />} />
-</Route>
+        {/* ================= TEAM MANAGER ================= */}
+        <Route
+          path="/team"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<TeamDashboard />} />
+          <Route path="members" element={<TeamMembers />} />
+          <Route path="documents" element={<TeamDocument />} />
+          <Route path="meetings" element={<TeamMeeting />} />
+          <Route path="followup" element={<TeamFollowup />} />
+          <Route path="projects" element={<MyProjectPage />} />
+        </Route>
 
-{/* ================= RESPONSABLE ================= */}
-<Route
-  path="/responsible"
-  element={
-    <ProtectedRoute>
-      <RoleGuard allow={["Responsable"]}>
-        <AdminLayout />
-      </RoleGuard>
-    </ProtectedRoute>
-  }
->
-  <Route index element={<RespDashboard />} />
-  <Route path="cellules" element={<RespCellules />} />
-  <Route path="members" element={<RespMembers />} />
-  <Route path="documents" element={<RespDocument />} />
-  <Route path="meetings" element={<RespMeeting />} />
-  <Route path="objectives" element={<RespObjectives />} />
-  <Route path="tasks" element={<Resptasks />} />
-</Route>
+        {/* ================= RESPONSABLE ================= */}
+        <Route
+          path="/responsible"
+          element={
+            <ProtectedRoute>
+              <RoleGuard allow={["Responsable", "Responsible"]}>
+                <AdminLayout />
+              </RoleGuard>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<RespDashboard />} />
+          <Route path="cellules" element={<RespCellules />} />
+          <Route path="members" element={<RespMembers />} />
+          <Route path="documents" element={<RespDocument />} />
+          <Route path="meetings" element={<RespMeeting />} />
+          <Route path="objectives" element={<RespObjectives />} />
+          <Route path="tasks" element={<Resptasks />} />
+          <Route path="projects" element={<MyProjectPage />} />
+        </Route>
 
-{/* ================= MEMBER ================= */}
-<Route
-  path="/member"
-  element={
-    <ProtectedRoute>
-      <RoleGuard allow={["Member"]}>
-        <AdminLayout />
-      </RoleGuard>
-    </ProtectedRoute>
-  }
->
-  <Route index element={<MemberDashboard />} />
-  <Route path="documents" element={<MemberDocument />} />
-  <Route path="meetings" element={<MemberMeeting />} />
-  <Route path="formations" element={<Memberformation />} />
-  <Route path="tasks" element={<Membertasks />} />
-</Route>
+        {/* ================= MEMBER ================= */}
+        <Route
+          path="/member"
+          element={
+            <ProtectedRoute>
+              <RoleGuard allow={["Member"]}>
+                <AdminLayout />
+              </RoleGuard>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<MemberDashboard />} />
+          <Route path="documents" element={<MemberDocument />} />
+          <Route path="meetings" element={<MemberMeeting />} />
+          <Route path="formations" element={<Memberformation />} />
+          <Route path="tasks" element={<Membertasks />} />
+          <Route path="projects" element={<MyProjectPage />} />
+        </Route>
       </Routes>
     </Router>
   );
