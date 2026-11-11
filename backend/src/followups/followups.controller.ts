@@ -9,6 +9,8 @@ import {
   Query,
   Req,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
@@ -19,6 +21,7 @@ import { UpdateFollowupNoteDto } from './dto/update-followup-note.dto';
 import { FollowupsService } from './followups.service';
 
 @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+@UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 @Controller('followups')
 export class FollowupsController {
   constructor(private readonly followupsService: FollowupsService) {}

@@ -11,6 +11,9 @@ describe('StatisticsService', () => {
     userModel: {
       find: (filter: Record<string, unknown>) => MemberQuery;
     };
+    departmentModel: {
+      find: (filter: Record<string, unknown>) => MemberQuery;
+    };
     getAllMemberIds: () => Promise<string[]>;
     getMemberIdsForDepartments: (departmentIds: string[]) => Promise<string[]>;
   };
@@ -60,7 +63,8 @@ describe('StatisticsService', () => {
     expect(result.totalMembers).toBe(2);
     expect(result.totalTasks).toBe(4);
     expect(result.completedTasks).toBe(2);
-    expect(result.pendingTasks).toBe(2);
+    expect(result.pendingTasks).toBe(1);
+    expect(result.inProgressTasks).toBe(1);
     expect(result.overdueTasks).toBe(1);
     expect(result.meetingsHeld).toBe(2);
     expect(result.currentProgress).toBe(80);
@@ -85,6 +89,38 @@ describe('StatisticsService', () => {
     expect(result.overdueTasks).toBe(0);
     expect(result.meetingsHeld).toBe(0);
     expect(result.currentProgress).toBe(0);
+  });
+
+  it('does not count tasks due today as overdue in department or member summaries', () => {
+    const service = buildService();
+    const now = new Date();
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const tasks = [
+      { status: 'todo', deadline: today },
+      { status: 'in-progress', deadline: yesterday },
+      { status: 'done', deadline: yesterday },
+    ];
+
+    const department = service.calculateDepartmentSummary({
+      departmentName: 'Operations',
+      members: [],
+      tasks,
+      meetings: [],
+      objectives: [],
+      notes: [],
+    });
+    const member = service.calculateMemberSummary({
+      memberId: 'member-1',
+      tasks,
+      meetings: [],
+      notes: [],
+    });
+
+    expect(department.overdueTasks).toBe(1);
+    expect(member.overdueTasks).toBe(1);
   });
 
   it('builds weekly and monthly activity trends from the underlying records', () => {
@@ -135,6 +171,41 @@ describe('StatisticsService', () => {
     expect(result.lastActivityDate).not.toBeNull();
   });
 
+  it('calculates completion and on-time delivery from saved task dates', () => {
+    const service = buildService();
+
+    const result = service.calculateMemberSummary({
+      memberId: 'member-1',
+      tasks: [
+        {
+          status: 'done',
+          deadline: new Date('2026-10-10T00:00:00.000Z'),
+          completedAt: new Date('2026-10-09T00:00:00.000Z'),
+        },
+        {
+          status: 'done',
+          deadline: new Date('2026-10-10T00:00:00.000Z'),
+          completedAt: new Date('2026-10-10T18:00:00.000Z'),
+        },
+        {
+          status: 'done',
+          deadline: new Date('2026-10-10T00:00:00.000Z'),
+          completedAt: new Date('2026-10-11T00:00:00.000Z'),
+        },
+        { status: 'in-progress' },
+      ],
+      meetings: [],
+      notes: [],
+    });
+
+    expect(result.completedOnTime).toBe(2);
+    expect(result.completedBeforeDeadline).toBe(1);
+    expect(result.completedOnDeadline).toBe(1);
+    expect(result.completedLate).toBe(1);
+    expect(result.onTimeCompletionRate).toBe(67);
+    expect(result.inProgressTasks).toBe(1);
+  });
+
   it('counts all non-admin users for global dashboard totals', async () => {
     const service = buildService() as unknown as StatisticsServiceInternals;
     let queryFilter: Record<string, unknown> | undefined;
@@ -148,6 +219,13 @@ describe('StatisticsService', () => {
         queryFilter = filter;
         return query;
       },
+    };
+    service.departmentModel = {
+      find: () => ({
+        select: () => query,
+        lean: () => query,
+        exec: () => Promise.resolve([]),
+      }),
     };
 
     await expect(service.getAllMemberIds()).resolves.toEqual([
@@ -170,6 +248,9 @@ describe('StatisticsService', () => {
         queryFilter = filter;
         return query;
       },
+    };
+    service.departmentModel = {
+      find: () => query,
     };
     const departmentId = new Types.ObjectId('507f1f77bcf86cd799439011');
 

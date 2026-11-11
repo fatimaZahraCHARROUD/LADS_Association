@@ -141,31 +141,16 @@ export class DepartmentsService {
       .exec();
     let membershipsSynced = 0;
     let skippedAssignments = 0;
+    const assignments = new Map<string, Map<string, string>>();
 
     for (const department of departments) {
-      const assignments = new Map<string, string>();
-      const assign = (userId: Types.ObjectId | null, role: string) => {
-        if (userId && !assignments.has(String(userId))) {
-          assignments.set(String(userId), role);
-        }
-      };
+      const departmentId = String(department._id);
+      const departmentAssignments = this.getDepartmentAssignments(department);
+      assignments.set(departmentId, departmentAssignments);
 
-      assign(department.manager, 'Responsable');
-      assign(department.viceManager, 'Responsable');
-      for (const userId of department.teamManagers ?? []) {
-        assign(userId, 'Team Manager');
-      }
-      for (const userId of department.members ?? []) {
-        assign(userId, 'Member');
-      }
-
-      for (const [userId, role] of assignments) {
+      for (const [userId, role] of departmentAssignments) {
         if (
-          await this.syncMembership(
-            userId,
-            String(department._id),
-            role,
-          )
+          await this.syncMembership(userId, departmentId, role)
         ) {
           membershipsSynced += 1;
         } else {
@@ -174,66 +159,12 @@ export class DepartmentsService {
       }
     }
 
-    return {
-      departmentsProcessed: departments.length,
-      membershipsSynced,
-      skippedAssignments,
-    };
-  }
-
-  async remove(id: string) {
-    this.validateDepartmentId(id);
-    const department = await this.departmentModel.findById(id).exec();
-    if (!department) throw new NotFoundException(`Department ${id} not found`);
-    await this.departmentModel.findByIdAndDelete(id).exec();
-    await this.syncDepartmentMemberships(
-      department,
-      this.getDepartmentUserIds(department),
-      true,
-    );
-    return { deleted: true };
-  }
-
-  async resyncAllMemberships() {
-    const departments = await this.departmentModel
-      .find()
-      .select('_id manager viceManager teamManagers members')
-      .exec();
-    const assignments = new Map<string, Map<string, string>>();
-
-    for (const department of departments) {
-      const departmentId = String(department._id);
-      const departmentAssignments = new Map<string, string>();
-
-      for (const userId of department.members ?? []) {
-        departmentAssignments.set(String(userId), 'Member');
-      }
-      for (const userId of department.teamManagers ?? []) {
-        departmentAssignments.set(String(userId), 'Team Manager');
-      }
-      if (department.manager) {
-        departmentAssignments.set(String(department.manager), 'Responsable');
-      }
-      if (department.viceManager) {
-        departmentAssignments.set(
-          String(department.viceManager),
-          'Responsable',
-        );
-      }
-
-      assignments.set(departmentId, departmentAssignments);
-      for (const [userId, role] of departmentAssignments) {
-        await this.syncMembership(userId, departmentId, role);
-      }
-    }
-
     const users = await this.userModel.find().select('memberships').exec();
     let removedMemberships = 0;
     for (const user of users) {
       const userId = String(user._id);
-      const userAssignments = user.memberships ?? [];
       const staleDepartmentIds = new Set(
-        userAssignments
+        (user.memberships ?? [])
           .filter((membership) => {
             if (!membership.departmentId) return false;
             const departmentId = String(membership.departmentId);
@@ -249,6 +180,9 @@ export class DepartmentsService {
     }
 
     return {
+      departmentsProcessed: departments.length,
+      membershipsSynced,
+      skippedAssignments,
       departments: departments.length,
       memberships: Array.from(assignments.values()).reduce(
         (total, departmentAssignments) => total + departmentAssignments.size,
@@ -256,6 +190,19 @@ export class DepartmentsService {
       ),
       removedMemberships,
     };
+  }
+
+  async remove(id: string) {
+    this.validateDepartmentId(id);
+    const department = await this.departmentModel.findById(id).exec();
+    if (!department) throw new NotFoundException(`Department ${id} not found`);
+    await this.departmentModel.findByIdAndDelete(id).exec();
+    await this.syncDepartmentMemberships(
+      department,
+      this.getDepartmentUserIds(department),
+      true,
+    );
+    return { deleted: true };
   }
 
   // ─────────────────────────────────────────────

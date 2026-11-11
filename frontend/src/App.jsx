@@ -31,6 +31,7 @@ import AdminDocuments from "./pages/admin/Documents";
 import AdminMeetings from "./pages/admin/Meetings";
 import AdminDepartments from "./pages/admin/Departments";
 import AdminProjects from "./pages/admin/Projects";
+import FollowupDashboard from "./pages/admin/FollowupDashboard";
 //exec
 import ExecDashboard from "./pages/exec/Dashboard";
 import ExecDocument from "./pages/exec/Document";
@@ -135,7 +136,7 @@ function App() {
           <Route path="meetings" element={<AdminMeetings />} />
           <Route path="departments" element={<AdminDepartments />} />
           <Route path="projects" element={<AdminProjects />} />
-          <Route path="followup" element={<ExecFollowup />} />
+          <Route path="followup" element={<FollowupDashboard />} />
         </Route>
 
         {/* ================= DIRECTOR EXECUTIVE ================= */}
