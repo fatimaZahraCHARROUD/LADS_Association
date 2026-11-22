@@ -1,0 +1,70 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ActivitiesService } from './activities.service';
+import { CreateActivityDto } from './dto/create-activity.dto';
+import { UpdateActivityDto } from './dto/update-activity.dto';
+import { JwtAuthGuard } from '../services/jwt/jwt.guard';
+import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
+import { Roles } from '../services/jwt/roles.decorator';
+import { getUserId } from '../services/jwt/current-user';
+
+@Controller('activities')
+export class ActivitiesController {
+  constructor(private readonly activitiesService: ActivitiesService) {}
+
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
+  @Post()
+  create(
+    @Req() req: { user?: { userId?: string; sub?: string } },
+    @Body() dto: CreateActivityDto,
+  ) {
+    return this.activitiesService.create(getUserId(req), dto);
+  }
+
+  @Get()
+  findAll(
+    @Query('status') status?: string,
+    @Query('isPublished') isPublished?: string,
+  ) {
+    const published =
+      isPublished !== undefined ? isPublished === 'true' : undefined;
+    return this.activitiesService.findAll(status, published);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.activitiesService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateActivityDto) {
+    return this.activitiesService.update(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
+  @Patch(':id/publish')
+  togglePublish(@Param('id') id: string) {
+    return this.activitiesService.togglePublish(id);
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveRoleGuard)
+  @Roles('President', 'Director Executive')
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.activitiesService.remove(id);
+  }
+}

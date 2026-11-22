@@ -1,0 +1,779 @@
+/* Universal reset stays global (so html/body/etc. still reset) but lives
+   inside @layer base so it loses to Tailwind's @layer utilities on admin
+   pages. Public pages don't use Tailwind utilities for layout, so this
+   rule still resets browser defaults exactly as the public design expects. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+}
+
+.main-layout {
+  width: 100%;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #f8fafc;
+}
+
+/* =========================
+   COLORS (NAVY SYSTEM)
+========================= */
+
+:root {
+  --navy: #0b2c4d;
+  --navy-dark: #081f36;
+  --navy-light: #123960;
+  --text-dark: #0f172a;
+}
+
+/* =========================
+   TOP HEADER
+========================= */
+
+.top-header {
+  background: var(--navy);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 7%;
+  font-size: 14px;
+   position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    z-index:1001;
+}
+
+.top-left,
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-right a {
+  color: white;
+  transition: 0.3s;
+}
+
+.top-right a:hover {
+  color: #dbeafe;
+  transform: translateY(-2px);
+}
+
+
+
+
+
+
+
+/* =========================
+   NAVBAR
+========================= */
+
+.navbar {
+  background: white;
+  padding: 10px 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+  position: sticky;
+    position:fixed;
+    top:60px;   /* height of top-header */
+    left:0;
+    width:100%;
+    z-index:1000;
+}
+
+/* =========================
+   LOGO
+========================= */
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  text-decoration: none;
+}
+
+.logo-shape {
+  width: 55px;
+  height: 55px;
+  background: linear-gradient(
+    135deg,
+    var(--navy),
+    var(--navy-light)
+  );
+  clip-path: polygon(
+    50% 0%,
+    100% 38%,
+    82% 100%,
+    18% 100%,
+    0% 38%
+  );
+}
+
+.logo-main {
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.logo-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* =========================
+   NAV LINKS
+========================= */
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--text-dark);
+  font-weight: 600;
+  position: relative;
+  transition: 0.3s;
+}
+
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  background: var(--navy);
+  left: 0;
+  bottom: -7px;
+  transition: 0.3s;
+}
+
+.nav-links a:hover {
+  color: var(--navy);
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+/* =========================
+   LOGIN BUTTON (NAVY FIXED)
+========================= */
+
+.login-btn {
+  background: var(--navy);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.login-btn:hover {
+  background: var(--navy-light);
+  transform: translateY(-2px);
+}
+
+/* =========================
+   MOBILE MENU
+========================= */
+
+.menu-btn {
+  display: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--navy);
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.footer {
+  background: var(--navy);
+  color: white;
+  text-align: center;
+  padding: 20px;
+  margin-top: 50px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 992px) {
+
+  .menu-btn {
+    display: block;
+    z-index: 1001;
+  }
+
+  .nav-links {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 25px;
+    gap: 20px;
+    display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  }
+
+  .nav-links.active {
+    display: flex;
+  }
+}
+
+
+
+.footer {
+  background: #0b2c4d;
+  color: white;
+  padding: 60px 7% 20px;
+}
+
+/* MAIN GRID */
+.footer-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+/* HEADINGS */
+.footer-col h3,
+.footer-col h4 {
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+/* TEXT */
+.footer-col p {
+  font-size: 14px;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+/* LINKS */
+.footer-col a {
+  display: block;
+  color: #cbd5e1;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: 0.3s;
+}
+
+.footer-col a:hover {
+  color: white;
+  transform: translateX(4px);
+}
+
+/* CONTACT */
+.footer-contact p {
+  margin-top: 6px;
+}
+
+/* SOCIAL */
+.footer-social {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+/* LANGUAGE */
+.footer-lang select {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  outline: none;
+}
+
+/* BOTTOM BAR */
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.footer-links {
+  display: flex;
+  gap: 15px;
+}
+
+.footer-links a {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .footer-container {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .footer-container {
+    grid-template-columns: 1fr;
+  }
+}
+.desktop-actions{
+
+display:flex;
+
+gap:14px;
+
+align-items:center;
+
+flex-shrink:0;
+
+}
+
+/* PRIMARY BUTTON (JOIN US) */
+.join-btn {
+  background: linear-gradient(135deg, #0b2c4d, #15406b);
+  color: white;
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.join-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #15406b, #1e4f7a);
+}
+
+/* SECONDARY BUTTON (LOGIN) */
+.login-btn {
+  background: transparent;
+  color: #0b2c4d;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  text-decoration: none;
+  border: 2px solid #0b2c4d;
+  transition: 0.3s;
+}
+
+.login-btn:hover {
+  background: #0b2c4d;
+  color: white;
+}
+
+.join-btn,
+.login-btn{
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+min-width:140px;
+
+height:48px;
+
+padding:0 26px;
+
+white-space:nowrap;
+
+font-size:15px;
+
+}
+
+/* =========================
+   LANGUAGE DROPDOWN
+========================= */
+
+.lang-dropdown {
+  position: relative;
+}
+
+/* BUTTON */
+.lang-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  min-width: 150px;
+  height: 42px;
+
+  padding: 0 14px;
+
+  border: 1px solid rgba(255,255,255,0.18);
+
+  background: rgba(255,255,255,0.08);
+
+  color: white;
+
+  border-radius: 14px;
+
+  cursor: pointer;
+
+  transition: 0.3s ease;
+}
+
+.lang-trigger:hover {
+  background: rgba(255,255,255,0.16);
+}
+
+.lang-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.rotate {
+  transform: rotate(180deg);
+  transition: 0.3s ease;
+}
+
+/* DRAWER */
+.lang-drawer {
+  position: absolute;
+
+  top: calc(100% + 10px);
+  right: 0;
+
+  width: 190px;
+
+  background: white;
+
+  border-radius: 18px;
+
+  padding: 10px;
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,0.12);
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  z-index: 9999;
+
+  animation: langFade 0.2s ease;
+}
+
+/* ITEMS */
+.lang-drawer button {
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  padding: 12px 14px;
+
+  border-radius: 12px;
+
+  text-align: left;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition: 0.25s ease;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #1e293b;
+
+  width: 100%;
+}
+
+.lang-drawer button:hover {
+  background: #f1f5f9;
+}
+
+.lang-drawer button.active {
+  background: #0b2c4d;
+  color: white;
+}
+
+/* ANIMATION */
+@keyframes langFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+
+main.content {
+  padding-top: 124px;
+}
+
+
+
+@media (max-width:992px){
+
+  .top-header{
+    display:none;
+  }
+
+  .navbar{
+    top:0;
+  }
+
+  main.content{
+    padding-top:78px;
+  }
+
+}
+
+.floating-contact{
+
+    position:fixed;
+
+    right:20px;
+    bottom:20px;
+
+    z-index:1200;
+
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:10px;
+
+}
+
+.contact-links{
+
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+
+    opacity:0;
+    visibility:hidden;
+
+    transform:translateY(10px);
+
+    transition:.3s;
+
+}
+
+.floating-contact.open .contact-links{
+
+    opacity:1;
+    visibility:visible;
+
+    transform:translateY(0);
+
+}
+
+.contact-links a{
+
+    width:48px;
+    height:48px;
+
+    border-radius:50%;
+
+    background:#0b2c4d;
+    color:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    text-decoration:none;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.18);
+
+    transition:.25s;
+
+}
+
+.contact-links a:hover{
+
+    transform:scale(1.08);
+
+}
+
+.contact-toggle{
+
+    width:58px;
+    height:58px;
+
+    border:none;
+
+    border-radius:50%;
+
+    background:#0b2c4d;
+
+    color:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    cursor:pointer;
+
+    box-shadow:0 15px 35px rgba(0,0,0,.22);
+
+    transition:.25s;
+
+}
+
+.contact-toggle:hover{
+
+    transform:scale(1.08);
+
+}
+.floating-contact{
+    display:none;
+}
+
+@media (max-width:992px){
+
+    .floating-contact{
+        display:flex;
+    }
+
+}
+
+
+
+
+
+
+@media (max-width:992px){
+
+    .desktop-actions{
+        display:none;
+    }
+
+}
+.mobile-actions{
+
+    display:none;
+
+}
+
+@media (max-width:992px){
+
+.mobile-actions{
+
+    display:flex;
+    flex-direction:column;
+
+    width:100%;
+
+    margin-top:18px;
+    padding-top:18px;
+
+    border-top:1px solid #e5e7eb;
+
+    gap:12px;
+
+}
+
+.mobile-actions a{
+
+    width:100%;
+    height:48px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    text-decoration:none;
+
+    border-radius:12px;
+
+    font-weight:600;
+
+    transition:.25s;
+
+}
+
+.lang-mobile{
+    color:#0b2c4d;
+  
+}
+.mobile-login-btn{
+
+    border:2px solid #0b2c4d;
+    color:#0b2c4d;
+    background:white;
+
+}
+
+.mobile-login-btn:hover{
+
+    background:#f8fafc;
+
+}
+
+.mobile-join-btn{
+
+    background:#0b2c4d;
+    color:white !important;
+
+}
+
+.mobile-join-btn:hover{
+
+    background:#15406b;
+
+}
+
+}
+
+
+.footer-contact p {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.6rem 0;
+}
+
+.footer-contact svg {
+  flex-shrink: 0;
+  color: var(--primary-color); /* or your brand color */
+}

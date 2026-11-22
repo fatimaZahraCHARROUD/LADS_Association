@@ -1,0 +1,120 @@
+import { useState ,useEffect} from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
+import "../../Styles/login.css";
+import { getEffectiveRole } from "../../utils/activeRole";
+import { API_BASE } from "../../services/api";
+
+async function login(email, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const json = await res.json();
+
+  // Unified response shape: { success, content, error }
+  if (json && "success" in json) {
+    if (!json.success) throw new Error(json.error || "Login failed");
+    const data = json.content;
+    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    return data;
+  }
+
+  // Fallback
+  if (!res.ok) throw new Error(json.message || "Login failed");
+  localStorage.setItem("token", json.access_token);
+  localStorage.setItem("user", JSON.stringify(json.user));
+  return json;
+}
+
+export default function Login() {
+  const { t } = useTranslation();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, []);
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+
+  try {
+    const data = await login(email, password);   // ← capture here
+
+    const user = data.user;
+    const activeRole = getEffectiveRole(user);
+
+    const ROLE_ROUTES = {
+      President: "/admin",
+      "Director Executive": "/exec",
+      "Team Manager": "/team",
+      Responsable: "/responsible",
+      Member: "/member",
+    };
+
+    const dest = ROLE_ROUTES[activeRole] || "/login";
+
+    navigate(dest);
+  } catch (err) {
+    setError(err.message);
+  }
+};
+
+  return (
+    <div className="login-page">
+      <div className="login-card">
+
+        <h2>{t("login.title")}</h2>
+
+        <p className="login-message">
+          {t("login.message")}{" "}
+          <span onClick={() => navigate("/membership")}>
+            {t("login.join_link")}
+          </span>
+        </p>
+
+        <form onSubmit={handleSubmit} className="login-form">
+
+          <input
+            type="email"
+            placeholder={t("login.email")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+
+          <input
+            type="password"
+            placeholder={t("login.password")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          <button type="submit">
+            {t("login.button")}
+          </button>
+
+          {error && (
+            <span className="error">
+              {error}
+            </span>
+          )}
+
+        </form>
+
+      </div>
+    </div>
+  );
+}
