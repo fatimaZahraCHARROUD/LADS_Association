@@ -65,6 +65,11 @@ export const api = {
     request("/statistics/executive-dashboard", options),
   getTeamDashboard: (options) =>
     request("/statistics/team-dashboard", options),
+  getResponsableDashboard: (options) =>
+    request("/statistics/responsable-dashboard", options),
+  getMemberDashboard: (options) =>
+    request("/statistics/member-dashboard", options),
+  getMemberDocuments: (options) => request("/documents", options),
   switchRole: (membershipId) =>
     request("/auth/switch-role", { method: "POST", body: { membershipId } }),
 };

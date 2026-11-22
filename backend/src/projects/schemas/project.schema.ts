@@ -24,10 +24,10 @@ export class Project {
   @Prop({ type: Types.ObjectId, ref: 'Department', default: null })
   departmentId!: Types.ObjectId | null;
 
-  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   managerIds!: Types.ObjectId[];
 
-  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   memberIds!: Types.ObjectId[];
 
   @Prop({ required: true })

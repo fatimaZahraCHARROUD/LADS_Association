@@ -1,28 +1,71 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowDownRight, ArrowUpRight, ChevronDown, MoreHorizontal } from "lucide-react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronDown,
+  MoreHorizontal,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { api } from "../../services/api";
 import StatCard from "../../components/statcard";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const PERIOD = {
-  week:  { label: "Weekly",  pillSuffix: "this week",  days: 7 },
+  week: { label: "Weekly", pillSuffix: "this week", days: 7 },
   month: { label: "Monthly", pillSuffix: "this month", days: 30 },
-  year:  { label: "Yearly",  pillSuffix: "this year",  days: 365 },
+  year: { label: "Yearly", pillSuffix: "this year", days: 365 },
 };
 const PERIOD_KEYS = ["week", "month", "year"];
 
 const CARD_DEFS = [
-  { key: "events",      label: "Total Events",      color: "text-orange-500",  ring: "#f97316" },
-  { key: "activities",  label: "Total Activities",  color: "text-emerald-500", ring: "#10b981" },
-  { key: "news",        label: "Total News",        color: "text-brand-primary", ring: "#2563eb" },
-  { key: "formations",  label: "Total Formations",  color: "text-purple-500",  ring: "#a855f7" },
-  { key: "memberships", label: "Total Memberships", color: "text-indigo-500",  ring: "#6366f1" },
-  { key: "contacts",    label: "Total Contacts",    color: "text-rose-500",    ring: "#f43f5e" },
+  {
+    key: "events",
+    label: "Total Events",
+    color: "text-orange-500",
+    ring: "#f97316",
+  },
+  {
+    key: "activities",
+    label: "Total Activities",
+    color: "text-emerald-500",
+    ring: "#10b981",
+  },
+  {
+    key: "news",
+    label: "Total News",
+    color: "text-brand-primary",
+    ring: "#2563eb",
+  },
+  {
+    key: "formations",
+    label: "Total Formations",
+    color: "text-purple-500",
+    ring: "#a855f7",
+  },
+  {
+    key: "memberships",
+    label: "Total Memberships",
+    color: "text-indigo-500",
+    ring: "#6366f1",
+  },
+  {
+    key: "contacts",
+    label: "Total Contacts",
+    color: "text-rose-500",
+    ring: "#f43f5e",
+  },
 ];
 
 const MIX_COLORS = ["#f97316", "#10b981", "#2563eb", "#a855f7"];
@@ -63,9 +106,10 @@ function buildBuckets(items, period) {
     start.setDate(today.getDate() - i);
     const end = new Date(start);
     end.setDate(start.getDate() + 1);
-    const label = period === "week"
-      ? DAY_LABELS[start.getDay()]
-      : String(start.getDate()).padStart(2, "0");
+    const label =
+      period === "week"
+        ? DAY_LABELS[start.getDay()]
+        : String(start.getDate()).padStart(2, "0");
     buckets.push({
       day: label,
       count: countInRange(items, start.getTime(), end.getTime()),
@@ -78,7 +122,7 @@ function countNewInPeriod(items, period) {
   if (!Array.isArray(items)) return 0;
   const cutoff = Date.now() - PERIOD[period].days * 24 * 60 * 60 * 1000;
   return items.filter(
-    (it) => it?.createdAt && new Date(it.createdAt).getTime() >= cutoff
+    (it) => it?.createdAt && new Date(it.createdAt).getTime() >= cutoff,
   ).length;
 }
 
@@ -89,10 +133,17 @@ function pctPublished(items) {
 }
 
 export default function Dashboard() {
+  const [globalOverview, setGlobalOverview] = useState(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState("");
   const [data, setData] = useState({
-    events: [], activities: [], news: [], formations: [],
-    memberships: [], contacts: [], registrations: [],
-    members: [], departments: [],
+    events: [],
+    activities: [],
+    news: [],
+    formations: [],
+    memberships: [],
+    contacts: [],
+    registrations: [],
   });
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
@@ -100,30 +151,79 @@ export default function Dashboard() {
   const periodRef = useRef(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     Promise.all([
-      api.get("/events").catch(() => []),
-      api.get("/activities").catch(() => []),
-      api.get("/news").catch(() => []),
-      api.get("/formations").catch(() => []),
-      api.get("/membership-requests").catch(() => []),
-      api.get("/contact-messages").catch(() => []),
-      api.get("/event-registrations").catch(() => []),
-      api.get("/members").catch(() => []),
-      api.get("/departments").catch(() => []),
-    ]).then(([events, activities, news, formations, memberships, contacts, registrations, members, departments]) => {
-      setData({
-        events: Array.isArray(events) ? events : [],
-        activities: Array.isArray(activities) ? activities : [],
-        news: Array.isArray(news) ? news : [],
-        formations: Array.isArray(formations) ? formations : [],
-        memberships: Array.isArray(memberships) ? memberships : [],
-        contacts: Array.isArray(contacts) ? contacts : [],
-        registrations: Array.isArray(registrations) ? registrations : [],
-        members: Array.isArray(members) ? members : [],
-        departments: Array.isArray(departments) ? departments : [],
+      api.get("/events", { signal: controller.signal }).catch(() => []),
+      api.get("/activities", { signal: controller.signal }).catch(() => []),
+      api.get("/news", { signal: controller.signal }).catch(() => []),
+      api.get("/formations", { signal: controller.signal }).catch(() => []),
+      api
+        .get("/membership-requests", { signal: controller.signal })
+        .catch(() => []),
+      api
+        .get("/contact-messages", { signal: controller.signal })
+        .catch(() => []),
+      api
+        .get("/event-registrations", { signal: controller.signal })
+        .catch(() => []),
+    ]).then(
+      ([
+        events,
+        activities,
+        news,
+        formations,
+        memberships,
+        contacts,
+        registrations,
+      ]) => {
+        if (controller.signal.aborted) return;
+        setData({
+          events: Array.isArray(events) ? events : [],
+          activities: Array.isArray(activities) ? activities : [],
+          news: Array.isArray(news) ? news : [],
+          formations: Array.isArray(formations) ? formations : [],
+          memberships: Array.isArray(memberships) ? memberships : [],
+          contacts: Array.isArray(contacts) ? contacts : [],
+          registrations: Array.isArray(registrations) ? registrations : [],
+        });
+        setLoading(false);
+      },
+    );
+
+    api
+      .get("/statistics/dashboard", { signal: controller.signal })
+      .then((dashboard) => {
+        const requiredCounts = [
+          "totalDepartments",
+          "totalMembers",
+          "totalProjects",
+          "totalUpcomingMeetings",
+        ];
+        if (
+          !dashboard?.overview ||
+          !requiredCounts.every((key) =>
+            Number.isFinite(dashboard.overview[key]),
+          )
+        ) {
+          throw new Error(
+            "Statistics response is missing required global totals.",
+          );
+        }
+        if (!controller.signal.aborted) {
+          setGlobalOverview(dashboard.overview);
+          setOverviewError("");
+        }
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setOverviewError(error.message || "Unable to load global totals.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setOverviewLoading(false);
       });
-      setLoading(false);
-    });
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -144,26 +244,65 @@ export default function Dashboard() {
         ? Math.min(100, Math.round((change(arr) / arr.length) * 100))
         : 0;
     return {
-      events:      { value: data.events.length,      ring: pctPublished(data.events),      change: change(data.events) },
-      activities:  { value: data.activities.length,  ring: pctPublished(data.activities),  change: change(data.activities) },
-      news:        { value: data.news.length,        ring: pctPublished(data.news),        change: change(data.news) },
-      formations:  { value: data.formations.length,  ring: pctPublished(data.formations),  change: change(data.formations) },
-      memberships: { value: data.memberships.length, ring: ringForInbox(data.memberships), change: change(data.memberships) },
-      contacts:    { value: data.contacts.length,    ring: ringForInbox(data.contacts),    change: change(data.contacts) },
+      events: {
+        value: data.events.length,
+        ring: pctPublished(data.events),
+        change: change(data.events),
+      },
+      activities: {
+        value: data.activities.length,
+        ring: pctPublished(data.activities),
+        change: change(data.activities),
+      },
+      news: {
+        value: data.news.length,
+        ring: pctPublished(data.news),
+        change: change(data.news),
+      },
+      formations: {
+        value: data.formations.length,
+        ring: pctPublished(data.formations),
+        change: change(data.formations),
+      },
+      memberships: {
+        value: data.memberships.length,
+        ring: ringForInbox(data.memberships),
+        change: change(data.memberships),
+      },
+      contacts: {
+        value: data.contacts.length,
+        ring: ringForInbox(data.contacts),
+        change: change(data.contacts),
+      },
     };
   }, [data, period]);
 
-  const chartData = useMemo(() => buildBuckets([
-    ...data.events, ...data.activities, ...data.news, ...data.formations,
-    ...data.memberships, ...data.contacts, ...data.registrations,
-  ], period), [data, period]);
+  const chartData = useMemo(
+    () =>
+      buildBuckets(
+        [
+          ...data.events,
+          ...data.activities,
+          ...data.news,
+          ...data.formations,
+          ...data.memberships,
+          ...data.contacts,
+          ...data.registrations,
+        ],
+        period,
+      ),
+    [data, period],
+  );
 
-  const mixData = useMemo(() => [
-    { name: "Events",     value: data.events.length },
-    { name: "Activities", value: data.activities.length },
-    { name: "News",       value: data.news.length },
-    { name: "Formations", value: data.formations.length },
-  ], [data]);
+  const mixData = useMemo(
+    () => [
+      { name: "Events", value: data.events.length },
+      { name: "Activities", value: data.activities.length },
+      { name: "News", value: data.news.length },
+      { name: "Formations", value: data.formations.length },
+    ],
+    [data],
+  );
   const mixTotal = mixData.reduce((acc, x) => acc + x.value, 0);
 
   if (loading) {
@@ -211,19 +350,41 @@ export default function Dashboard() {
           )}
         </div>
       </header>
-{/* STATS CARDS */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-  <StatCard
-    def={{ label: "Total Départements", color: "text-brand-primary", ring: "#2563eb" }}
-    stat={{ value: data?.departments?.length || 0, ring: 0, change: 0 }}
-    pillSuffix="this month"
-  />
-  <StatCard
-    def={{ label: "Total Membres", color: "text-indigo-500", ring: "#6366f1" }}
-    stat={{ value: data?.members?.length || 0, ring: 0, change: 0 }}
-    pillSuffix="this month"
-  />
-</div>
+      {/* STATS CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 my-6">
+        {[
+          {
+            key: "totalDepartments",
+            label: "Total Departments",
+            color: "text-brand-primary",
+          },
+          {
+            key: "totalMembers",
+            label: "Total Members",
+            color: "text-indigo-500",
+          },
+          {
+            key: "totalProjects",
+            label: "Total Projects",
+            color: "text-emerald-500",
+          },
+          {
+            key: "totalUpcomingMeetings",
+            label: "Upcoming Meetings",
+            color: "text-orange-500",
+          },
+        ].map((stat) => (
+          <StatCard
+            key={stat.key}
+            def={stat}
+            stat={{ value: globalOverview?.[stat.key] }}
+            loading={overviewLoading}
+            error={overviewError}
+            showChange={false}
+            showRing={false}
+          />
+        ))}
+      </div>
       {/* STATS GRID */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
         {CARD_DEFS.map((def, i) => {
@@ -235,7 +396,11 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <MetricCard def={def} stat={s} pillSuffix={PERIOD[period].pillSuffix} />
+              <MetricCard
+                def={def}
+                stat={s}
+                pillSuffix={PERIOD[period].pillSuffix}
+              />
             </motion.div>
           );
         })}
@@ -252,7 +417,9 @@ export default function Dashboard() {
                   ({PERIOD[period].label})
                 </span>
               </h2>
-              <p className="text-xs text-brand-muted mt-0.5">New items created across the platform.</p>
+              <p className="text-xs text-brand-muted mt-0.5">
+                New items created across the platform.
+              </p>
             </div>
             <button className="p-1.5 rounded-md text-brand-muted hover:bg-gray-100">
               <MoreHorizontal size={18} />
@@ -260,16 +427,34 @@ export default function Dashboard() {
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
                 <defs>
                   <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#2563eb" />
                     <stop offset="100%" stopColor="#93c5fd" />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} interval={period === "month" ? 2 : 0} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} allowDecimals={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e2e8f0"
+                />
+                <XAxis
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  interval={period === "month" ? 2 : 0}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  allowDecimals={false}
+                />
                 <Tooltip
                   cursor={{ fill: "rgba(37, 99, 235, 0.06)" }}
                   contentStyle={{
@@ -278,7 +463,12 @@ export default function Dashboard() {
                     fontSize: 12,
                   }}
                 />
-                <Bar dataKey="count" fill="url(#barGradient)" radius={[8, 8, 0, 0]} maxBarSize={56} />
+                <Bar
+                  dataKey="count"
+                  fill="url(#barGradient)"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={56}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -303,7 +493,10 @@ export default function Dashboard() {
                   stroke="none"
                 >
                   {mixData.map((_, idx) => (
-                    <Cell key={idx} fill={MIX_COLORS[idx % MIX_COLORS.length]} />
+                    <Cell
+                      key={idx}
+                      fill={MIX_COLORS[idx % MIX_COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
@@ -316,15 +509,22 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-3xl font-bold text-brand-text">{mixTotal}</span>
+              <span className="text-3xl font-bold text-brand-text">
+                {mixTotal}
+              </span>
               <span className="text-xs text-brand-muted">items</span>
             </div>
           </div>
           <ul className="grid grid-cols-2 gap-x-3 gap-y-2 mt-4">
             {mixData.map((m, idx) => (
               <li key={m.name} className="flex items-center gap-2 text-xs">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: MIX_COLORS[idx % MIX_COLORS.length] }} />
-                <span className="text-brand-muted flex-1 truncate">{m.name}</span>
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ background: MIX_COLORS[idx % MIX_COLORS.length] }}
+                />
+                <span className="text-brand-muted flex-1 truncate">
+                  {m.name}
+                </span>
                 <span className="font-semibold text-brand-text">{m.value}</span>
               </li>
             ))}
@@ -372,7 +572,9 @@ function MetricCard({ def, stat, pillSuffix }) {
           <MoreHorizontal size={16} />
         </button>
       </div>
-      <p className="text-4xl font-bold text-brand-text leading-none">{stat.value}</p>
+      <p className="text-4xl font-bold text-brand-text leading-none">
+        {stat.value}
+      </p>
       <div className="flex items-end justify-between">
         <span
           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
@@ -414,11 +616,11 @@ function Ring({ percent, color }) {
             <Cell fill={color} />
             <Cell fill="#f1f5f9" />
           </Pie>
-         </PieChart>
+        </PieChart>
       </ResponsiveContainer>
       <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-brand-text">
         {safe}%
       </span>
-     </div>
+    </div>
   );
 }

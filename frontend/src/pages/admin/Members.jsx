@@ -34,6 +34,9 @@ const EMPTY_FORM = {
 export default function AdminMembers() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeDepartmentMemberCount, setActiveDepartmentMemberCount] =
+    useState(null);
+  const [memberCountError, setMemberCountError] = useState("");
   const [filters, setFilters] = useState({
     nom: "",
     ville: "",
@@ -87,6 +90,29 @@ export default function AdminMembers() {
   useEffect(() => {
     load();
     loadDepartments();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .get("/statistics/dashboard", { signal: controller.signal })
+      .then((dashboard) => {
+        const count = dashboard?.overview?.totalMembers;
+        if (!Number.isFinite(count)) {
+          throw new Error("Statistics response is missing the member count.");
+        }
+        if (!controller.signal.aborted) {
+          setActiveDepartmentMemberCount(count);
+          setMemberCountError("");
+        }
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setMemberCountError(error.message || "Unable to load member count.");
+        }
+      });
+
+    return () => controller.abort();
   }, []);
 
   const openAdd = () => {
@@ -321,6 +347,18 @@ const openEdit = (r) => {
         onAdd={openAdd}
         addLabel="Add Member"
       />
+      <p className="mb-4 text-sm text-brand-muted" aria-live="polite">
+        Active members with a department membership:{" "}
+        {memberCountError ? (
+          <span role="alert" className="text-rose-700">
+            {memberCountError}
+          </span>
+        ) : activeDepartmentMemberCount === null ? (
+          "Loading..."
+        ) : (
+          activeDepartmentMemberCount
+        )}
+      </p>
 
       <div className="bg-white rounded-2xl shadow-sm border border-brand-border p-4 mb-4 flex flex-col gap-3 md:flex-row md:items-center">
         <input

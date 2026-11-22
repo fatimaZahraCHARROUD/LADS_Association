@@ -9,6 +9,7 @@ import {
   Objective,
   ObjectiveSchema,
 } from '../src/objectives/schemas/objective.schema';
+import { Meeting, MeetingSchema } from '../src/meetings/schemas/meeting.schema';
 import { Project, ProjectSchema } from '../src/projects/schemas/project.schema';
 import { Task, TaskSchema } from '../src/tasks/schemas/task.schema';
 import {
@@ -105,6 +106,7 @@ async function seedDashboardSample() {
   const ProjectModel = mongoose.model(Project.name, ProjectSchema);
   const ObjectiveModel = mongoose.model(Objective.name, ObjectiveSchema);
   const TaskModel = mongoose.model(Task.name, TaskSchema);
+  const MeetingModel = mongoose.model(Meeting.name, MeetingSchema);
 
   try {
     const [executive, teamManager, responsable, member] = await Promise.all([
@@ -172,7 +174,7 @@ async function seedDashboardSample() {
     if (teamManager) {
       departmentUpdate.$addToSet.teamManagers = teamManager._id;
     }
-    let department = sharedDepartmentId
+    const department = sharedDepartmentId
       ? await DepartmentModel.findByIdAndUpdate(
           sharedDepartmentId,
           departmentUpdate,
@@ -190,6 +192,13 @@ async function seedDashboardSample() {
           { new: true, upsert: true, setDefaultsOnInsert: true },
         ).exec();
     if (!department) throw new Error('Could not create the sample department.');
+    await DepartmentModel.updateOne(
+      {
+        _id: department._id,
+        $or: [{ manager: null }, { manager: { $exists: false } }],
+      },
+      { $set: { manager: responsable._id } },
+    ).exec();
 
     const [, responsableMembershipId, memberMembershipId] = await Promise.all([
       teamManager
@@ -278,6 +287,10 @@ async function seedDashboardSample() {
 
     const tomorrow = new Date(now);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const meetingStart = new Date(now);
+    meetingStart.setUTCDate(meetingStart.getUTCDate() + 2);
+    const meetingEnd = new Date(meetingStart);
+    meetingEnd.setUTCMinutes(meetingEnd.getUTCMinutes() + 45);
     const yesterday = new Date(now);
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     await Promise.all([
@@ -335,6 +348,31 @@ async function seedDashboardSample() {
             status: 'done',
             objectiveId: objective._id,
             departmentId: department._id,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      ).exec(),
+      MeetingModel.findOneAndUpdate(
+        {
+          title: `Dashboard Sample Upcoming Meeting ${weekKey}`,
+          departmentId: department._id,
+        },
+        {
+          $setOnInsert: {
+            title: `Dashboard Sample Upcoming Meeting ${weekKey}`,
+            description: 'Sample meeting used to verify dashboard data.',
+            departmentId: department._id,
+            startAt: meetingStart,
+            endAt: meetingEnd,
+            status: 'scheduled',
+            participants: [
+              ...new Set(
+                [responsable._id, member._id, teamManager?._id, executive?._id]
+                  .filter(Boolean)
+                  .map(String),
+              ),
+            ].map((id) => new Types.ObjectId(id)),
+            createdBy: dataOwner._id,
           },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true },
