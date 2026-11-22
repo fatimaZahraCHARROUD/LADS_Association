@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, Model } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { Project, ProjectDocument, PROJECT_STATUSES } from './schemas/project.schema';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -32,14 +32,28 @@ export class ProjectsService {
     throw err;
   }
 
+  private sanitizeUserIds(ids?: any[]): Types.ObjectId[] {
+    if (!Array.isArray(ids)) return [];
+    return ids
+      .filter(Boolean)
+      .map((id) => {
+        const str = String(id?._id ?? id).trim();
+        return isValidObjectId(str) ? new Types.ObjectId(str) : null;
+      })
+      .filter((id): id is Types.ObjectId => id !== null);
+  }
+
   async create(dto: CreateProjectDto, userId: string) {
     this.assertDates(dto.startDate, dto.endDate);
     try {
-      return await this.projectModel.create({
+      const data: any = {
         ...dto,
         departmentId: dto.departmentId || null,
-        createdBy: userId,
-      });
+        createdBy: isValidObjectId(userId) ? new Types.ObjectId(userId) : userId,
+      };
+      if (dto.managerIds) data.managerIds = this.sanitizeUserIds(dto.managerIds);
+      if (dto.memberIds) data.memberIds = this.sanitizeUserIds(dto.memberIds);
+      return await this.projectModel.create(data);
     } catch (err) {
       this.fail(err);
     }
@@ -80,6 +94,12 @@ export class ProjectsService {
     const data: Record<string, unknown> = { ...dto };
     delete data.createdBy; // l'auteur ne change jamais
     if ('departmentId' in data) data.departmentId = data.departmentId || null;
+    if ('managerIds' in data) {
+      data.managerIds = this.sanitizeUserIds(dto.managerIds);
+    }
+    if ('memberIds' in data) {
+      data.memberIds = this.sanitizeUserIds(dto.memberIds);
+    }
 
     this.assertDates(
       dto.startDate ?? existing.startDate,
@@ -87,7 +107,7 @@ export class ProjectsService {
     );
     try {
       return await this.projectModel
-        .findByIdAndUpdate(id, data, { new: true, runValidators: true })
+        .findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
         .exec();
     } catch (err) {
       this.fail(err);
@@ -118,12 +138,13 @@ export class ProjectsService {
     }
 
     const project = await this.projectModel
-      .findByIdAndUpdate(id, data, { new: true, runValidators: true })
+      .findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
       .exec();
     if (!project) throw new NotFoundException(`Project ${id} not found`);
     return project;
   }
-    async togglePublish(id: string) {
+
+  async togglePublish(id: string) {
     this.assertId(id);
     const project = await this.projectModel.findById(id).exec();
     if (!project) throw new NotFoundException(`Project ${id} not found`);
@@ -141,6 +162,7 @@ export class ProjectsService {
       .sort({ startDate: -1 })
       .exec();
   }
+
   async remove(id: string) {
     this.assertId(id);
     const project = await this.projectModel.findByIdAndDelete(id).exec();
