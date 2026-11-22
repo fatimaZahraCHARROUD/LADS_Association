@@ -1,0 +1,177 @@
+[1mdiff --git a/backend/src/tasks/tasks.service.ts b/backend/src/tasks/tasks.service.ts[m
+[1mindex 7e7553c..bbe3d8a 100644[m
+[1m--- a/backend/src/tasks/tasks.service.ts[m
+[1m+++ b/backend/src/tasks/tasks.service.ts[m
+[36m@@ -21,6 +21,8 @@[m [mimport { UpdateTaskDto } from './dto/update-task.dto';[m
+ [m
+ const USER_FIELDS = 'fullName email profileImage';[m
+ const GLOBAL_ROLES = ['President', 'Director Executive'];[m
+[32m+[m[32mconst TASK_STATUSES = ['todo', 'in-progress', 'done'];[m
+[32m+[m[32mconst TASK_PRIORITIES = ['low', 'medium', 'high'];[m
+ [m
+ @Injectable()[m
+ export class TasksService {[m
+[36m@@ -102,20 +104,72 @@[m [mexport class TasksService {[m
+     status?: string,[m
+     assignedTo?: string,[m
+     priority?: string,[m
+[32m+[m[32m    departmentId?: string,[m
+   ) {[m
+     const scope = await this.getScope(userId);[m
+     const filter: Record<string, unknown> = {};[m
+ [m
+[32m+[m[32m    if (status && !TASK_STATUSES.includes(status)) {[m
+[32m+[m[32m      throw new BadRequestException('Invalid task status');[m
+[32m+[m[32m    }[m
+[32m+[m[32m    if (priority && !TASK_PRIORITIES.includes(priority)) {[m
+[32m+[m[32m      throw new BadRequestException('Invalid task priority');[m
+[32m+[m[32m    }[m
+[32m+[m
+     if (scope.isGlobal) {[m
+       if (assignedTo) filter.assignedTo = this.toObjectId(assignedTo, 'user');[m
+[32m+[m[32m      if (departmentId) {[m
+[32m+[m[32m        filter.departmentId = await this.validateDepartment(departmentId);[m
+[32m+[m[32m      }[m
+     } else if (scope.role === 'Member') {[m
+[31m-      // A member only sees their own tasks.[m
+       if (!userId) return [];[m
+[31m-      filter.assignedTo = new Types.ObjectId(userId);[m
+[32m+[m[32m      const currentUserId = this.toObjectId(userId, 'user');[m
+[32m+[m[32m      if ([m
+[32m+[m[32m        assignedTo &&[m
+[32m+[m[32m        String(this.toObjectId(assignedTo, 'user')) !== String(currentUserId)[m
+[32m+[m[32m      ) {[m
+[32m+[m[32m        throw new ForbiddenException('You can only view your own tasks.');[m
+[32m+[m[32m      }[m
+[32m+[m[32m      filter.assignedTo = currentUserId;[m
+[32m+[m[32m      if (departmentId) {[m
+[32m+[m[32m        const requestedDepartmentId = this.toObjectId([m
+[32m+[m[32m          departmentId,[m
+[32m+[m[32m          'department',[m
+[32m+[m[32m        );[m
+[32m+[m[32m        const allowedDepartmentIds = await this.getUserDepartmentIds(userId);[m
+[32m+[m[32m        if (!allowedDepartmentIds.has(String(requestedDepartmentId))) {[m
+[32m+[m[32m          throw new ForbiddenException([m
+[32m+[m[32m            'You do not have access to this department.',[m
+[32m+[m[32m          );[m
+[32m+[m[32m        }[m
+[32m+[m[32m        filter.departmentId = await this.validateDepartment([m
+[32m+[m[32m          String(requestedDepartmentId),[m
+[32m+[m[32m        );[m
+[32m+[m[32m      }[m
+     } else {[m
+[31m-      // Responsable / Team Manager: only the active dept's tasks.[m
+       if (!scope.departmentId) return [];[m
+[32m+[m[32m      if ([m
+[32m+[m[32m        departmentId &&[m
+[32m+[m[32m        String(this.toObjectId(departmentId, 'department')) !==[m
+[32m+[m[32m          String(scope.departmentId)[m
+[32m+[m[32m      ) {[m
+[32m+[m[32m        throw new ForbiddenException([m
+[32m+[m[32m          'You can only view tasks in your active department.',[m
+[32m+[m[32m        );[m
+[32m+[m[32m      }[m
+       filter.departmentId = scope.departmentId;[m
+[32m+[m[32m      if (assignedTo) {[m
+[32m+[m[32m        const assignee = await this.validateUser(assignedTo, 'assignedTo');[m
+[32m+[m[32m        const { allowed } = await this.getAllowedDepartmentMembers([m
+[32m+[m[32m          scope.departmentId,[m
+[32m+[m[32m        );[m
+[32m+[m[32m        if (!allowed.has(String(assignee))) {[m
+[32m+[m[32m          throw new ForbiddenException([m
+[32m+[m[32m            'The chosen member is not part of your department.',[m
+[32m+[m[32m          );[m
+[32m+[m[32m        }[m
+[32m+[m[32m        filter.assignedTo = assignee;[m
+[32m+[m[32m      }[m
+     }[m
+ [m
+     if (status) filter.status = status;[m
+[36m@@ -125,6 +179,7 @@[m [mexport class TasksService {[m
+       .find(filter)[m
+       .populate('assignedTo', USER_FIELDS)[m
+       .populate('objectiveId', 'title status')[m
+[32m+[m[32m      .populate('departmentId', 'name')[m
+       .sort({ deadline: 1 })[m
+       .exec();[m
+   }[m
+[36m@@ -134,6 +189,7 @@[m [mexport class TasksService {[m
+       .findById(this.toObjectId(id, 'task'))[m
+       .populate('assignedTo', USER_FIELDS)[m
+       .populate('objectiveId', 'title status')[m
+[32m+[m[32m      .populate('departmentId', 'name')[m
+       .exec();[m
+     if (!task) throw new NotFoundException(`Task ${id} not found`);[m
+ [m
+[36m@@ -156,9 +212,20 @@[m [mexport class TasksService {[m
+ [m
+     let departmentId: Types.ObjectId | null;[m
+     if (scope.isGlobal) {[m
+[31m-      departmentId = dto.departmentId[m
+[31m-        ? await this.validateDepartment(dto.departmentId)[m
+[31m-        : null;[m
+[32m+[m[32m      if (dto.departmentId) {[m
+[32m+[m[32m        departmentId = await this.validateDepartment(dto.departmentId);[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        const assignedDepartments =[m
+[32m+[m[32m          await this.getUserDepartmentIds(String(assignedTo));[m
+[32m+[m[32m        if (assignedDepartments.size !== 1) {[m
+[32m+[m[32m          throw new BadRequestException([m
+[32m+[m[32m            'Choose a department for this task.',[m
+[32m+[m[32m          );[m
+[32m+[m[32m        }[m
+[32m+[m[32m        departmentId = await this.validateDepartment([m
+[32m+[m[32m          Array.from(assignedDepartments)[0],[m
+[32m+[m[32m        );[m
+[32m+[m[32m      }[m
+     } else {[m
+       if (!scope.departmentId) {[m
+         throw new ForbiddenException([m
+[36m@@ -166,42 +233,50 @@[m [mexport class TasksService {[m
+         );[m
+       }[m
+       departmentId = scope.departmentId;[m
+[31m-[m
+[31m-      const { allowed } = await this.getAllowedDepartmentMembers(departmentId);[m
+[31m-      if (!allowed.has(String(assignedTo))) {[m
+[32m+[m[32m      if ([m
+[32m+[m[32m        dto.departmentId &&[m
+[32m+[m[32m        String(await this.validateDepartment(dto.departmentId)) !==[m
+[32m+[m[32m          String(departmentId)[m
+[32m+[m[32m      ) {[m
+         throw new ForbiddenException([m
+[31m-          'The chosen member is not part of your department.',[m
+[32m+[m[32m          'You can only create tasks in your active department.',[m
+         );[m
+       }[m
+     }[m
+ [m
+[31m-    // objective must belong to the same department (or be null).[m
+[32m+[m[32m    if (!(await this.isDepartmentMember(String(assignedTo), departmentId))) {[m
+[32m+[m[32m      throw new ForbiddenException([m
+[32m+[m[32m        'The chosen member is not part of your department.',[m
+[32m+[m[32m      );[m
+[32m+[m[32m    }[m
+[32m+[m
+     let objectiveId: Types.ObjectId | null = null;[m
+     if (dto.objectiveId) {[m
+       objectiveId = await this.validateObjective(dto.objectiveId);[m
+[31m-      if (!scope.isGlobal && departmentId) {[m
+[31m-        const objective = await this.objectiveModel[m
+[31m-          .findById(objectiveId)[m
+[31m-          .select('departmentId')[m
+[31m-          .lean()[m
+[31m-          .exec();[m
+[31m-        const raw =[m
+[31m-          (objective?.departmentId as any)?._id ?? objective?.departmentId;[m
+[31m-        if (String(raw) !== String(departmentId)) {[m
+[31m-          throw new ForbiddenException([m
+[31m-            'The chosen objective is not in your department.',[m
+[31m-          );[m
+[31m-        }[m
+[32m+[m[32m      const objective = await this.objectiveModel[m
+[32m+[m[32m        .findById(objectiveId)[m
+[32m+[m[32m        .select('departmentId')[m
+[32m+[m[32m        .lean()[m
+[32m+[m[32m        .exec();[m
+[32m+[m[32m  

@@ -24,6 +24,9 @@ export class Task {
   @Prop({ enum: ['todo', 'in-progress', 'done'], default: 'todo' })
   status!: string;
 
+  @Prop({ type: Date, default: null })
+  completedAt!: Date | null;
+
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Objective', default: null })
   objectiveId!: Types.ObjectId | null;
 

@@ -141,31 +141,16 @@ export class DepartmentsService {
       .exec();
     let membershipsSynced = 0;
     let skippedAssignments = 0;
+    const assignments = new Map<string, Map<string, string>>();
 
     for (const department of departments) {
-      const assignments = new Map<string, string>();
-      const assign = (userId: Types.ObjectId | null, role: string) => {
-        if (userId && !assignments.has(String(userId))) {
-          assignments.set(String(userId), role);
-        }
-      };
+      const departmentId = String(department._id);
+      const departmentAssignments = this.getDepartmentAssignments(department);
+      assignments.set(departmentId, departmentAssignments);
 
-      assign(department.manager, 'Responsable');
-      assign(department.viceManager, 'Responsable');
-      for (const userId of department.teamManagers ?? []) {
-        assign(userId, 'Team Manager');
-      }
-      for (const userId of department.members ?? []) {
-        assign(userId, 'Member');
-      }
-
-      for (const [userId, role] of assignments) {
+      for (const [userId, role] of departmentAssignments) {
         if (
-          await this.syncMembership(
-            userId,
-            String(department._id),
-            role,
-          )
+          await this.syncMembership(userId, departmentId, role)
         ) {
           membershipsSynced += 1;
         } else {
@@ -174,10 +159,36 @@ export class DepartmentsService {
       }
     }
 
+    const users = await this.userModel.find().select('memberships').exec();
+    let removedMemberships = 0;
+    for (const user of users) {
+      const userId = String(user._id);
+      const staleDepartmentIds = new Set(
+        (user.memberships ?? [])
+          .filter((membership) => {
+            if (!membership.departmentId) return false;
+            const departmentId = String(membership.departmentId);
+            return !assignments.get(departmentId)?.has(userId);
+          })
+          .map((membership) => String(membership.departmentId)),
+      );
+
+      for (const departmentId of staleDepartmentIds) {
+        await this.removeMembership(userId, departmentId);
+        removedMemberships += 1;
+      }
+    }
+
     return {
       departmentsProcessed: departments.length,
       membershipsSynced,
       skippedAssignments,
+      departments: departments.length,
+      memberships: Array.from(assignments.values()).reduce(
+        (total, departmentAssignments) => total + departmentAssignments.size,
+        0,
+      ),
+      removedMemberships,
     };
   }
 

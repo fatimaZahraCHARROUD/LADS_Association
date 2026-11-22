@@ -13,11 +13,11 @@ export class CreateFollowupNoteDto {
 
   @IsOptional()
   @IsMongoId()
-  departmentId?: string;
+  departmentId?: string | null;
 
   @IsOptional()
   @IsMongoId()
-  memberId?: string;
+  memberId?: string | null;
 
   @IsOptional()
   @IsEnum(['info', 'warning', 'action'])
