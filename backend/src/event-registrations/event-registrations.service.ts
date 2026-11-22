@@ -14,7 +14,10 @@ export class EventRegistrationsService {
   ) {}
 
   async create(dto: CreateEventRegistrationDto) {
-    const registration = this.registrationRepo.create(dto as Partial<EventRegistration>);
+    const registration = this.registrationRepo.create({
+      ...dto,
+      eventId: dto.eventId ? Number(dto.eventId) : undefined,
+    } as Partial<EventRegistration>);
     const saved = await this.registrationRepo.save(registration);
 
     setImmediate(async () => {

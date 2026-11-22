@@ -43,6 +43,8 @@ export class MeetingsService {
 
     const meeting = this.meetingRepo.create({
       ...dto,
+      startAt: new Date(dto.startAt),
+      endAt: new Date(dto.endAt),
       departmentId,
       createdBy: Number(userId),
     } as Partial<Meeting>);

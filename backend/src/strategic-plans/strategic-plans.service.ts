@@ -14,6 +14,7 @@ export class StrategicPlansService {
   create(dto: CreateStrategicPlanDto, userId: string) {
     const plan = this.planRepo.create({
       ...dto,
+      deadline: dto.deadline ? new Date(dto.deadline) : undefined,
       createdBy: Number(userId),
     } as Partial<StrategicPlan>);
     return this.planRepo.save(plan);

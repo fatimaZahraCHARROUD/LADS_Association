@@ -12,7 +12,12 @@ export class DocumentPermissionsService {
   ) {}
 
   create(dto: CreateDocumentPermissionDto) {
-    const permission = this.permissionRepo.create(dto as Partial<DocumentPermission>);
+    const permission = this.permissionRepo.create({
+      ...dto,
+      document: dto.document ? Number(dto.document) : undefined,
+      user: dto.user ? Number(dto.user) : undefined,
+      department: dto.department ? Number(dto.department) : undefined,
+    } as Partial<DocumentPermission>);
     return this.permissionRepo.save(permission);
   }
 

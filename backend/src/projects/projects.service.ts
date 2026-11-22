@@ -27,6 +27,8 @@ export class ProjectsService {
     this.assertDates(dto.startDate, dto.endDate);
     const project = this.projectRepo.create({
       ...dto,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       departmentId: dto.departmentId ? Number(dto.departmentId) : null,
       createdBy: Number(userId),
     } as Partial<Project>);
