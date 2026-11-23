@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -41,10 +42,16 @@ export class MeetingsService {
       }
     }
 
+    const startAt = new Date(dto.startAt);
+    const endAt = new Date(dto.endAt);
+    if (endAt <= startAt) {
+      throw new BadRequestException('End time must be after start time');
+    }
+
     const meeting = this.meetingRepo.create({
       ...dto,
-      startAt: new Date(dto.startAt),
-      endAt: new Date(dto.endAt),
+      startAt,
+      endAt,
       departmentId,
       createdBy: Number(userId),
     } as Partial<Meeting>);

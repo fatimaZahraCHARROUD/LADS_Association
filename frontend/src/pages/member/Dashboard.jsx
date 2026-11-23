@@ -1,4 +1,5 @@
 import { Circle, Clock3, FileText, MapPin, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const tasks = [
   { title: "Review the volunteer event brief", project: "October Community Drive", due: "Today", status: "In progress", color: "bg-blue-50 text-brand-primary" },
@@ -18,14 +19,22 @@ const documents = [
 ];
 
 export default function MemberDashboard() {
+  const [userName, setUserName] = useState("");
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      setUserName(user.fullName || user.name || "");
+    } catch {}
+  }, []);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <section className="rounded-2xl border border-brand-border bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-brand-primary">Week of October 05</p>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-brand-text">Welcome back, Sara</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-muted">You have 3 tasks to focus on this week and 2 upcoming meetings. Thanks for helping the community move forward.</p>
+            <p className="text-sm font-medium text-brand-primary">{new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-brand-text">Bienvenue{userName ? `, ${userName}` : ""}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-muted">Consultez vos tâches, réunions et documents partagés.</p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-brand-primary"><UserRound size={23} /></div>
         </div>

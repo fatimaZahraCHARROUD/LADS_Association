@@ -55,8 +55,8 @@ export class MembersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.membersService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.membersService.findOne(id, getUserId(req));
   }
 
   @Roles('President', 'Director Executive', 'Team Manager', 'Responsable')

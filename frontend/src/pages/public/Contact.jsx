@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../../services/api";
 import "../../Styles/contact.css";
 
-const API_URL = "http://localhost:3000/contact-messages";
+const API_URL = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}/contact-messages`;
 
 export default function Contact() {
 
@@ -188,8 +188,8 @@ useEffect(() => {
 
       const data = await res.json();
 
-      if (!res.ok)
-        throw new Error(data.message);
+      if (!res.ok || data.success === false)
+        throw new Error(data.error || data.message || "Erreur lors de l'envoi");
 
       showSuccess(
         t("contact.success")
@@ -263,7 +263,7 @@ useEffect(() => {
 
             <div className="info-item">
               <Phone size={20} />
-              <span>{phone}</span>
+              <bdi dir="ltr">{phone}</bdi>
             </div>
 
             <div className="info-item">

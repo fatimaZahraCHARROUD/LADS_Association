@@ -25,10 +25,12 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    return this.userRepo.findOne({
-      where: { email },
-      relations: ['memberships'],
-    });
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .leftJoinAndSelect('user.memberships', 'memberships')
+      .where('user.email = :email', { email })
+      .getOne();
   }
 
   async findOne(id: string) {

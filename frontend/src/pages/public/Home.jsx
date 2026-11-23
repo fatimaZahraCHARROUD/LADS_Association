@@ -27,6 +27,7 @@ const { t, i18n } = useTranslation();
 
 const [slides, setSlides] = useState([]);
 const [activeSlide, setActiveSlide] = useState(0);
+const [heroStats, setHeroStats] = useState({ members: "...", events: "...", formations: "...", activities: "..." });
 const navigate = useNavigate();
 const faqs = [
   {
@@ -66,13 +67,22 @@ useEffect(() => {
         events,
         activities,
         formations,
-        news
+        news,
+        members,
       ] = await Promise.all([
         api.get("/events?isPublished=true"),
         api.get("/activities?isPublished=true"),
         api.get("/formations?isPublished=true"),
         api.get("/news?isPublished=true"),
+        api.get("/members").catch(() => []),
       ]);
+
+      setHeroStats({
+        members: Array.isArray(members) ? `${members.length}+` : "30+",
+        events: Array.isArray(events) ? `${events.length}+` : "15+",
+        formations: Array.isArray(formations) ? `${formations.length}+` : "10+",
+        activities: Array.isArray(activities) ? `${activities.length}+` : "10+",
+      });
 
 
       const prepare = (items,type)=>{
@@ -273,22 +283,22 @@ const visibleSlides =
             <div className="hero-stats-bar">
 
               <div className="stat-item">
-                <h2>30+</h2>
+                <h2>{heroStats.members}</h2>
                 <p>{t("home.stats.members")}</p>
               </div>
 
               <div className="stat-item">
-                <h2>15+</h2>
+                <h2>{heroStats.events}</h2>
                 <p>{t("home.stats.events")}</p>
               </div>
 
               <div className="stat-item">
-                <h2>10+</h2>
+                <h2>{heroStats.formations}</h2>
                 <p>{t("home.stats.formations")}</p>
               </div>
 
               <div className="stat-item">
-                <h2>10+</h2>
+                <h2>{heroStats.activities}</h2>
                 <p>{t("home.stats.activites")}</p>
               </div>
 

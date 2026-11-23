@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -141,9 +142,28 @@ export class MembersService {
     return rows.map(({ password: _pw, ...rest }: any) => rest);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, requesterId?: string) {
     const member = await this.userRepo.findOne({ where: { id: Number(id) }, relations: ['memberships'] });
     if (!member) throw new NotFoundException(`Member ${id} not found`);
+
+    if (requesterId) {
+      const requesterRole = await this.getActiveRole(requesterId);
+      const isGlobal = !requesterRole || GLOBAL_ROLES.includes(requesterRole) || requesterRole === 'President';
+      if (!isGlobal) {
+        const isSelf = String(requesterId) === String(id);
+        if (!isSelf) {
+          // Allow if requester shares a department with the target
+          const requesterUser = await this.userRepo.findOne({ where: { id: Number(requesterId) } });
+          const sharedDept = (requesterUser?.departement ?? []).some((dId: number) =>
+            (member.departement ?? []).includes(dId),
+          );
+          if (!sharedDept) {
+            throw new ForbiddenException('Access denied');
+          }
+        }
+      }
+    }
+
     const { password: _pw, ...rest } = member as any;
     return rest;
   }

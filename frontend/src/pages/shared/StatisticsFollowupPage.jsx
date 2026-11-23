@@ -162,10 +162,10 @@ export default function StatisticsFollowupPage() {
   }, [filters.departmentId, filters.memberId, filters.authorId, filters.noteType, filters.from, filters.to, filters.period]);
 
   const overviewCards = useMemo(() => [
-    { label: "Departments", value: summary.overview?.totalDepartments ?? 0, color: "text-brand-primary", ring: "#2563eb", change: 0 },
-    { label: "Members", value: summary.overview?.totalMembers ?? 0, color: "text-indigo-500", ring: "#6366f1", change: 0 },
-    { label: "Completed tasks", value: summary.overview?.completedTasks ?? 0, color: "text-emerald-500", ring: "#10b981", change: 0 },
-    { label: "Meetings", value: summary.overview?.meetingsHeld ?? 0, color: "text-orange-500", ring: "#f97316", change: 0 },
+    { label: "Departments", value: summary.overview?.totalDepartments ?? 0, color: "text-brand-primary", ring: "#2563eb", scale: 20, change: 0 },
+    { label: "Members", value: summary.overview?.totalMembers ?? 0, color: "text-indigo-500", ring: "#6366f1", scale: 200, change: 0 },
+    { label: "Completed tasks", value: summary.overview?.completedTasks ?? 0, color: "text-emerald-500", ring: "#10b981", scale: 100, change: 0 },
+    { label: "Meetings", value: summary.overview?.meetingsHeld ?? 0, color: "text-orange-500", ring: "#f97316", scale: 50, change: 0 },
   ], [summary]);
 
   const handleNoteSubmit = async (event) => {
@@ -349,7 +349,7 @@ export default function StatisticsFollowupPage() {
         <>
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Main statistics">
             {overviewCards.map((stat) => (
-              <StatCard key={stat.label} def={stat} stat={{ value: stat.value, ring: 68, change: stat.change }} pillSuffix="overall" />
+              <StatCard key={stat.label} def={stat} stat={{ value: stat.value, ring: Math.min(100, Math.round((stat.value / (stat.scale ?? 100)) * 100)), change: stat.change }} pillSuffix="overall" />
             ))}
           </section>
 

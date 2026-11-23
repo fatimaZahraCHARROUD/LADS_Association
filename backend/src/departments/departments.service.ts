@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { DataSource, EntityManager, Repository, In } from 'typeorm';
 import { Department } from './entities/department.entity';
 import { User } from '../users/entities/user.entity';
 import { Membership } from '../users/entities/membership.entity';
@@ -18,10 +18,41 @@ export class DepartmentsService {
     private readonly departmentRepo: Repository<Department>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  findAll() {
-    return this.departmentRepo.find({ order: { name: 'ASC' } });
+  async findAll() {
+    const departments = await this.departmentRepo.find({ order: { name: 'ASC' } });
+    if (!departments.length) return departments;
+
+    // Collect all user IDs referenced across departments
+    const allIds = new Set<number>();
+    for (const d of departments) {
+      if (d.manager) allIds.add(d.manager);
+      if (d.viceManager) allIds.add(d.viceManager);
+      for (const id of d.teamManagers ?? []) allIds.add(id);
+      for (const id of d.members ?? []) allIds.add(id);
+    }
+
+    if (!allIds.size) return departments;
+
+    const users = await this.userRepo.find({ where: { id: In([...allIds]) } });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const pick = (id: number | null) => {
+      if (!id) return null;
+      const u = userMap.get(id);
+      if (!u) return null;
+      return { id: u.id, _id: String(u.id), fullName: u.fullName, email: u.email };
+    };
+
+    return departments.map((d) => ({
+      ...d,
+      manager: pick(d.manager),
+      viceManager: pick(d.viceManager),
+      teamManagers: (d.teamManagers ?? []).map(pick).filter(Boolean),
+      members: (d.members ?? []).map(pick).filter(Boolean),
+    }));
   }
 
   async findOne(id: string) {
@@ -31,6 +62,7 @@ export class DepartmentsService {
   }
 
   async create(dto: CreateDepartmentDto) {
+    // Validate outside the transaction for clear user-facing errors
     const name = this.validateName(dto.name);
     const manager = await this.validateUserId(dto.manager ?? null);
     const viceManager = await this.validateUserId(dto.viceManager ?? null);
@@ -38,16 +70,13 @@ export class DepartmentsService {
     const teamManagers = await this.validateUserIds(dto.teamManagers ?? []);
     const members = await this.validateUserIds(dto.members ?? []);
 
-    const department = this.departmentRepo.create({
-      name,
-      manager,
-      viceManager,
-      teamManagers,
-      members,
-    } as Partial<Department>);
-    const saved = await this.departmentRepo.save(department);
-    await this.syncDepartmentMemberships(saved, []);
-    return this.findOne(String(saved.id));
+    const savedId = await this.dataSource.transaction(async (tx) => {
+      const department = tx.create(Department, { name, manager, viceManager, teamManagers, members } as Partial<Department>);
+      const saved = await tx.save(department);
+      await this.syncDepartmentMemberships(saved, [], false, tx);
+      return saved.id;
+    });
+    return this.findOne(String(savedId));
   }
 
   async update(id: string, dto: UpdateDepartmentDto) {
@@ -66,10 +95,15 @@ export class DepartmentsService {
     const finalViceManager = updates.viceManager !== undefined ? updates.viceManager : current.viceManager;
     this.validateDistinctManagers(finalManager, finalViceManager);
 
-    Object.assign(current, updates);
-    const updated = await this.departmentRepo.save(current);
-    await this.syncDepartmentMemberships(updated, previousUserIds);
-    return this.findOne(id);
+    const updatedId = await this.dataSource.transaction(async (tx) => {
+      const deptInTx = await tx.findOne(Department, { where: { id: Number(id) } });
+      if (!deptInTx) throw new NotFoundException(`Department ${id} not found`);
+      Object.assign(deptInTx, updates);
+      const updated = await tx.save(deptInTx);
+      await this.syncDepartmentMemberships(updated, previousUserIds, false, tx);
+      return updated.id;
+    });
+    return this.findOne(String(updatedId));
   }
 
   async assignManager(id: string, userId: string | null) {
@@ -94,25 +128,18 @@ export class DepartmentsService {
     const department = await this.departmentRepo.findOne({ where: { id: Number(id) } });
     if (!department) throw new NotFoundException(`Department ${id} not found`);
     const previousUserIds = this.getDepartmentUserIds(department);
-    await this.departmentRepo.remove(department);
-    await this.syncDepartmentMemberships(department, previousUserIds, true);
+    await this.dataSource.transaction(async (tx) => {
+      await tx.remove(department);
+      await this.syncDepartmentMemberships(department, previousUserIds, true, tx);
+    });
     return { deleted: true };
   }
 
   async resyncAllMemberships() {
     const departments = await this.departmentRepo.find();
-    const assignments = new Map<number, Map<number, string>>();
-
     for (const department of departments) {
-      const deptId = department.id;
-      const deptAssignments = new Map<number, string>();
-      for (const uid of department.members ?? []) deptAssignments.set(uid, 'Member');
-      for (const uid of department.teamManagers ?? []) deptAssignments.set(uid, 'Team Manager');
-      if (department.manager) deptAssignments.set(department.manager, 'Responsable');
-      if (department.viceManager) deptAssignments.set(department.viceManager, 'Responsable');
-      assignments.set(deptId, deptAssignments);
+      await this.syncDepartmentMemberships(department, []);
     }
-
     return { departments: departments.length, synced: true };
   }
 
@@ -124,6 +151,7 @@ export class DepartmentsService {
     department: Department,
     previousUserIds: number[],
     removed = false,
+    em?: EntityManager,
   ) {
     const deptId = department.id;
     const assignments = removed
@@ -134,9 +162,9 @@ export class DepartmentsService {
     for (const userId of affectedUserIds) {
       const role = assignments.get(userId);
       if (role) {
-        await this.syncMembership(userId, deptId, role);
+        await this.syncMembership(userId, deptId, role, em);
       } else {
-        await this.removeMembership(userId, deptId);
+        await this.removeMembership(userId, deptId, em);
       }
     }
   }
@@ -154,8 +182,9 @@ export class DepartmentsService {
     return Array.from(this.getDepartmentAssignments(department).keys());
   }
 
-  private async syncMembership(userId: number, departmentId: number, role: string) {
-    const user = await this.userRepo.findOne({
+  private async syncMembership(userId: number, departmentId: number, role: string, em?: EntityManager) {
+    const manager = em ?? this.userRepo.manager;
+    const user = await manager.findOne(User, {
       where: { id: userId },
       relations: ['memberships'],
     });
@@ -166,42 +195,47 @@ export class DepartmentsService {
 
     if (existing) {
       existing.role = role;
-      await this.userRepo.manager.save(existing);
+      await manager.save(existing);
     } else {
-      const newMembership = this.userRepo.manager.create(Membership, {
-        userId,
-        departmentId,
-        role,
-      });
-      await this.userRepo.manager.save(newMembership);
-      if (!user.activeMembershipId) {
-        user.activeMembershipId = newMembership.id;
-        await this.userRepo.save(user);
+      // Use QueryBuilder insert to bypass TypeORM's ORM relation tracking.
+      // manager.create/save resolves user_id via the @ManyToOne relation (which is
+      // unset here), causing user_id = NULL → FK constraint failure.
+      const result = await manager
+        .createQueryBuilder()
+        .insert()
+        .into(Membership)
+        .values({ userId, departmentId, role })
+        .execute();
+      const newMembershipId: number | undefined = result.raw?.insertId;
+      if (!user.activeMembershipId && newMembershipId) {
+        user.activeMembershipId = newMembershipId;
+        await manager.save(user);
       }
     }
 
-    const allMemberships = await this.userRepo.manager.find(Membership, { where: { userId } });
+    const allMemberships = await manager.find(Membership, { where: { userId } });
     user.departement = allMemberships.map((m) => m.departmentId!).filter(Boolean);
-    await this.userRepo.save(user);
+    await manager.save(user);
   }
 
-  private async removeMembership(userId: number, departmentId: number) {
-    const membership = await this.userRepo.manager.findOne(Membership, {
+  private async removeMembership(userId: number, departmentId: number, em?: EntityManager) {
+    const manager = em ?? this.userRepo.manager;
+    const membership = await manager.findOne(Membership, {
       where: { userId, departmentId },
     });
     if (!membership) return;
 
-    await this.userRepo.manager.remove(membership);
+    await manager.remove(membership);
 
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const user = await manager.findOne(User, { where: { id: userId } });
     if (!user) return;
 
-    const remaining = await this.userRepo.manager.find(Membership, { where: { userId } });
+    const remaining = await manager.find(Membership, { where: { userId } });
     user.departement = remaining.map((m) => m.departmentId!).filter(Boolean);
     if (user.activeMembershipId === membership.id) {
       user.activeMembershipId = remaining[0]?.id ?? null;
     }
-    await this.userRepo.save(user);
+    await manager.save(user);
   }
 
   // ─────────────────────────────────────────────

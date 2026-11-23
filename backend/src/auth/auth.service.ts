@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { Membership } from '../users/schemas/user.schema';
+import { Membership } from '../users/entities/membership.entity';
 import { HashService } from '../services/hash.service';
 import { JwtCustomService } from '../services/jwt/jwt.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
@@ -33,22 +33,21 @@ export class AuthService {
 
     const memberships = user.memberships ?? [];
     let activeMembership = memberships.find(
-      (membership) =>
-        String(membership._id) === String(user.activeMembershipId ?? ''),
+      (membership) => membership.id === user.activeMembershipId,
     );
 
     if (!activeMembership && memberships.length) {
       activeMembership = memberships[0];
       await this.usersService.setActiveMembership(
-        String(user._id),
-        String(activeMembership._id),
+        String(user.id),
+        String(activeMembership.id),
       );
     }
-    const activeId = activeMembership?._id ?? null;
+    const activeId = activeMembership?.id ?? null;
 
     const token = this.jwtService.sign({
-      userId: user._id,
-      sub: user._id,
+      userId: user.id,
+      sub: user.id,
       email: user.email,
       name: user.fullName,
       role: user.role,
@@ -58,7 +57,7 @@ export class AuthService {
       message: 'Login successful',
       access_token: token,
       user: {
-        id: user._id,
+        id: user.id,
         fullName: user.fullName,
         email: user.email,
         role: user.role,
@@ -73,7 +72,7 @@ export class AuthService {
     const user = await this.usersService.findOne(userId);
 
     const membership = user.memberships?.find(
-      (m: Membership) => String(m._id) === String(membershipId),
+      (m: Membership) => String(m.id) === String(membershipId),
     );
 
     if (!membership) {
@@ -82,11 +81,11 @@ export class AuthService {
 
     const updatedUser = await this.usersService.setActiveMembership(
       userId,
-      membership._id,
+      String(membership.id),
     );
     if (
       !updatedUser?.activeMembershipId ||
-      String(updatedUser.activeMembershipId) !== String(membership._id)
+      String(updatedUser.activeMembershipId) !== String(membership.id)
     ) {
       throw new InternalServerErrorException(
         'The selected membership could not be persisted',
@@ -117,13 +116,13 @@ export class AuthService {
     });
 
     const token = this.jwtService.sign({
-      sub: user._id,
+      sub: user.id,
       email: user.email,
     });
 
     return {
       user: {
-        id: user._id,
+        id: user.id,
         name: user.fullName,
         email: user.email,
       },

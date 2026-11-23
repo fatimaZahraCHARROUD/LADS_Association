@@ -67,7 +67,14 @@ useEffect(() => {
 
     navigate(dest);
   } catch (err) {
-    setError(err.message);
+    const raw = err.message || "";
+    const frMsg =
+      raw === "Invalid credentials" || raw === "Unauthorized"
+        ? "Email ou mot de passe incorrect."
+        : raw === "User not found"
+          ? "Aucun compte trouvé avec cet email."
+          : raw || "Erreur de connexion. Veuillez réessayer.";
+    setError(frMsg);
   }
 };
 

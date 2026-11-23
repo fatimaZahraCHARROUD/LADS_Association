@@ -136,7 +136,13 @@ export default function ExecDashboard() {
               def={stat}
               stat={{
                 value: isDynamic ? overview?.[stat.key] ?? 0 : stat.value,
-                ring: 68,
+                ring: isDynamic
+                  ? (() => {
+                      const v = overview?.[stat.key] ?? 0;
+                      const caps = { totalDepartments: 20, totalMembers: 200, totalProjects: 50 };
+                      return Math.min(100, Math.round((v / (caps[stat.key] ?? 100)) * 100));
+                    })()
+                  : 0,
                 change: stat.change ?? 0,
               }}
               loading={isDynamic && dashboardLoading}

@@ -70,6 +70,16 @@ import PublicProjects from "./pages/public/Projects";
 import { useEffect } from "react";
 import i18n from "./utils/tr";
 
+function NotFound() {
+  return (
+    <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+      <h1 style={{ fontSize: "4rem", fontWeight: 700, color: "#1e3a5f" }}>404</h1>
+      <p style={{ fontSize: "1.1rem", color: "#6b7280" }}>Page introuvable</p>
+      <a href="/" style={{ color: "#2563eb", textDecoration: "underline" }}>Retour à l'accueil</a>
+    </div>
+  );
+}
+
 function App() {
   useEffect(() => {
     document.documentElement.dir = i18n.language === "ar" ? "rtl" : "ltr";
@@ -78,7 +88,7 @@ function App() {
   return (
     <Router>
       <Toaster
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           duration: 3000,
           style: {
@@ -208,6 +218,8 @@ function App() {
   <Route path="formations" element={<Memberformation />} />
   <Route path="tasks" element={<Membertasks />} />
 </Route>
+        {/* 404 catch-all */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

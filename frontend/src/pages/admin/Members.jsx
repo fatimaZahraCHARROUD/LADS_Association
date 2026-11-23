@@ -418,15 +418,18 @@ const openEdit = (r) => {
       >
         <form onSubmit={submit} className="space-y-4">
           <div className="flex items-center gap-4">
-            <img
-              src={
-                file
-                  ? URL.createObjectURL(file)
-                  : FULL_PHOTO(editing?.profileImage)
-              }
-              alt="Preview"
-              className="w-20 h-20 rounded-full object-cover bg-gray-100 border border-brand-border"
-            />
+            {(file || editing?.profileImage) ? (
+              <img
+                src={file ? URL.createObjectURL(file) : FULL_PHOTO(editing?.profileImage)}
+                alt={editing?.fullName || "Preview"}
+                className="w-20 h-20 rounded-full object-cover bg-gray-100 border border-brand-border"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gray-100 border border-brand-border flex items-center justify-center text-2xl font-bold text-brand-muted">
+                {(form.fullName || "?")[0]?.toUpperCase()}
+              </div>
+            )}
             <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-brand-primary bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-colors">
               <ImagePlus size={16} />
               {file ? file.name : "Choose photo"}
@@ -479,6 +482,8 @@ const openEdit = (r) => {
               <input
                 type="password"
                 required={!editing}
+                minLength={8}
+                autoComplete="new-password"
                 value={form.password}
                 onChange={set("password")}
                 className={fieldClass}
