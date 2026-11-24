@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { MeetingsService } from './meetings.service';
 import { MeetingsController } from './meetings.controller';
-import { Meeting, MeetingSchema } from './schemas/meeting.schema';
-import { Department, DepartmentSchema } from '../departments/schemas/department.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { Meeting } from './entities/meeting.entity';
+import { Department } from '../departments/entities/department.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { WriterRoleGuard } from '../services/jwt/writer-role.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
@@ -12,11 +12,7 @@ import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Meeting.name, schema: MeetingSchema },
-      { name: Department.name, schema: DepartmentSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([Meeting, Department, User]),
     JwtModule,
     UsersModule,
   ],

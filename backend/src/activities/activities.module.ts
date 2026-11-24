@@ -1,24 +1,17 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivitiesService } from './activities.service';
 import { ActivitiesController } from './activities.controller';
-import { Activity, ActivitySchema } from './schemas/activity.schema';
+import { Activity } from './entities/activity.entity';
+import { User } from '../users/entities/user.entity';
+import { Department } from '../departments/entities/department.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UploadModule } from '../upload/upload.module';
-import { User, UserSchema } from '../users/schemas/user.schema'; // ← NEW
-import {
-  Department,
-  DepartmentSchema,
-} from '../departments/schemas/department.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Activity.name, schema: ActivitySchema },
-      { name: User.name, schema: UserSchema },
-      { name: Department.name, schema: DepartmentSchema },
-    ]),
+    TypeOrmModule.forFeature([Activity, User, Department]),
     JwtModule,
     UploadModule,
   ],

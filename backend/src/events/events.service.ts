@@ -1,105 +1,66 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-
-import { Event, EventDocument } from './schemas/event.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Event } from './entities/event.entity';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-
 import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class EventsService {
   constructor(
-    @InjectModel(Event.name)
-    private eventModel: Model<EventDocument>,
-
+    @InjectRepository(Event) private eventRepo: Repository<Event>,
     private uploadService: UploadService,
   ) {}
 
-  async create(dto: CreateEventDto) {
-    return this.eventModel.create(dto);
+  create(dto: CreateEventDto) {
+    const event = this.eventRepo.create(dto as Partial<Event>);
+    return this.eventRepo.save(event);
   }
 
-  async findAll(status?: string, isPublished?: boolean) {
-    const filter: Record<string, unknown> = {};
-
-    if (status) {
-      filter.status = status;
-    }
-
-    if (isPublished !== undefined) {
-      filter.isPublished = isPublished;
-    }
-
-    return this.eventModel.find(filter).sort({ date: -1 }).exec();
+  findAll(status?: string, isPublished?: boolean) {
+    const where: Record<string, unknown> = {};
+    if (status) where['status'] = status;
+    if (isPublished !== undefined) where['isPublished'] = isPublished;
+    return this.eventRepo.find({ where, order: { date: 'DESC' } });
   }
 
   async findOne(id: string) {
-    const event = await this.eventModel.findById(id).exec();
-
-    if (!event) {
-      throw new NotFoundException(`Event ${id} not found`);
-    }
-
+    const event = await this.eventRepo.findOne({ where: { id: Number(id) } });
+    if (!event) throw new NotFoundException(`Event ${id} not found`);
     return event;
   }
 
   async update(id: string, dto: UpdateEventDto) {
-    const existing = await this.eventModel.findById(id).exec();
+    const existing = await this.eventRepo.findOne({ where: { id: Number(id) } });
+    if (!existing) throw new NotFoundException(`Event ${id} not found`);
 
-    if (!existing) {
-      throw new NotFoundException(`Event ${id} not found`);
-    }
-
-    // ✅ delete old cloudinary image if changed
-    if (
-      dto.coverImage &&
-      existing.coverImage &&
-      dto.coverImage !== existing.coverImage
-    ) {
+    if (dto.coverImage && existing.coverImage && dto.coverImage !== existing.coverImage) {
       if (existing.coverImagePublicId) {
         await this.uploadService.deleteImage(existing.coverImagePublicId);
       }
     }
 
-    const updated = await this.eventModel
-      .findByIdAndUpdate(id, dto, {
-        new: true,
-      })
-      .exec();
-
-    return updated;
+    Object.assign(existing, dto);
+    return this.eventRepo.save(existing);
   }
 
   async remove(id: string) {
-    const existing = await this.eventModel.findById(id).exec();
+    const existing = await this.eventRepo.findOne({ where: { id: Number(id) } });
+    if (!existing) throw new NotFoundException(`Event ${id} not found`);
 
-    if (!existing) {
-      throw new NotFoundException(`Event ${id} not found`);
-    }
-
-    // ✅ delete cloudinary image
     if (existing.coverImagePublicId) {
       await this.uploadService.deleteImage(existing.coverImagePublicId);
     }
 
-    await this.eventModel.findByIdAndDelete(id).exec();
-
-    return {
-      message: 'Event deleted',
-    };
+    await this.eventRepo.remove(existing);
+    return { message: 'Event deleted' };
   }
 
   async togglePublish(id: string) {
-    const event = await this.eventModel.findById(id).exec();
-
-    if (!event) {
-      throw new NotFoundException(`Event ${id} not found`);
-    }
-
+    const event = await this.eventRepo.findOne({ where: { id: Number(id) } });
+    if (!event) throw new NotFoundException(`Event ${id} not found`);
     event.isPublished = !event.isPublished;
-
-    return event.save();
+    return this.eventRepo.save(event);
   }
 }

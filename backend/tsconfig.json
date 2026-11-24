@@ -25,5 +25,5 @@
      "noEmit": false
 
   },
-  "exclude": ["node_modules", "dist", "scripts"]
+  "exclude": ["node_modules", "dist", "scripts", "src/**/schemas", "src/**/*.schema.ts"]
 }

@@ -1,25 +1,13 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import {
-  Activity,
-  ActivitySchema,
-} from '../activities/schemas/activity.schema';
-import {
-  Department,
-  DepartmentSchema,
-} from '../departments/schemas/department.schema';
-import {
-  FollowupNote,
-  FollowupNoteSchema,
-} from '../followups/schemas/followup-note.schema';
-import { Meeting, MeetingSchema } from '../meetings/schemas/meeting.schema';
-import {
-  Objective,
-  ObjectiveSchema,
-} from '../objectives/schemas/objective.schema';
-import { Project, ProjectSchema } from '../projects/schemas/project.schema';
-import { Task, TaskSchema } from '../tasks/schemas/task.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Activity } from '../activities/entities/activity.entity';
+import { Department } from '../departments/entities/department.entity';
+import { FollowupNote } from '../followups/entities/followup-note.entity';
+import { Meeting } from '../meetings/entities/meeting.entity';
+import { Objective } from '../objectives/entities/objective.entity';
+import { Project } from '../projects/entities/project.entity';
+import { Task } from '../tasks/entities/task.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { StatisticsController } from './statistics.controller';
@@ -27,15 +15,15 @@ import { StatisticsService } from './statistics.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Department.name, schema: DepartmentSchema },
-      { name: User.name, schema: UserSchema },
-      { name: Task.name, schema: TaskSchema },
-      { name: Meeting.name, schema: MeetingSchema },
-      { name: Objective.name, schema: ObjectiveSchema },
-      { name: Project.name, schema: ProjectSchema },
-      { name: Activity.name, schema: ActivitySchema },
-      { name: FollowupNote.name, schema: FollowupNoteSchema },
+    TypeOrmModule.forFeature([
+      Department,
+      User,
+      Task,
+      Meeting,
+      Objective,
+      Project,
+      Activity,
+      FollowupNote,
     ]),
     JwtModule,
   ],

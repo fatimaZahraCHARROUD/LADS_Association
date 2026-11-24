@@ -4,243 +4,150 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Objective, ObjectiveDocument } from './schemas/objective.schema';
-import {
-  Department,
-  DepartmentDocument,
-} from '../departments/schemas/department.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Objective } from './entities/objective.entity';
+import { Department } from '../departments/entities/department.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateObjectiveDto } from './dto/create-objective.dto';
 import { UpdateObjectiveDto } from './dto/update-objective.dto';
 
-const USER_FIELDS = 'fullName email profileImage';
 const GLOBAL_ROLES = ['President', 'Director Executive'];
 
 @Injectable()
 export class ObjectivesService {
   constructor(
-    @InjectModel(Objective.name)
-    private readonly objectiveModel: Model<ObjectiveDocument>,
-    @InjectModel(Department.name)
-    private readonly departmentModel: Model<DepartmentDocument>,
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
+    @InjectRepository(Objective) private readonly objectiveRepo: Repository<Objective>,
+    @InjectRepository(Department) private readonly departmentRepo: Repository<Department>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
 
-  /**
-   * Resolve the caller's active department + role.
-   * Global roles see everything.
-   */
-  private async getScope(userId?: string): Promise<{
-    role: string | null;
-    departmentId: Types.ObjectId | null;
-    isGlobal: boolean;
-  }> {
-    if (!userId || !Types.ObjectId.isValid(userId)) {
-      return { role: null, departmentId: null, isGlobal: false };
-    }
+  private async getScope(userId?: string) {
+    if (!userId) return { role: null, departmentId: null, isGlobal: false };
+    const numId = Number(userId);
+    if (isNaN(numId)) return { role: null, departmentId: null, isGlobal: false };
 
-    const user = await this.userModel
-      .findById(userId)
-      .select('activeMembershipId memberships isAdmin role')
-      .lean()
-      .exec();
-
+    const user = await this.userRepo.findOne({ where: { id: numId }, relations: ['memberships'] });
     if (!user) return { role: null, departmentId: null, isGlobal: false };
 
     if (user.isAdmin === true || (user.role ?? []).includes('President')) {
       return { role: 'President', departmentId: null, isGlobal: true };
     }
 
-    const active = (user.memberships ?? []).find(
-      (m: any) => String(m._id) === String(user.activeMembershipId),
-    );
-    const role = active?.role ?? null;
+    const activeMembership = (user.memberships ?? []).find((m: any) => m.id === user.activeMembershipId);
+    const role = activeMembership?.role ?? null;
     const isGlobal = GLOBAL_ROLES.includes(role ?? '');
-    const departmentId =
-      active?.departmentId && Types.ObjectId.isValid(String(active.departmentId))
-        ? new Types.ObjectId(String(active.departmentId))
-        : null;
+    const departmentId = activeMembership?.departmentId ?? null;
 
     return { role, departmentId, isGlobal };
   }
 
-  // ───── READ ─────
-
   async findAll(userId?: string, status?: string) {
     const scope = await this.getScope(userId);
-    const filter: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {};
 
-    if (scope.isGlobal) {
-      // Global roles see all (optionally filter by status only).
-    } else {
-      // Responsable: ONLY their active membership's department.
+    if (!scope.isGlobal) {
       if (!scope.departmentId) return [];
-      filter.departmentId = scope.departmentId;
+      where['departmentId'] = scope.departmentId;
     }
-    if (status) filter.status = status;
+    if (status) where['status'] = status;
 
-    return this.objectiveModel
-      .find(filter)
-      .populate('departmentId', 'name')
-      .populate('createdBy', USER_FIELDS)
-      .sort({ weekStart: -1 })
-      .exec();
+    return this.objectiveRepo.find({ where, order: { weekStart: 'DESC' } });
   }
 
   async findOne(id: string, userId?: string) {
-    const objective = await this.objectiveModel
-      .findById(this.toObjectId(id, 'objective'))
-      .populate('departmentId', 'name')
-      .populate('createdBy', USER_FIELDS)
-      .exec();
+    const objective = await this.objectiveRepo.findOne({ where: { id: Number(id) } });
     if (!objective) throw new NotFoundException(`Objective ${id} not found`);
-
     await this.assertCanAccessObjective(objective, userId);
     return objective;
   }
 
-  // ───── CREATE ─────
-
   async create(dto: CreateObjectiveDto, userId?: string) {
-    if (!dto.title?.trim()) {
-      throw new BadRequestException('Objective title is required');
-    }
-    if (!dto.weekStart || !dto.weekEnd) {
-      throw new BadRequestException('weekStart and weekEnd are required');
-    }
+    if (!dto.title?.trim()) throw new BadRequestException('Objective title is required');
+    if (!dto.weekStart || !dto.weekEnd) throw new BadRequestException('weekStart and weekEnd are required');
     if (!userId) throw new ForbiddenException('Missing user');
 
     const scope = await this.getScope(userId);
+    let departmentId: number | null;
 
-    // Department is ALWAYS the caller's active department for Responsables.
-    let departmentId: Types.ObjectId | null;
     if (scope.isGlobal) {
-      departmentId = dto.departmentId
-        ? await this.validateDepartment(dto.departmentId)
-        : null;
+      departmentId = dto.departmentId ? await this.validateDepartment(Number(dto.departmentId)) : null;
     } else {
-      if (!scope.departmentId) {
-        throw new ForbiddenException(
-          'You have no active department membership.',
-        );
-      }
+      if (!scope.departmentId) throw new ForbiddenException('You have no active department membership.');
       departmentId = scope.departmentId;
     }
 
-    const data: any = {
+    const target = dto.target ?? 0;
+    const achievement = dto.achievement ?? 0;
+    const progress = this.computeProgress(target, achievement);
+
+    const objective = this.objectiveRepo.create({
       title: dto.title.trim(),
       description: dto.description ?? '',
       weekStart: new Date(dto.weekStart),
       weekEnd: new Date(dto.weekEnd),
-      target: dto.target ?? 0,
-      achievement: dto.achievement ?? 0,
+      target,
+      achievement,
+      progress,
       status: dto.status ?? 'in-progress',
       departmentId,
-      createdBy: new Types.ObjectId(userId),
-    };
-    data.progress = this.computeProgress(data.target, data.achievement);
+      createdBy: Number(userId),
+    } as Partial<Objective>);
 
-    return this.objectiveModel.create(data);
+    return this.objectiveRepo.save(objective);
   }
 
-  // ───── UPDATE ─────
-
   async update(id: string, dto: UpdateObjectiveDto, userId?: string) {
-    const existing = await this.objectiveModel.findById(id).exec();
+    const existing = await this.objectiveRepo.findOne({ where: { id: Number(id) } });
     if (!existing) throw new NotFoundException(`Objective ${id} not found`);
-
     await this.assertCanAccessObjective(existing, userId);
     const scope = await this.getScope(userId);
 
-    const updates: Record<string, unknown> = {};
+    if (dto.title !== undefined) existing.title = dto.title.trim();
+    if (dto.description !== undefined) existing.description = dto.description;
+    if (dto.weekStart !== undefined) existing.weekStart = new Date(dto.weekStart);
+    if (dto.weekEnd !== undefined) existing.weekEnd = new Date(dto.weekEnd);
+    if (dto.status !== undefined) existing.status = dto.status;
 
-    if (dto.title !== undefined) updates.title = dto.title.trim();
-    if (dto.description !== undefined) updates.description = dto.description;
-    if (dto.weekStart !== undefined)
-      updates.weekStart = new Date(dto.weekStart);
-    if (dto.weekEnd !== undefined) updates.weekEnd = new Date(dto.weekEnd);
-    if (dto.status !== undefined) updates.status = dto.status;
-
-    // Only global roles can move an objective between departments.
     if (scope.isGlobal && dto.departmentId !== undefined) {
-      updates.departmentId = dto.departmentId
-        ? await this.validateDepartment(dto.departmentId)
-        : null;
+      existing.departmentId = dto.departmentId ? await this.validateDepartment(Number(dto.departmentId)) : null;
     }
 
     const target = dto.target !== undefined ? dto.target : existing.target;
-    const achievement =
-      dto.achievement !== undefined ? dto.achievement : existing.achievement;
-    updates.target = target;
-    updates.achievement = achievement;
-    updates.progress = this.computeProgress(target, achievement);
+    const achievement = dto.achievement !== undefined ? dto.achievement : existing.achievement;
+    existing.target = target;
+    existing.achievement = achievement;
+    existing.progress = this.computeProgress(target, achievement);
 
-    await this.objectiveModel
-      .findByIdAndUpdate(id, updates, { new: true, runValidators: true })
-      .exec();
-    return this.findOne(id, userId);
+    return this.objectiveRepo.save(existing);
   }
 
-  // ───── DELETE ─────
-
   async remove(id: string, userId?: string) {
-    const objective = await this.objectiveModel
-      .findById(this.toObjectId(id, 'objective'))
-      .exec();
+    const objective = await this.objectiveRepo.findOne({ where: { id: Number(id) } });
     if (!objective) throw new NotFoundException(`Objective ${id} not found`);
-
     await this.assertCanAccessObjective(objective, userId);
-
-    await this.objectiveModel.findByIdAndDelete(id).exec();
+    await this.objectiveRepo.remove(objective);
     return { deleted: true };
   }
 
-  // ───── ACCESS ─────
-
-  private async assertCanAccessObjective(
-    objective: ObjectiveDocument,
-    userId?: string,
-  ) {
+  private async assertCanAccessObjective(objective: Objective, userId?: string) {
     if (!userId) throw new ForbiddenException('Missing user');
     const scope = await this.getScope(userId);
     if (scope.isGlobal) return;
-
-    if (!scope.departmentId) {
-      throw new ForbiddenException('No active department membership.');
-    }
-
-    // Handle both raw ObjectId and populated { _id, name }.
-    const rawDeptId =
-      (objective.departmentId as any)?._id ?? objective.departmentId;
-
-    if (String(rawDeptId) !== String(scope.departmentId)) {
-      throw new ForbiddenException(
-        'Objective is outside your active department.',
-      );
+    if (!scope.departmentId) throw new ForbiddenException('No active department membership.');
+    if (objective.departmentId !== scope.departmentId) {
+      throw new ForbiddenException('Objective is outside your active department.');
     }
   }
-
-  // ───── HELPERS ─────
 
   private computeProgress(target: number, achievement: number): number {
     if (!target || target <= 0) return 0;
     return Math.min(100, Math.round((achievement / target) * 100));
   }
 
-  private toObjectId(id: string, label: string): Types.ObjectId {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException(`Invalid ${label} ID`);
-    }
-    return new Types.ObjectId(id);
-  }
-
-  private async validateDepartment(id: string): Promise<Types.ObjectId> {
-    const oid = this.toObjectId(id, 'department');
-    const exists = await this.departmentModel.exists({ _id: oid });
+  private async validateDepartment(id: number): Promise<number> {
+    const exists = await this.departmentRepo.findOne({ where: { id } });
     if (!exists) throw new BadRequestException('Department does not exist');
-    return oid;
+    return id;
   }
 }

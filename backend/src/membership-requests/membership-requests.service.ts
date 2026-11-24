@@ -1,64 +1,56 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  MembershipRequest,
-  MembershipRequestDocument,
-} from './schemas/membership-request.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { MembershipRequest } from './entities/membership-request.entity';
 import { CreateMembershipRequestDto } from './dto/create-membership-request.dto';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class MembershipRequestsService {
   constructor(
-    @InjectModel(MembershipRequest.name)
-    private membershipModel: Model<MembershipRequestDocument>,
+    @InjectRepository(MembershipRequest)
+    private membershipRepo: Repository<MembershipRequest>,
     private mailService: MailService,
   ) {}
 
   async create(dto: CreateMembershipRequestDto) {
-    // 1. Save in DB
-    const request = await this.membershipModel.create(dto);
+    const request = this.membershipRepo.create(dto as Partial<MembershipRequest>);
+    const saved = await this.membershipRepo.save(request);
 
-    // 2. Send email in background
     setImmediate(async () => {
       try {
         await this.mailService.sendMembershipRequestEmail(dto);
-
         console.log(`✅ Membership request email sent for ${dto.fullName}`);
       } catch (error) {
-        console.error(
-          `❌ Failed to send membership request email for ${dto.fullName}:`,
-          error,
-        );
+        console.error(`❌ Failed to send membership request email for ${dto.fullName}:`, error);
       }
     });
 
-    // 3. Return immediately
-    return request;
+    return saved;
   }
 
   findAll() {
-    return this.membershipModel.find().sort({ createdAt: -1 }).exec();
+    return this.membershipRepo.find({ order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string) {
-    const req = await this.membershipModel.findById(id).exec();
+    const req = await this.membershipRepo.findOne({ where: { id: Number(id) } });
     if (!req) throw new NotFoundException(`Membership request ${id} not found`);
     return req;
   }
 
   async remove(id: string) {
-    const req = await this.membershipModel.findByIdAndDelete(id).exec();
+    const req = await this.membershipRepo.findOne({ where: { id: Number(id) } });
     if (!req) throw new NotFoundException(`Membership request ${id} not found`);
+    await this.membershipRepo.remove(req);
     return { deleted: true };
   }
 
   async markAsRead(id: string) {
-    const req = await this.membershipModel.findById(id).exec();
+    const req = await this.membershipRepo.findOne({ where: { id: Number(id) } });
     if (!req) throw new NotFoundException(`Membership request ${id} not found`);
     if (req.readAt) return req;
     req.readAt = new Date();
-    return req.save();
+    return this.membershipRepo.save(req);
   }
 }

@@ -82,17 +82,17 @@ const [contactOpen, setContactOpen] = useState(false);
     {
         code:"en",
         label:"English",
-        flag:"🇬🇧"
+        flag:"EN"
     },
     {
         code:"fr",
         label:"Français",
-        flag:"🇫🇷"
+        flag:"FR"
     },
     {
         code:"ar",
         label:"العربية",
-        flag:"🇲🇦"
+        flag:"AR"
     }
   ]
   const langRef=useRef();
@@ -218,12 +218,6 @@ return()=>document.removeEventListener("mousedown",handle);
             {
                 languages.find(
                     l=>l.code===i18n.language
-                )?.flag
-            }
-
-            {
-                languages.find(
-                    l=>l.code===i18n.language
                 )?.label
             }
 
@@ -263,8 +257,6 @@ setdesktopLangOpen(false);
 }}
 
 >
-
-<span>{lang.flag}</span>
 
 {lang.label}
 
@@ -427,12 +419,6 @@ setdesktopLangOpen(false);
             {
                 languages.find(
                     l=>l.code===i18n.language
-                )?.flag
-            }
-
-            {
-                languages.find(
-                    l=>l.code===i18n.language
                 )?.label
             }
 
@@ -471,8 +457,6 @@ onClick={()=>{
 
 >
 
-<span>{lang.flag}</span>
-
 {lang.label}
 
 </button>
@@ -487,7 +471,7 @@ onClick={()=>{
 
 }
 
- 
+
 </div>
         </nav>
 

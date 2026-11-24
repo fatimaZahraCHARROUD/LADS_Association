@@ -1,26 +1,16 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import {
-  Department,
-  DepartmentSchema,
-} from '../departments/schemas/department.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Department } from '../departments/entities/department.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { FollowupsController } from './followups.controller';
 import { FollowupsService } from './followups.service';
-import {
-  FollowupNote,
-  FollowupNoteSchema,
-} from './schemas/followup-note.schema';
+import { FollowupNote } from './entities/followup-note.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: FollowupNote.name, schema: FollowupNoteSchema },
-      { name: User.name, schema: UserSchema },
-      { name: Department.name, schema: DepartmentSchema },
-    ]),
+    TypeOrmModule.forFeature([FollowupNote, User, Department]),
     JwtModule,
   ],
   controllers: [FollowupsController],

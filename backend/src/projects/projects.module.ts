@@ -1,18 +1,16 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
-import { Project, ProjectSchema } from './schemas/project.schema';
+import { Project } from './entities/project.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
-import { User, UserSchema } from '../users/schemas/user.schema';
 import { PublicProjectsController } from './projects-public.controller';
+
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Project.name, schema: ProjectSchema },
-      { name: User.name, schema: UserSchema }, // requis par ActiveRoleGuard
-    ]),
+    TypeOrmModule.forFeature([Project, User]),
     JwtModule,
   ],
   controllers: [ProjectsController, PublicProjectsController],

@@ -1,19 +1,14 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentPermissionsService } from './document-permissions.service';
 import { DocumentPermissionsController } from './document-permissions.controller';
-import {
-  DocumentPermission,
-  DocumentPermissionSchema,
-} from './schemas/document-permission.schema';
+import { DocumentPermission } from './entities/document-permission.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: DocumentPermission.name, schema: DocumentPermissionSchema },
-    ]),
+    TypeOrmModule.forFeature([DocumentPermission]),
     JwtModule,
   ],
   controllers: [DocumentPermissionsController],

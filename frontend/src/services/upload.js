@@ -1,19 +1,23 @@
-const API = "http://localhost:3000/upload";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
 
 export const uploadImage = async (file) => {
+  const token = localStorage.getItem("token");
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(API, {
+  const res = await fetch(`${API_BASE}/upload`, {
     method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
 
-  if (!res.ok) {
-    throw new Error("Image upload failed");
+  const json = await res.json().catch(() => null);
+
+  if (json && "success" in json) {
+    if (!json.success) throw new Error(json.error || "Image upload failed");
+    return json.content;
   }
 
-  const data = await res.json();
-
-  return data; // Cloudinary secure_url from backend
+  if (!res.ok) throw new Error("Image upload failed");
+  return json;
 };

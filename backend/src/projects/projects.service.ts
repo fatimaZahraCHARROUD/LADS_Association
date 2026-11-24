@@ -3,21 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, Model, Types } from 'mongoose';
-import { Project, ProjectDocument, PROJECT_STATUSES } from './schemas/project.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Project } from './entities/project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+
+const PROJECT_STATUSES = ['planned', 'in_progress', 'completed', 'on_hold'] as const;
 
 @Injectable()
 export class ProjectsService {
   constructor(
-    @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
+    @InjectRepository(Project) private projectRepo: Repository<Project>,
   ) {}
-
-  private assertId(id: string) {
-    if (!isValidObjectId(id)) throw new BadRequestException('Invalid id');
-  }
 
   private assertDates(start: unknown, end: unknown) {
     if (start && end && new Date(end as string) < new Date(start as string)) {
@@ -25,148 +23,79 @@ export class ProjectsService {
     }
   }
 
-  private fail(err: unknown): never {
-    if (err instanceof Error && err.name === 'ValidationError') {
-      throw new BadRequestException(err.message);
-    }
-    throw err;
-  }
-
-  private sanitizeUserIds(ids?: any[]): Types.ObjectId[] {
-    if (!Array.isArray(ids)) return [];
-    return ids
-      .filter(Boolean)
-      .map((id) => {
-        const str = String(id?._id ?? id).trim();
-        return isValidObjectId(str) ? new Types.ObjectId(str) : null;
-      })
-      .filter((id): id is Types.ObjectId => id !== null);
-  }
-
   async create(dto: CreateProjectDto, userId: string) {
     this.assertDates(dto.startDate, dto.endDate);
-    try {
-      const data: any = {
-        ...dto,
-        departmentId: dto.departmentId || null,
-        createdBy: isValidObjectId(userId) ? new Types.ObjectId(userId) : userId,
-      };
-      if (dto.managerIds) data.managerIds = this.sanitizeUserIds(dto.managerIds);
-      if (dto.memberIds) data.memberIds = this.sanitizeUserIds(dto.memberIds);
-      return await this.projectModel.create(data);
-    } catch (err) {
-      this.fail(err);
-    }
+    const project = this.projectRepo.create({
+      ...dto,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      departmentId: dto.departmentId ? Number(dto.departmentId) : null,
+      createdBy: Number(userId),
+    } as Partial<Project>);
+    return this.projectRepo.save(project);
   }
 
   findAll(filter: { status?: string; departmentId?: string } = {}) {
-    const query: Record<string, unknown> = {};
-    if (filter.status) query.status = filter.status;
-    if (filter.departmentId) query.departmentId = filter.departmentId;
-    return this.projectModel
-      .find(query)
-      .sort({ createdAt: -1 })
-      .populate('managerIds', 'fullName email')
-      .populate('memberIds', 'fullName email')
-      .populate('departmentId', 'name')
-      .populate('createdBy', 'fullName email')
-      .exec();
+    const where: Record<string, unknown> = {};
+    if (filter.status) where['status'] = filter.status;
+    if (filter.departmentId) where['departmentId'] = Number(filter.departmentId);
+    return this.projectRepo.find({ where, order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string) {
-    this.assertId(id);
-    const project = await this.projectModel
-      .findById(id)
-      .populate('managerIds', 'fullName email')
-      .populate('memberIds', 'fullName email')
-      .populate('departmentId', 'name')
-      .populate('createdBy', 'fullName email')
-      .exec();
+    const project = await this.projectRepo.findOne({ where: { id: Number(id) } });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
     return project;
   }
 
   async update(id: string, dto: UpdateProjectDto) {
-    this.assertId(id);
-    const existing = await this.projectModel.findById(id).exec();
+    const existing = await this.projectRepo.findOne({ where: { id: Number(id) } });
     if (!existing) throw new NotFoundException(`Project ${id} not found`);
 
-    const data: Record<string, unknown> = { ...dto };
-    delete data.createdBy; // l'auteur ne change jamais
-    if ('departmentId' in data) data.departmentId = data.departmentId || null;
-    if ('managerIds' in data) {
-      data.managerIds = this.sanitizeUserIds(dto.managerIds);
-    }
-    if ('memberIds' in data) {
-      data.memberIds = this.sanitizeUserIds(dto.memberIds);
-    }
+    const { createdBy: _, ...data } = dto as any;
+    if ('departmentId' in data) data.departmentId = data.departmentId ? Number(data.departmentId) : null;
+    this.assertDates(data.startDate ?? existing.startDate, data.endDate ?? existing.endDate);
 
-    this.assertDates(
-      dto.startDate ?? existing.startDate,
-      dto.endDate ?? existing.endDate,
-    );
-    try {
-      return await this.projectModel
-        .findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
-        .exec();
-    } catch (err) {
-      this.fail(err);
-    }
+    Object.assign(existing, data);
+    return this.projectRepo.save(existing);
   }
 
   async updateProgress(id: string, body: { status?: string; progress?: number }) {
-    this.assertId(id);
-    const data: Record<string, unknown> = {};
+    const project = await this.projectRepo.findOne({ where: { id: Number(id) } });
+    if (!project) throw new NotFoundException(`Project ${id} not found`);
 
     if (body.status !== undefined) {
       if (!(PROJECT_STATUSES as readonly string[]).includes(body.status)) {
-        throw new BadRequestException(
-          `status must be one of: ${PROJECT_STATUSES.join(', ')}`,
-        );
+        throw new BadRequestException(`status must be one of: ${PROJECT_STATUSES.join(', ')}`);
       }
-      data.status = body.status;
+      project.status = body.status;
     }
     if (body.progress !== undefined) {
       const p = Number(body.progress);
       if (!Number.isFinite(p) || p < 0 || p > 100) {
         throw new BadRequestException('progress must be a number between 0 and 100');
       }
-      data.progress = p;
-    }
-    if (Object.keys(data).length === 0) {
-      throw new BadRequestException('Send status and/or progress');
+      project.progress = p;
     }
 
-    const project = await this.projectModel
-      .findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
-      .exec();
-    if (!project) throw new NotFoundException(`Project ${id} not found`);
-    return project;
+    return this.projectRepo.save(project);
   }
 
   async togglePublish(id: string) {
-    this.assertId(id);
-    const project = await this.projectModel.findById(id).exec();
+    const project = await this.projectRepo.findOne({ where: { id: Number(id) } });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
     project.isPublished = !project.isPublished;
-    return project.save();
+    return this.projectRepo.save(project);
   }
 
-  // Public site: published projects only, without any private data
-  // (no members, no emails, no Drive link).
   findPublished() {
-    return this.projectModel
-      .find({ isPublished: true })
-      .select('title description img departmentId startDate endDate status progress')
-      .populate('departmentId', 'name')
-      .sort({ startDate: -1 })
-      .exec();
+    return this.projectRepo.find({ where: { isPublished: true }, order: { startDate: 'DESC' } });
   }
 
   async remove(id: string) {
-    this.assertId(id);
-    const project = await this.projectModel.findByIdAndDelete(id).exec();
+    const project = await this.projectRepo.findOne({ where: { id: Number(id) } });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
+    await this.projectRepo.remove(project);
     return { message: 'Project deleted' };
   }
 }

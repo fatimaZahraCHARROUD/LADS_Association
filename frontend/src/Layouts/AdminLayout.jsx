@@ -4,32 +4,24 @@ import {
   LayoutDashboard, Database, MessageSquare, Calendar, Activity,
   Newspaper, GraduationCap, Mail, Users, Settings, LogOut,
   ChevronDown, ClipboardList, FileText, CalendarClock, Building2, X,
-  BarChart3, FolderKanban, Layers
+  BarChart3,FolderKanban, Layers
 } from "lucide-react";
 import Topbar from "../components/admin/Topbar";
 import { TopSearchProvider } from "../contexts/TopSearchContext";
 import RoleSwitcher from "../components/RoleSwitcher";
 import { getEffectiveRole } from "../utils/activeRole";
-import useMyProjects from "../hooks/useMyProjects";
 
 const BASE = {
   President: "/admin",
   "Director Executive": "/exec",
   "Team Manager": "/team",
   Responsable: "/responsible",
-  Responsible: "/responsible",
   Member: "/member",
 };
 
-const RESPONSABLE_MENU = [
-  "dashboard",
-  "cellules", "members", "documents", "meetings",
-  "objectives", "tasks", "myProject",
-];
-
 const MENU = {
   President: [
-    "dashboard", "members", "departments", "projects",
+    "dashboard", "members", "departments","projects",
     "events", "news", "activities", "formations", "info",
     "documents", "meetings", "followup",
     "contacts", "membership", "eventRegister",
@@ -37,20 +29,23 @@ const MENU = {
   "Director Executive": [
     "dashboard",
     "strategic",
-    "members", "documents", "meetings",
+    "members",     "documents", "meetings",
     "followup",
   ],
   "Team Manager": [
     "dashboard",
     "members", "documents", "meetings",
-    "followup", "myProject",
+    "followup",
   ],
-  Responsable: RESPONSABLE_MENU,
-  Responsible: RESPONSABLE_MENU,
+  Responsable: [
+    "dashboard",
+    "cellules", "members", "documents", "meetings",
+    "objectives", "tasks",
+  ],
   Member: [
     "dashboard",
     "documents", "meetings",
-    "formations", "tasks", "myProject",
+    "formations", "tasks",
   ],
 };
 
@@ -96,7 +91,6 @@ function AdminShell() {
       logout={logout}
       base={base}
       can={can}
-      location={location}
     />
   );
 
@@ -123,7 +117,7 @@ function AdminShell() {
         </>
       )}
 
-      <div className="flex-1 flex-col min-w-0 flex">
+      <div className="flex-1 flex flex-col min-w-0">
         <Topbar onOpenSidebar={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6">
@@ -136,11 +130,8 @@ function AdminShell() {
 }
 
 function SidebarBody({
-  onCloseMobile, cmsOpen, setCmsOpen, msgOpen, setMsgOpen, logout, base, can, location,
+  onCloseMobile, cmsOpen, setCmsOpen, msgOpen, setMsgOpen, logout, base, can,
 }) {
-  const { hasProject } = useMyProjects();
-  const isProjectRoute = location?.pathname?.startsWith(`${base}/projects`);
-
   return (
     <>
       <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border" dir="ltr">
@@ -166,46 +157,10 @@ function SidebarBody({
           </SidebarLink>
         )}
 
-        {/* Strategic Plans (Director Executive) */}
-        {can("strategic") && (
-          <SidebarLink to={`${base}/strategic`} icon={Database}>
-            Plan Stratégique
-          </SidebarLink>
-        )}
-
-        {/* CMS group (President only) */}
-        {(can("departments") || can("events") || can("news") || can("activities") || can("formations") || can("info")) && (
-          <SidebarGroup
-            label="Content (CMS)"
-            icon={Database}
-            open={cmsOpen}
-            onToggle={() => setCmsOpen((o) => !o)}
-          >
-            {can("departments") && (
-              <SidebarLink to={`${base}/departments`} icon={Building2} nested>Departments</SidebarLink>
-            )}
-            {can("events") && (
-              <SidebarLink to={`${base}/events`} icon={Calendar} nested>Events</SidebarLink>
-            )}
-            {can("news") && (
-              <SidebarLink to={`${base}/news`} icon={Newspaper} nested>News</SidebarLink>
-            )}
-            {can("activities") && (
-              <SidebarLink to={`${base}/activities`} icon={Activity} nested>Activities</SidebarLink>
-            )}
-            {can("formations") && (
-              <SidebarLink to={`${base}/formations`} icon={GraduationCap} nested>Formations</SidebarLink>
-            )}
-            {can("info") && (
-              <SidebarLink to={`${base}/info`} icon={Settings} nested>LADS Info</SidebarLink>
-            )}
-          </SidebarGroup>
-        )}
-
-        {/* Projects (Admin CMS list) */}
-        {can("projects") && (
-          <SidebarLink to={`${base}/projects`} icon={FolderKanban}>
-            Projects
+        {/* Members */}
+        {can("members") && (
+          <SidebarLink to={`${base}/members`} icon={Users}>
+            Members
           </SidebarLink>
         )}
 
@@ -216,11 +171,48 @@ function SidebarBody({
           </SidebarLink>
         )}
 
-        {/* Members */}
-        {can("members") && (
-          <SidebarLink to={`${base}/members`} icon={Users}>
-            Members
+        {/* Departments */}
+        {can("departments") && (
+          <SidebarLink to={`${base}/departments`} icon={Building2}>
+            Departments
           </SidebarLink>
+        )}
+
+{/* Projects */}
+{can("projects") && (
+  <SidebarLink to={`${base}/projects`} icon={FolderKanban}>
+    Projects
+  </SidebarLink>
+)}
+
+        {/* Strategic Plans (Exec only) */}
+        {can("strategic") && (
+          <SidebarLink to={`${base}/strategic`} icon={FileText}>
+            Strategic Plans
+          </SidebarLink>
+        )}
+
+        {/* Content group (President only) */}
+        {(can("events") || can("activities") || can("news") || can("info")) && (
+          <SidebarGroup
+            label="Content"
+            icon={Database}
+            open={cmsOpen}
+            onToggle={() => setCmsOpen((o) => !o)}
+          >
+            {can("events") && (
+              <SidebarLink to={`${base}/events`} icon={Calendar} nested>Events</SidebarLink>
+            )}
+            {can("activities") && (
+              <SidebarLink to={`${base}/activities`} icon={Activity} nested>Activities</SidebarLink>
+            )}
+            {can("news") && (
+              <SidebarLink to={`${base}/news`} icon={Newspaper} nested>News</SidebarLink>
+            )}
+            {can("info") && (
+              <SidebarLink to={`${base}/info`} icon={Settings} nested>LADS Info</SidebarLink>
+            )}
+          </SidebarGroup>
         )}
 
         {/* Documents */}
@@ -248,13 +240,6 @@ function SidebarBody({
         {can("tasks") && (
           <SidebarLink to={`${base}/tasks`} icon={ClipboardList}>
             Tasks
-          </SidebarLink>
-        )}
-
-        {/* My Project (Responsable / Member / Team Manager, visible when assigned to a project) */}
-        {can("myProject") && (hasProject || isProjectRoute) && (
-          <SidebarLink to={`${base}/projects`} icon={FolderKanban}>
-            Project
           </SidebarLink>
         )}
 

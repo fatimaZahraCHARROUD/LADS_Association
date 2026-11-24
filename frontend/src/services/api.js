@@ -17,17 +17,28 @@ async function request(path, { method = "GET", body, auth = true, signal } = {})
     signal,
   });
 
+  if (res.status === 204) return null;
+
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+
+  // Unified response shape: { success, content, error }
+  if (json && typeof json === "object" && "success" in json) {
+    if (json.success === false) {
+      throw new Error(json.error || `Request failed (${res.status})`);
+    }
+    return json.content;
+  }
+
+  // Fallback for non-unified responses
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
     const message =
-      (Array.isArray(err.message) ? err.message.join(", ") : err.message) ||
+      (json && (Array.isArray(json.message) ? json.message.join(", ") : json.message)) ||
       `Request failed (${res.status})`;
     throw new Error(message);
   }
 
-  if (res.status === 204) return null;
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+  return json;
 }
 
 export { API_BASE };
@@ -43,7 +54,6 @@ export function getCurrentUserId() {
   }
 }
 
-// Kept from dev3/documents-meetings (useful helper)
 export function getCurrentUserRole() {
   const token = localStorage.getItem("token");
   if (!token) return [];
@@ -55,21 +65,15 @@ export function getCurrentUserRole() {
   }
 }
 
-// Kept from main (the new api wrapper)
 export const api = {
   get:    (p, options) => request(p, options),
-  post:   (p, b)   => request(p, { method: "POST",   body: b }),
-  patch:  (p, b)   => request(p, { method: "PATCH",  body: b }),
-  delete: (p)      => request(p, { method: "DELETE" }),
+  post:   (p, b)       => request(p, { method: "POST",   body: b }),
+  patch:  (p, b)       => request(p, { method: "PATCH",  body: b }),
+  delete: (p)          => request(p, { method: "DELETE" }),
   getExecDashboard: (options) =>
     request("/statistics/executive-dashboard", options),
   getTeamDashboard: (options) =>
     request("/statistics/team-dashboard", options),
-  getResponsableDashboard: (options) =>
-    request("/statistics/responsable-dashboard", options),
-  getMemberDashboard: (options) =>
-    request("/statistics/member-dashboard", options),
-  getMemberDocuments: (options) => request("/documents", options),
   switchRole: (membershipId) =>
     request("/auth/switch-role", { method: "POST", body: { membershipId } }),
 };

@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
+import { Repository } from 'typeorm';
 import { EffectiveAccess, resolveAccess } from './effective-role';
 
 export interface AccessContext {
@@ -12,52 +12,44 @@ export interface AccessContext {
 }
 
 export async function loadAccessContext(
-  userModel: Model<any>,
-  departmentModel: Model<any>,
+  userRepo: Repository<any>,
+  departmentRepo: Repository<any>,
   userId: string,
 ): Promise<AccessContext> {
-  const user: any = await userModel
-    .findById(userId)
-    .select('memberships activeMembershipId isAdmin role')
-    .lean()
-    .exec();
+  const user = await userRepo.findOne({
+    where: { id: Number(userId) },
+    relations: ['memberships'],
+  });
   if (!user) throw new ForbiddenException('User not found');
 
-  const access = resolveAccess(user);
+  const access: EffectiveAccess = resolveAccess(user);
   const memberDeptIds = new Set<string>(access.departmentIds);
   const managedDeptIds = new Set<string>();
 
   (user.memberships ?? []).forEach((m: any) => {
-    if (
-      m.departmentId &&
-      (m.role === 'Team Manager' || m.role === 'Responsable')
-    ) {
+    if (m.departmentId && (m.role === 'Team Manager' || m.role === 'Responsable')) {
       managedDeptIds.add(String(m.departmentId));
     }
   });
 
-  if (Types.ObjectId.isValid(userId)) {
-    const oid = new Types.ObjectId(userId);
-    const depts: any[] = await departmentModel
-      .find({
-        $or: [
-          { members: oid },
-          { teamManagers: oid },
-          { manager: oid },
-          { viceManager: oid },
-        ],
-      })
-      .select('_id teamManagers manager viceManager')
-      .lean()
-      .exec();
+  const numId = Number(userId);
+  if (!isNaN(numId)) {
+    const depts = await departmentRepo
+      .createQueryBuilder('d')
+      .where(
+        `JSON_CONTAINS(d.members, :uid) OR JSON_CONTAINS(d.team_managers, :uid) OR d.manager = :nid OR d.vice_manager = :nid`,
+        { uid: JSON.stringify(numId), nid: numId },
+      )
+      .select(['d.id', 'd.teamManagers', 'd.manager', 'd.viceManager'])
+      .getMany();
 
-    depts.forEach((d) => {
-      memberDeptIds.add(String(d._id));
+    depts.forEach((d: any) => {
+      memberDeptIds.add(String(d.id));
       const manages =
-        String(d.manager) === userId ||
-        String(d.viceManager) === userId ||
-        (d.teamManagers ?? []).some((t: any) => String(t) === userId);
-      if (manages) managedDeptIds.add(String(d._id));
+        d.manager === numId ||
+        d.viceManager === numId ||
+        (d.teamManagers ?? []).includes(numId);
+      if (manages) managedDeptIds.add(String(d.id));
     });
   }
 

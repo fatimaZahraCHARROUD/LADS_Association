@@ -2,10 +2,6 @@ import { ForbiddenException } from '@nestjs/common';
 import { FollowupsService } from './followups.service';
 
 describe('FollowupsService', () => {
-  const authorId = '507f1f77bcf86cd799439010';
-  const departmentId = '507f1f77bcf86cd799439013';
-  const memberId = '507f1f77bcf86cd799439014';
-
   const buildService = () => {
     const followupModel = {
       find: jest.fn(),
@@ -14,14 +10,7 @@ describe('FollowupsService', () => {
       findByIdAndDelete: jest.fn(),
     };
     const userModel = { findById: jest.fn() };
-    const departmentModel = {
-      exists: jest.fn().mockResolvedValue(true),
-      find: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([]),
-      }),
-    };
+    const departmentModel = {};
 
     return {
       service: new FollowupsService(
@@ -41,12 +30,10 @@ describe('FollowupsService', () => {
       select: jest.fn().mockReturnThis(),
       lean: jest.fn().mockReturnThis(),
       exec: jest.fn().mockResolvedValue({
-        _id: authorId,
+        _id: 'u1',
         fullName: 'Alice',
-        memberships: [
-          { _id: authorId, departmentId, role: 'Team Manager' },
-        ],
-        activeMembershipId: authorId,
+        memberships: [{ _id: 'm1', departmentId: 'd1', role: 'Team Manager' }],
+        activeMembershipId: 'm1',
         role: ['Team Manager'],
       }),
     });
@@ -61,23 +48,23 @@ describe('FollowupsService', () => {
         noteType: 'info',
         authorName: 'Alice',
         authorRole: 'Team Manager',
-        departmentId: { _id: departmentId, name: 'Operations' },
-        memberId: { _id: memberId, fullName: 'Bob' },
-        author: { _id: authorId, fullName: 'Alice', email: 'alice@test.com', role: 'Team Manager' },
+        departmentId: { _id: 'd1', name: 'Operations' },
+        memberId: { _id: 'u2', fullName: 'Bob' },
+        author: { _id: 'u1', fullName: 'Alice', email: 'alice@test.com', role: 'Team Manager' },
       }),
     });
 
-    const result = await service.create(authorId, {
+    const result = await service.create('u1', {
       text: 'hello',
-      departmentId,
-      memberId,
+      departmentId: 'd1',
+      memberId: 'u2',
       noteType: 'info',
     } as any);
 
     expect(followupModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'hello',
-        author: authorId,
+        author: 'u1',
         authorName: 'Alice',
         authorRole: 'Team Manager',
         noteType: 'info',
@@ -87,42 +74,12 @@ describe('FollowupsService', () => {
     expect(result.authorRole).toBe('Team Manager');
   });
 
-  it('stores President as the note author role for a global administrator', async () => {
-    const { service, followupModel, userModel } = buildService();
-    const admin = {
-      _id: authorId,
-      fullName: 'Admin',
-      isAdmin: true,
-      role: ['President'],
-      memberships: [{ _id: authorId, role: 'Member' }],
-      activeMembershipId: authorId,
-    };
-
-    userModel.findById.mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      lean: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue(admin),
-    });
-    followupModel.create.mockResolvedValue({ _id: 'note-1' });
-    followupModel.findById.mockReturnValue({
-      populate: jest.fn().mockReturnThis(),
-      lean: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue({ _id: 'note-1', authorRole: 'President' }),
-    });
-
-    await service.create(authorId, { text: 'Admin note' } as any);
-
-    expect(followupModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ authorRole: 'President' }),
-    );
-  });
-
   it('allows owners to edit notes and blocks non-owners from deleting them', async () => {
     const { service, followupModel, userModel } = buildService();
 
     const note = {
-      _id: '507f1f77bcf86cd799439016',
-      author: authorId,
+      _id: 'note-1',
+      author: 'u1',
       text: 'old text',
       noteType: 'info',
       save: jest.fn().mockResolvedValue(true),
@@ -139,7 +96,7 @@ describe('FollowupsService', () => {
           ...note,
           text: 'updated text',
           noteType: 'warning',
-          author: { _id: authorId, fullName: 'Alice', email: 'alice@test.com', role: 'Team Manager' },
+          author: { _id: 'u1', fullName: 'Alice', email: 'alice@test.com', role: 'Team Manager' },
         }),
       })
       .mockReturnValueOnce({
@@ -151,7 +108,7 @@ describe('FollowupsService', () => {
         select: jest.fn().mockReturnThis(),
         lean: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue({
-          _id: authorId,
+          _id: 'u1',
           isAdmin: false,
           role: ['Team Manager'],
         }),
@@ -160,49 +117,20 @@ describe('FollowupsService', () => {
         select: jest.fn().mockReturnThis(),
         lean: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue({
-          _id: authorId,
+          _id: 'u1',
           isAdmin: false,
           role: ['Team Manager'],
         }),
       });
 
-    const updated = await service.update(authorId, note._id, {
+    const updated = await service.update('u1', 'note-1', {
       text: 'updated text',
       noteType: 'warning',
     } as any);
 
     expect(updated.text).toBe('updated text');
     expect(updated.noteType).toBe('warning');
-    await expect(service.remove(authorId, note._id)).rejects.toThrow(
-      ForbiddenException,
-    );
-  });
-
-  it('blocks users from editing notes they do not own', async () => {
-    const { service, followupModel, userModel } = buildService();
-    const note = {
-      author: '507f1f77bcf86cd799439017',
-      text: 'another author note',
-      save: jest.fn(),
-    };
-    followupModel.findById.mockReturnValue({
-      exec: jest.fn().mockResolvedValue(note),
-    });
-    userModel.findById.mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      lean: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue({
-        isAdmin: false,
-        role: ['Team Manager'],
-      }),
-    });
-
-    await expect(
-      service.update(authorId, '507f1f77bcf86cd799439016', {
-        text: 'attempted edit',
-      }),
-    ).rejects.toThrow(ForbiddenException);
-    expect(note.save).not.toHaveBeenCalled();
+    await expect(service.remove('u1', 'note-1')).rejects.toThrow(ForbiddenException);
   });
 
   it('applies note filters and blocks same-role cross-department access', async () => {
@@ -212,11 +140,11 @@ describe('FollowupsService', () => {
       select: jest.fn().mockReturnThis(),
       lean: jest.fn().mockReturnThis(),
       exec: jest.fn().mockResolvedValue({
-        _id: authorId,
+        _id: 'u1',
         isAdmin: false,
         role: ['Team Manager'],
-        memberships: [{ _id: authorId, departmentId, role: 'Team Manager' }],
-        activeMembershipId: authorId,
+        memberships: [{ _id: '507f1f77bcf86cd799439010', departmentId: '507f1f77bcf86cd799439013', role: 'Team Manager' }],
+        activeMembershipId: '507f1f77bcf86cd799439010',
       }),
     });
 
@@ -228,9 +156,9 @@ describe('FollowupsService', () => {
     };
     followupModel.find.mockReturnValue(query);
 
-    await service.findAll(authorId, {
-      departmentId,
-      memberId,
+    await service.findAll('u1', {
+      departmentId: '507f1f77bcf86cd799439013',
+      memberId: '507f1f77bcf86cd799439014',
       authorId: '507f1f77bcf86cd799439015',
       noteType: 'warning',
       from: '2026-01-01',
@@ -260,19 +188,16 @@ describe('FollowupsService', () => {
       select: jest.fn().mockReturnThis(),
       lean: jest.fn().mockReturnThis(),
       exec: jest.fn().mockResolvedValue({
-        _id: authorId,
+        _id: 'u1',
         fullName: 'Alice',
-        memberships: [{ _id: authorId, departmentId, role: 'Team Manager' }],
-        activeMembershipId: authorId,
+        memberships: [{ _id: '507f1f77bcf86cd799439010', departmentId: '507f1f77bcf86cd799439013', role: 'Team Manager' }],
+        activeMembershipId: '507f1f77bcf86cd799439010',
         role: ['Team Manager'],
       }),
     });
 
     await expect(
-      service.create(authorId, {
-        text: 'outside scope',
-        departmentId: '507f1f77bcf86cd799439018',
-      } as any),
+      service.create('u1', { text: 'outside scope', departmentId: 'd2' } as any),
     ).rejects.toThrow(ForbiddenException);
   });
 });

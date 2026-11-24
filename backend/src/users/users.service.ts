@@ -1,67 +1,68 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from './schemas/user.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './entities/user.entity';
+import { Membership } from './entities/membership.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Types } from 'mongoose';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Membership) private membershipRepo: Repository<Membership>,
+  ) {}
 
   async create(dto: CreateUserDto) {
-    const user = await this.userModel.create(dto);
-    const { password: _, ...result } = user.toObject();
+    const user = this.userRepo.create(dto as Partial<User>);
+    const saved = await this.userRepo.save(user);
+    const { password: _, ...result } = saved;
     return result;
   }
 
   findAll() {
-    return this.userModel.find().select('-password').exec();
+    return this.userRepo.find({ select: { password: false } as any });
   }
 
   async findByEmail(email: string) {
-    return this.userModel
-      .findOne({ email })
-      .populate('memberships.departmentId', 'name')
-      .exec();
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .leftJoinAndSelect('user.memberships', 'memberships')
+      .where('user.email = :email', { email })
+      .getOne();
   }
 
   async findOne(id: string) {
-    const user = await this.userModel
-      .findById(id)
-      .select('-password')
-      .populate('memberships.departmentId', 'name')
-      .exec();
+    const user = await this.userRepo.findOne({
+      where: { id: Number(id) },
+      relations: ['memberships'],
+      select: { password: false } as any,
+    });
     if (!user) throw new NotFoundException(`User ${id} not found`);
     return user;
   }
 
   async update(id: string, dto: UpdateUserDto) {
-    const user = await this.userModel
-      .findByIdAndUpdate(id, dto, { new: true })
-      .select('-password')
-      .exec();
+    const user = await this.userRepo.findOne({ where: { id: Number(id) } });
     if (!user) throw new NotFoundException(`User ${id} not found`);
-    return user;
+    Object.assign(user, dto);
+    const saved = await this.userRepo.save(user);
+    const { password: _, ...result } = saved;
+    return result;
   }
 
   async remove(id: string) {
-    const user = await this.userModel.findByIdAndDelete(id).exec();
+    const user = await this.userRepo.findOne({ where: { id: Number(id) } });
     if (!user) throw new NotFoundException(`User ${id} not found`);
+    await this.userRepo.remove(user);
     return { deleted: true };
   }
 
-  async setActiveMembership(
-    userId: string | Types.ObjectId,
-    membershipId: string | Types.ObjectId,
-  ) {
-    return this.userModel
-      .findByIdAndUpdate(
-        userId,
-        { activeMembershipId: membershipId },
-        { new: true },
-      )
-      .exec();
+  async setActiveMembership(userId: string | number, membershipId: string | number) {
+    await this.userRepo.update(Number(userId), {
+      activeMembershipId: Number(membershipId),
+    });
+    return this.userRepo.findOne({ where: { id: Number(userId) } });
   }
 }

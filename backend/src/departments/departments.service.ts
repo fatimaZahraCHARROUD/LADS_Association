@@ -3,49 +3,66 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Department, DepartmentDocument } from './schemas/department.schema';
-import { Membership, User, UserDocument } from '../users/schemas/user.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository, In } from 'typeorm';
+import { Department } from './entities/department.entity';
+import { User } from '../users/entities/user.entity';
+import { Membership } from '../users/entities/membership.entity';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
-
-const USER_FIELDS = 'fullName email role profileImage';
 
 @Injectable()
 export class DepartmentsService {
   constructor(
-    @InjectModel(Department.name)
-    private readonly departmentModel: Model<DepartmentDocument>,
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
+    @InjectRepository(Department)
+    private readonly departmentRepo: Repository<Department>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  findAll() {
-    return this.departmentModel
-      .find()
-      .populate('manager', USER_FIELDS)
-      .populate('viceManager', USER_FIELDS)
-      .populate('teamManagers', USER_FIELDS)
-      .populate('members', USER_FIELDS)
-      .sort({ name: 1 })
-      .exec();
+  async findAll() {
+    const departments = await this.departmentRepo.find({ order: { name: 'ASC' } });
+    if (!departments.length) return departments;
+
+    // Collect all user IDs referenced across departments
+    const allIds = new Set<number>();
+    for (const d of departments) {
+      if (d.manager) allIds.add(d.manager);
+      if (d.viceManager) allIds.add(d.viceManager);
+      for (const id of d.teamManagers ?? []) allIds.add(id);
+      for (const id of d.members ?? []) allIds.add(id);
+    }
+
+    if (!allIds.size) return departments;
+
+    const users = await this.userRepo.find({ where: { id: In([...allIds]) } });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const pick = (id: number | null) => {
+      if (!id) return null;
+      const u = userMap.get(id);
+      if (!u) return null;
+      return { id: u.id, _id: String(u.id), fullName: u.fullName, email: u.email };
+    };
+
+    return departments.map((d) => ({
+      ...d,
+      manager: pick(d.manager),
+      viceManager: pick(d.viceManager),
+      teamManagers: (d.teamManagers ?? []).map(pick).filter(Boolean),
+      members: (d.members ?? []).map(pick).filter(Boolean),
+    }));
   }
 
   async findOne(id: string) {
-    this.validateDepartmentId(id);
-    const department = await this.departmentModel
-      .findById(id)
-      .populate('manager', USER_FIELDS)
-      .populate('viceManager', USER_FIELDS)
-      .populate('teamManagers', USER_FIELDS)
-      .populate('members', USER_FIELDS)
-      .exec();
+    const department = await this.departmentRepo.findOne({ where: { id: Number(id) } });
     if (!department) throw new NotFoundException(`Department ${id} not found`);
     return department;
   }
 
   async create(dto: CreateDepartmentDto) {
+    // Validate outside the transaction for clear user-facing errors
     const name = this.validateName(dto.name);
     const manager = await this.validateUserId(dto.manager ?? null);
     const viceManager = await this.validateUserId(dto.viceManager ?? null);
@@ -53,389 +70,208 @@ export class DepartmentsService {
     const teamManagers = await this.validateUserIds(dto.teamManagers ?? []);
     const members = await this.validateUserIds(dto.members ?? []);
 
-    const department = await this.departmentModel.create({
-      name,
-      manager,
-      viceManager,
-      teamManagers,
-      members,
+    const savedId = await this.dataSource.transaction(async (tx) => {
+      const department = tx.create(Department, { name, manager, viceManager, teamManagers, members } as Partial<Department>);
+      const saved = await tx.save(department);
+      await this.syncDepartmentMemberships(saved, [], false, tx);
+      return saved.id;
     });
-    await this.syncDepartmentMemberships(department, []);
-    return this.findOne(String(department._id));
+    return this.findOne(String(savedId));
   }
 
   async update(id: string, dto: UpdateDepartmentDto) {
-    this.validateDepartmentId(id);
-    const current = await this.departmentModel.findById(id).exec();
+    const current = await this.departmentRepo.findOne({ where: { id: Number(id) } });
     if (!current) throw new NotFoundException(`Department ${id} not found`);
 
-    const updates: Record<string, unknown> = {};
+    const previousUserIds = this.getDepartmentUserIds(current);
+    const updates: Partial<Department> = {};
     if (dto.name !== undefined) updates.name = this.validateName(dto.name);
-    if (dto.manager !== undefined) {
-      updates.manager = await this.validateUserId(dto.manager);
-    }
-    if (dto.viceManager !== undefined) {
-      updates.viceManager = await this.validateUserId(dto.viceManager);
-    }
-    if (dto.teamManagers !== undefined) {
-      updates.teamManagers = await this.validateUserIds(dto.teamManagers);
-    }
-    if (dto.members !== undefined) {
-      updates.members = await this.validateUserIds(dto.members);
-    }
+    if (dto.manager !== undefined) updates.manager = await this.validateUserId(dto.manager);
+    if (dto.viceManager !== undefined) updates.viceManager = await this.validateUserId(dto.viceManager);
+    if (dto.teamManagers !== undefined) updates.teamManagers = await this.validateUserIds(dto.teamManagers);
+    if (dto.members !== undefined) updates.members = await this.validateUserIds(dto.members);
 
-    const manager = Object.prototype.hasOwnProperty.call(updates, 'manager')
-      ? (updates.manager as Types.ObjectId | null)
-      : current.manager;
-    const viceManager = Object.prototype.hasOwnProperty.call(
-      updates,
-      'viceManager',
-    )
-      ? (updates.viceManager as Types.ObjectId | null)
-      : current.viceManager;
-    this.validateDistinctManagers(manager, viceManager);
+    const finalManager = updates.manager !== undefined ? updates.manager : current.manager;
+    const finalViceManager = updates.viceManager !== undefined ? updates.viceManager : current.viceManager;
+    this.validateDistinctManagers(finalManager, finalViceManager);
 
-    const updated = await this.departmentModel
-      .findByIdAndUpdate(id, updates, { new: true, runValidators: true })
-      .exec();
-    if (!updated) throw new NotFoundException(`Department ${id} not found`);
-    await this.syncDepartmentMemberships(
-      updated,
-      this.getDepartmentUserIds(current),
-    );
-    return this.findOne(id);
+    const updatedId = await this.dataSource.transaction(async (tx) => {
+      const deptInTx = await tx.findOne(Department, { where: { id: Number(id) } });
+      if (!deptInTx) throw new NotFoundException(`Department ${id} not found`);
+      Object.assign(deptInTx, updates);
+      const updated = await tx.save(deptInTx);
+      await this.syncDepartmentMemberships(updated, previousUserIds, false, tx);
+      return updated.id;
+    });
+    return this.findOne(String(updatedId));
   }
 
   async assignManager(id: string, userId: string | null) {
-    if (userId === undefined) {
-      throw new BadRequestException('userId is required; use null to unassign');
-    }
     return this.update(id, { manager: userId });
   }
 
   async assignViceManager(id: string, userId: string | null) {
-    if (userId === undefined) {
-      throw new BadRequestException('userId is required; use null to unassign');
-    }
     return this.update(id, { viceManager: userId });
   }
 
   async assignTeamManagers(id: string, userIds: string[]) {
-    if (!Array.isArray(userIds)) {
-      throw new BadRequestException('userIds must be an array');
-    }
+    if (!Array.isArray(userIds)) throw new BadRequestException('userIds must be an array');
     return this.update(id, { teamManagers: userIds });
   }
 
   async assignMembers(id: string, userIds: string[]) {
-    if (!Array.isArray(userIds)) {
-      throw new BadRequestException('userIds must be an array');
-    }
+    if (!Array.isArray(userIds)) throw new BadRequestException('userIds must be an array');
     return this.update(id, { members: userIds });
   }
 
-  async resyncAllMemberships() {
-    const departments = await this.departmentModel
-      .find()
-      .select('_id manager viceManager teamManagers members')
-      .exec();
-    let membershipsSynced = 0;
-    let skippedAssignments = 0;
-    const assignments = new Map<string, Map<string, string>>();
-
-    for (const department of departments) {
-      const departmentId = String(department._id);
-      const departmentAssignments = this.getDepartmentAssignments(department);
-      assignments.set(departmentId, departmentAssignments);
-
-      for (const [userId, role] of departmentAssignments) {
-        if (
-          await this.syncMembership(userId, departmentId, role)
-        ) {
-          membershipsSynced += 1;
-        } else {
-          skippedAssignments += 1;
-        }
-      }
-    }
-
-    const users = await this.userModel.find().select('memberships').exec();
-    let removedMemberships = 0;
-    for (const user of users) {
-      const userId = String(user._id);
-      const staleDepartmentIds = new Set(
-        (user.memberships ?? [])
-          .filter((membership) => {
-            if (!membership.departmentId) return false;
-            const departmentId = String(membership.departmentId);
-            return !assignments.get(departmentId)?.has(userId);
-          })
-          .map((membership) => String(membership.departmentId)),
-      );
-
-      for (const departmentId of staleDepartmentIds) {
-        await this.removeMembership(userId, departmentId);
-        removedMemberships += 1;
-      }
-    }
-
-    return {
-      departmentsProcessed: departments.length,
-      membershipsSynced,
-      skippedAssignments,
-      departments: departments.length,
-      memberships: Array.from(assignments.values()).reduce(
-        (total, departmentAssignments) => total + departmentAssignments.size,
-        0,
-      ),
-      removedMemberships,
-    };
+  async remove(id: string) {
+    const department = await this.departmentRepo.findOne({ where: { id: Number(id) } });
+    if (!department) throw new NotFoundException(`Department ${id} not found`);
+    const previousUserIds = this.getDepartmentUserIds(department);
+    await this.dataSource.transaction(async (tx) => {
+      await tx.remove(department);
+      await this.syncDepartmentMemberships(department, previousUserIds, true, tx);
+    });
+    return { deleted: true };
   }
 
-  async remove(id: string) {
-    this.validateDepartmentId(id);
-    const department = await this.departmentModel.findById(id).exec();
-    if (!department) throw new NotFoundException(`Department ${id} not found`);
-    await this.departmentModel.findByIdAndDelete(id).exec();
-    await this.syncDepartmentMemberships(
-      department,
-      this.getDepartmentUserIds(department),
-      true,
-    );
-    return { deleted: true };
+  async resyncAllMemberships() {
+    const departments = await this.departmentRepo.find();
+    for (const department of departments) {
+      await this.syncDepartmentMemberships(department, []);
+    }
+    return { departments: departments.length, synced: true };
   }
 
   // ─────────────────────────────────────────────
   //  Membership sync helpers
   // ─────────────────────────────────────────────
 
-  private async syncMembership(
-    userId: string,
-    departmentId: string,
-    role: string,
-  ): Promise<boolean> {
-    if (
-      !Types.ObjectId.isValid(userId) ||
-      !Types.ObjectId.isValid(departmentId)
-    ) {
-      return false;
-    }
-
-    const user = await this.userModel.findById(userId).exec();
-     if (!user) return false;
-
-    const existing = (user.memberships ?? []) as Membership[];
-    const departmentMemberships = existing.filter(
-      (membership) => String(membership.departmentId) === departmentId,
- 
-    );
-    const canonicalMembership =
-      departmentMemberships.find(
-        (membership) =>
-          String(membership._id) === String(user.activeMembershipId),
-      ) ?? departmentMemberships[0];
-    const memberships = existing.filter(
-      (membership) =>
-        String(membership.departmentId) !== departmentId ||
-        String(membership._id) === String(canonicalMembership?._id),
-    );
-
-    if (canonicalMembership) {
-      canonicalMembership.role = role;
-    } else {
-      memberships.push({
-        _id: new Types.ObjectId(),
-        departmentId: new Types.ObjectId(departmentId),
-        role,
-      });
-    }
-
-    const departmentIds: Types.ObjectId[] = [];
-    for (const membership of memberships) {
-      const membershipDepartmentId = membership.departmentId;
-      if (
-        membershipDepartmentId &&
-        !departmentIds.some((id) => id.equals(membershipDepartmentId))
-      ) {
-        departmentIds.push(membershipDepartmentId);
-      }
-    }
-
-    const activeValid =
-      user.activeMembershipId != null &&
-      memberships.some(
-        (membership) =>
-          String(membership._id) === String(user.activeMembershipId),
-      );
-     const patch: {
-      memberships: Membership[];
-      departement: Types.ObjectId[];
-      activeMembershipId?: Types.ObjectId | null;
-    } = { memberships, departement: departmentIds };
-    if (!activeValid) {
-      const firstMembership = memberships[0];
-      patch.activeMembershipId = firstMembership?._id ?? null;
-    }
- 
-
-    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
-    return true;
-  }
-
   private async syncDepartmentMemberships(
-    department: DepartmentDocument,
-    previousUserIds: string[],
+    department: Department,
+    previousUserIds: number[],
     removed = false,
+    em?: EntityManager,
   ) {
-    const departmentId = String(department._id);
+    const deptId = department.id;
     const assignments = removed
-      ? new Map<string, string>()
+      ? new Map<number, string>()
       : this.getDepartmentAssignments(department);
-    const affectedUserIds = new Set([
-      ...previousUserIds,
-      ...assignments.keys(),
-    ]);
+    const affectedUserIds = new Set([...previousUserIds, ...assignments.keys()]);
 
     for (const userId of affectedUserIds) {
       const role = assignments.get(userId);
       if (role) {
-        await this.syncMembership(userId, departmentId, role);
+        await this.syncMembership(userId, deptId, role, em);
       } else {
-        await this.removeMembership(userId, departmentId);
+        await this.removeMembership(userId, deptId, em);
       }
     }
   }
 
-  private getDepartmentAssignments(
-    department: Pick<
-      Department,
-      'manager' | 'viceManager' | 'teamManagers' | 'members'
-    >,
-  ) {
-    const assignments = new Map<string, string>();
-    for (const userId of department.members ?? []) {
-      assignments.set(this.getUserId(userId), 'Member');
-    }
-    for (const userId of department.teamManagers ?? []) {
-      assignments.set(this.getUserId(userId), 'Team Manager');
-    }
-    if (department.manager) {
-      assignments.set(this.getUserId(department.manager), 'Responsable');
-    }
-    if (department.viceManager) {
-      assignments.set(this.getUserId(department.viceManager), 'Responsable');
-    }
+  private getDepartmentAssignments(department: Department): Map<number, string> {
+    const assignments = new Map<number, string>();
+    for (const uid of department.members ?? []) assignments.set(uid, 'Member');
+    for (const uid of department.teamManagers ?? []) assignments.set(uid, 'Team Manager');
+    if (department.manager) assignments.set(department.manager, 'Responsable');
+    if (department.viceManager) assignments.set(department.viceManager, 'Responsable');
     return assignments;
   }
 
-  private getDepartmentUserIds(
-    department: Pick<
-      Department,
-      'manager' | 'viceManager' | 'teamManagers' | 'members'
-    >,
-  ) {
+  private getDepartmentUserIds(department: Department): number[] {
     return Array.from(this.getDepartmentAssignments(department).keys());
   }
 
-  private getUserId(value: Types.ObjectId | string) {
-    return typeof value === 'string' ? value : value.toHexString();
-  }
-
-  private async removeMembership(userId: string, departmentId: string) {
-    if (!Types.ObjectId.isValid(userId)) return;
-
-    const user = await this.userModel.findById(userId).exec();
+  private async syncMembership(userId: number, departmentId: number, role: string, em?: EntityManager) {
+    const manager = em ?? this.userRepo.manager;
+    const user = await manager.findOne(User, {
+      where: { id: userId },
+      relations: ['memberships'],
+    });
     if (!user) return;
 
-    const existing: Membership[] = user.memberships ?? [];
-    const filtered = existing.filter(
-      (m) => String(m.departmentId) !== String(departmentId),
-    );
-    if (filtered.length === existing.length) return;
+    const memberships: Membership[] = user.memberships ?? [];
+    const existing = memberships.find((m) => m.departmentId === departmentId);
 
-    const activeValid =
-      user.activeMembershipId != null &&
-      filtered.some((m) => String(m._id) === String(user.activeMembershipId));
-
-    const patch: Partial<User> = {
-      memberships: filtered,
-      departement: filtered.flatMap((m) =>
-        m.departmentId ? [m.departmentId] : [],
-      ),
-    };
-    if (!activeValid) {
-      patch.activeMembershipId = filtered[0]?._id ?? null;
+    if (existing) {
+      existing.role = role;
+      await manager.save(existing);
+    } else {
+      // Use QueryBuilder insert to bypass TypeORM's ORM relation tracking.
+      // manager.create/save resolves user_id via the @ManyToOne relation (which is
+      // unset here), causing user_id = NULL → FK constraint failure.
+      const result = await manager
+        .createQueryBuilder()
+        .insert()
+        .into(Membership)
+        .values({ userId, departmentId, role })
+        .execute();
+      const newMembershipId: number | undefined = result.raw?.insertId;
+      if (!user.activeMembershipId && newMembershipId) {
+        user.activeMembershipId = newMembershipId;
+        await manager.save(user);
+      }
     }
 
-    await this.userModel.findByIdAndUpdate(userId, patch, { new: true }).exec();
+    const allMemberships = await manager.find(Membership, { where: { userId } });
+    user.departement = allMemberships.map((m) => m.departmentId!).filter(Boolean);
+    await manager.save(user);
+  }
+
+  private async removeMembership(userId: number, departmentId: number, em?: EntityManager) {
+    const manager = em ?? this.userRepo.manager;
+    const membership = await manager.findOne(Membership, {
+      where: { userId, departmentId },
+    });
+    if (!membership) return;
+
+    await manager.remove(membership);
+
+    const user = await manager.findOne(User, { where: { id: userId } });
+    if (!user) return;
+
+    const remaining = await manager.find(Membership, { where: { userId } });
+    user.departement = remaining.map((m) => m.departmentId!).filter(Boolean);
+    if (user.activeMembershipId === membership.id) {
+      user.activeMembershipId = remaining[0]?.id ?? null;
+    }
+    await manager.save(user);
   }
 
   // ─────────────────────────────────────────────
   //  Validation
   // ─────────────────────────────────────────────
 
-  private validateName(name: string) {
+  private validateName(name: string): string {
     if (typeof name !== 'string' || !name.trim()) {
       throw new BadRequestException('Department name is required');
     }
     return name.trim();
   }
 
-  private validateDepartmentId(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid department ID');
-    }
-  }
-
-  private async validateUserId(userId: string | null) {
+  private async validateUserId(userId: string | null): Promise<number | null> {
     if (userId === null) return null;
-    if (typeof userId !== 'string' || !Types.ObjectId.isValid(userId)) {
-      throw new BadRequestException('A valid user ID is required');
-    }
-
-    const objectId = new Types.ObjectId(userId);
-    const exists = await this.userModel.exists({ _id: objectId });
+    const numId = Number(userId);
+    if (isNaN(numId)) throw new BadRequestException('A valid user ID is required');
+    const exists = await this.userRepo.findOne({ where: { id: numId } });
     if (!exists) throw new BadRequestException(`User ${userId} does not exist`);
-    return objectId;
+    return numId;
   }
 
-  private async validateUserIds(userIds: string[]) {
-    if (!Array.isArray(userIds)) {
-      throw new BadRequestException('User IDs must be an array');
-    }
-    if (
-      userIds.some(
-        (userId) =>
-          typeof userId !== 'string' || !Types.ObjectId.isValid(userId),
-      )
-    ) {
-      throw new BadRequestException('All user IDs must be valid');
-    }
-    const normalizedUserIds = userIds.map((userId) => userId.toLowerCase());
-    if (new Set(normalizedUserIds).size !== normalizedUserIds.length) {
-      throw new BadRequestException('A user cannot be assigned more than once');
-    }
-
-    const objectIds = normalizedUserIds.map(
-      (userId) => new Types.ObjectId(userId),
-    );
-    const existingCount = await this.userModel.countDocuments({
-      _id: { $in: objectIds },
-    });
-    if (existingCount !== objectIds.length) {
-      throw new BadRequestException('One or more users do not exist');
-    }
-    return objectIds;
+  private async validateUserIds(userIds: string[]): Promise<number[]> {
+    if (!Array.isArray(userIds)) throw new BadRequestException('User IDs must be an array');
+    const numIds = userIds.map((id) => Number(id));
+    if (numIds.some((id) => isNaN(id))) throw new BadRequestException('All user IDs must be valid');
+    if (new Set(numIds).size !== numIds.length) throw new BadRequestException('A user cannot be assigned more than once');
+    if (numIds.length === 0) return [];
+    const found = await this.userRepo.find({ where: { id: In(numIds) } });
+    if (found.length !== numIds.length) throw new BadRequestException('One or more users do not exist');
+    return numIds;
   }
 
-  private validateDistinctManagers(
-    manager: Types.ObjectId | null,
-    viceManager: Types.ObjectId | null,
-  ) {
-    if (manager && viceManager && manager.equals(viceManager)) {
-      throw new BadRequestException(
-        'Manager and Vice Manager must be different users',
-      );
+  private validateDistinctManagers(manager: number | null, viceManager: number | null) {
+    if (manager && viceManager && manager === viceManager) {
+      throw new BadRequestException('Manager and Vice Manager must be different users');
     }
   }
 }

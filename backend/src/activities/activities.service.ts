@@ -3,149 +3,102 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Activity, ActivityDocument } from './schemas/activity.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Activity } from './entities/activity.entity';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import { UploadService } from '../upload/upload.service';
-import { User, UserDocument } from '../users/schemas/user.schema';
-import {
-  Department,
-  DepartmentDocument,
-} from '../departments/schemas/department.schema';
+import { User } from '../users/entities/user.entity';
+import { Department } from '../departments/entities/department.entity';
 
 @Injectable()
 export class ActivitiesService {
   constructor(
-    @InjectModel(Activity.name)
-    private activityModel: Model<ActivityDocument>,
-
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
-
-    @InjectModel(Department.name)
-    private readonly departmentModel: Model<DepartmentDocument>,
-
+    @InjectRepository(Activity) private activityRepo: Repository<Activity>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Department) private readonly departmentRepo: Repository<Department>,
     private uploadService: UploadService,
   ) {}
+
   async create(userId: string, dto: CreateActivityDto) {
-    if (
-      (dto.departmentId && !Types.ObjectId.isValid(dto.departmentId)) ||
-      (dto.memberId && !Types.ObjectId.isValid(dto.memberId))
-    ) {
-      throw new BadRequestException('Invalid department or member ID');
-    }
+    const departmentId = dto.departmentId ? Number(dto.departmentId) : null;
+    const memberId = dto.memberId ? Number(dto.memberId) : null;
 
-    const departmentId = dto.departmentId
-      ? new Types.ObjectId(dto.departmentId)
-      : null;
-    const memberId = dto.memberId ? new Types.ObjectId(dto.memberId) : null;
-
-    let department: {
-      manager?: Types.ObjectId | null;
-      viceManager?: Types.ObjectId | null;
-      teamManagers?: Types.ObjectId[];
-      members?: Types.ObjectId[];
-    } | null = null;
     if (departmentId) {
-      department = await this.departmentModel
-        .findById(departmentId)
-        .select('manager viceManager teamManagers members')
-        .lean()
-        .exec();
-      if (!department) {
-        throw new BadRequestException('Department not found');
-      }
-    }
+      const department = await this.departmentRepo.findOne({ where: { id: departmentId } });
+      if (!department) throw new BadRequestException('Department not found');
 
-    if (memberId) {
-      const memberExists = await this.userModel.exists({ _id: memberId });
-      if (!memberExists) {
-        throw new BadRequestException('Member not found');
-      }
-      if (departmentId) {
-        const belongsToDepartment = [
-          department?.manager,
-          department?.viceManager,
-          ...(department?.teamManagers ?? []),
-          ...(department?.members ?? []),
-        ].some(
-          (assignedMemberId) => String(assignedMemberId) === String(memberId),
-        );
-        if (!belongsToDepartment) {
-          throw new BadRequestException(
-            'The member does not belong to the selected department',
-          );
+      if (memberId) {
+        const memberExists = await this.userRepo.findOne({ where: { id: memberId } });
+        if (!memberExists) throw new BadRequestException('Member not found');
+
+        const allMembers = [
+          department.manager,
+          department.viceManager,
+          ...(department.teamManagers ?? []),
+          ...(department.members ?? []),
+        ].filter(Boolean);
+
+        if (!allMembers.includes(memberId)) {
+          throw new BadRequestException('The member does not belong to the selected department');
         }
       }
     }
 
-    return this.activityModel.create({
+    const activity = this.activityRepo.create({
       ...dto,
-      createdBy: new Types.ObjectId(userId),
+      createdBy: Number(userId),
       departmentId,
       memberId,
-    });
+    } as Partial<Activity>);
+
+    return this.activityRepo.save(activity);
   }
 
   findAll(status?: string, isPublished?: boolean) {
-    const filter: Record<string, unknown> = {};
-    if (status) filter.status = status;
-    if (isPublished !== undefined) filter.isPublished = isPublished;
-    return this.activityModel.find(filter).sort({ activityDate: -1 }).exec();
+    const where: Record<string, unknown> = {};
+    if (status) where['status'] = status;
+    if (isPublished !== undefined) where['isPublished'] = isPublished;
+    return this.activityRepo.find({ where, order: { activityDate: 'DESC' } });
   }
 
   async findOne(id: string) {
-    const activity = await this.activityModel.findById(id).exec();
+    const activity = await this.activityRepo.findOne({ where: { id: Number(id) } });
     if (!activity) throw new NotFoundException(`Activity ${id} not found`);
     return activity;
   }
 
   async update(id: string, dto: UpdateActivityDto) {
-    const existing = await this.activityModel.findById(id).exec();
+    const existing = await this.activityRepo.findOne({ where: { id: Number(id) } });
+    if (!existing) throw new NotFoundException(`Activity ${id} not found`);
 
-    if (!existing) {
-      throw new NotFoundException(`Activity ${id} not found`);
-    }
-
-    // ✅ delete old image if replaced
     if (dto.image && existing.image && dto.image !== existing.image) {
       if (existing.coverImagePublicId) {
         await this.uploadService.deleteImage(existing.coverImagePublicId);
       }
     }
 
-    const updated = await this.activityModel
-      .findByIdAndUpdate(id, dto, { new: true })
-      .exec();
-
-    return updated;
+    Object.assign(existing, dto);
+    return this.activityRepo.save(existing);
   }
 
   async remove(id: string) {
-    const existing = await this.activityModel.findById(id).exec();
+    const existing = await this.activityRepo.findOne({ where: { id: Number(id) } });
+    if (!existing) throw new NotFoundException(`Activity ${id} not found`);
 
-    if (!existing) {
-      throw new NotFoundException(`Activity ${id} not found`);
-    }
-
-    // ✅ delete cloudinary image
     if (existing.coverImagePublicId) {
       await this.uploadService.deleteImage(existing.coverImagePublicId);
     }
 
-    await this.activityModel.findByIdAndDelete(id).exec();
-
-    return {
-      message: 'Activity deleted',
-    };
+    await this.activityRepo.remove(existing);
+    return { message: 'Activity deleted' };
   }
 
   async togglePublish(id: string) {
-    const activity = await this.activityModel.findById(id).exec();
+    const activity = await this.activityRepo.findOne({ where: { id: Number(id) } });
     if (!activity) throw new NotFoundException(`Activity ${id} not found`);
     activity.isPublished = !activity.isPublished;
-    return activity.save();
+    return this.activityRepo.save(activity);
   }
 }
