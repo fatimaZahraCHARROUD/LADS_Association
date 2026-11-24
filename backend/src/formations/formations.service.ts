@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Formation, FormationDocument } from './schemas/formation.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Formation } from './entities/formation.entity';
 import { CreateFormationDto } from './dto/create-formation.dto';
 import { UpdateFormationDto } from './dto/update-formation.dto';
 import { UploadService } from '../upload/upload.service';
@@ -9,93 +9,66 @@ import { UploadService } from '../upload/upload.service';
 @Injectable()
 export class FormationsService {
   constructor(
-    @InjectModel(Formation.name)
-    private formationModel: Model<FormationDocument>,
+    @InjectRepository(Formation) private formationRepo: Repository<Formation>,
     private uploadService: UploadService,
   ) {}
 
   create(dto: CreateFormationDto) {
-    return this.formationModel.create(dto);
+    const formation = this.formationRepo.create(dto as Partial<Formation>);
+    return this.formationRepo.save(formation);
   }
 
   findAll(status?: string, isPublished?: boolean) {
-    const filter: Record<string, unknown> = {};
-    if (status) filter.status = status;
-    if (isPublished !== undefined) filter.isPublished = isPublished;
-        // Public route: the private Drive link is never returned.
-    return this.formationModel
-      .find(filter)
-      .select('-driveUrl')
-      .sort({ date: -1 })
-      .exec();
+    const where: Record<string, unknown> = {};
+    if (status) where['status'] = status;
+    if (isPublished !== undefined) where['isPublished'] = isPublished;
+    return this.formationRepo.find({ where, order: { date: 'DESC' } });
   }
 
-  // Member page: published formations only, WITH the Drive recording link.
   findForMembers() {
-    return this.formationModel
-      .find({ isPublished: true })
-      .sort({ date: -1 })
-      .exec();
+    return this.formationRepo.find({ where: { isPublished: true }, order: { date: 'DESC' } });
   }
 
-  // Admin page: every formation (drafts included) WITH the Drive link.
   findAllForAdmin() {
-    return this.formationModel.find().sort({ date: -1 }).exec();
+    return this.formationRepo.find({ order: { date: 'DESC' } });
   }
 
   async findOne(id: string) {
-       const formation = await this.formationModel
-      .findById(id)
-      .select('-driveUrl')
-      .exec();
+    const formation = await this.formationRepo.findOne({ where: { id: Number(id) } });
     if (!formation) throw new NotFoundException(`Formation ${id} not found`);
     return formation;
   }
 
   async update(id: string, dto: UpdateFormationDto) {
-    const existing = await this.formationModel.findById(id).exec();
+    const existing = await this.formationRepo.findOne({ where: { id: Number(id) } });
+    if (!existing) throw new NotFoundException(`Formation ${id} not found`);
 
-    if (!existing) {
-      throw new NotFoundException(`Formation ${id} not found`);
-    }
-
-    // ✅ delete old image if replaced
     if (dto.imgUrl && existing.imgUrl && dto.imgUrl !== existing.imgUrl) {
       if (existing.coverImagePublicId) {
         await this.uploadService.deleteImage(existing.coverImagePublicId);
       }
     }
 
-    const updated = await this.formationModel
-      .findByIdAndUpdate(id, dto, { new: true })
-      .exec();
-
-    return updated;
+    Object.assign(existing, dto);
+    return this.formationRepo.save(existing);
   }
 
   async remove(id: string) {
-    const existing = await this.formationModel.findById(id).exec();
+    const existing = await this.formationRepo.findOne({ where: { id: Number(id) } });
+    if (!existing) throw new NotFoundException(`Formation ${id} not found`);
 
-    if (!existing) {
-      throw new NotFoundException(`Formation ${id} not found`);
-    }
-
-    // ✅ delete image from Cloudinary
     if (existing.coverImagePublicId) {
       await this.uploadService.deleteImage(existing.coverImagePublicId);
     }
 
-    await this.formationModel.findByIdAndDelete(id).exec();
-
-    return {
-      message: 'Formation deleted',
-    };
+    await this.formationRepo.remove(existing);
+    return { message: 'Formation deleted' };
   }
 
   async togglePublish(id: string) {
-    const formation = await this.formationModel.findById(id).exec();
+    const formation = await this.formationRepo.findOne({ where: { id: Number(id) } });
     if (!formation) throw new NotFoundException(`Formation ${id} not found`);
     formation.isPublished = !formation.isPublished;
-    return formation.save();
+    return this.formationRepo.save(formation);
   }
 }

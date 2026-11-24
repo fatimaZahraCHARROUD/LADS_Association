@@ -9,21 +9,26 @@ import { API_BASE } from "../../services/api";
 async function login(email, password) {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
 
-  const data = await res.json();
+  const json = await res.json();
 
-  if (!res.ok) {
-    throw new Error(data.message || "Login failed");
+  // Unified response shape: { success, content, error }
+  if (json && "success" in json) {
+    if (!json.success) throw new Error(json.error || "Login failed");
+    const data = json.content;
+    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    return data;
   }
 
-  localStorage.setItem("token", data.access_token);
-localStorage.setItem("user", JSON.stringify(data.user));
-  return data;
+  // Fallback
+  if (!res.ok) throw new Error(json.message || "Login failed");
+  localStorage.setItem("token", json.access_token);
+  localStorage.setItem("user", JSON.stringify(json.user));
+  return json;
 }
 
 export default function Login() {
@@ -62,7 +67,14 @@ useEffect(() => {
 
     navigate(dest);
   } catch (err) {
-    setError(err.message);
+    const raw = err.message || "";
+    const frMsg =
+      raw === "Invalid credentials" || raw === "Unauthorized"
+        ? "Email ou mot de passe incorrect."
+        : raw === "User not found"
+          ? "Aucun compte trouvé avec cet email."
+          : raw || "Erreur de connexion. Veuillez réessayer.";
+    setError(frMsg);
   }
 };
 

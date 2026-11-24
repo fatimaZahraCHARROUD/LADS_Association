@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { FormationsService } from './formations.service';
 import { FormationsController } from './formations.controller';
-import { Formation, FormationSchema } from './schemas/formation.schema';
+import { Formation } from './entities/formation.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UploadModule } from '../upload/upload.module';
-import { User, UserSchema } from '../users/schemas/user.schema';
 import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 import {
   MemberFormationsController,
@@ -15,10 +15,7 @@ import {
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Formation.name, schema: FormationSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([Formation, User]),
     JwtModule,
     UploadModule,
   ],

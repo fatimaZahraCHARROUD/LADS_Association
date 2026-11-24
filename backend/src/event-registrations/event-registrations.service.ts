@@ -1,104 +1,67 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-
-import {
-  EventRegistration,
-  EventRegistrationDocument,
-} from './schemas/event-registration.schema';
-
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { EventRegistration } from './entities/event-registration.entity';
 import { CreateEventRegistrationDto } from './dto/create-event-registration.dto';
 import { MailService } from '../mail/mail.service';
-import { Event } from '../events/schemas/event.schema';
-
-type PopulatedEventRegistration = Omit<EventRegistration, 'eventId'> & {
-  eventId: Event;
-};
 
 @Injectable()
 export class EventRegistrationsService {
   constructor(
-    @InjectModel(EventRegistration.name)
-    private registrationModel: Model<EventRegistrationDocument>,
-
+    @InjectRepository(EventRegistration)
+    private registrationRepo: Repository<EventRegistration>,
     private mailService: MailService,
   ) {}
 
   async create(dto: CreateEventRegistrationDto) {
-    // 1. Save registration
-    const registration = await this.registrationModel.create(dto);
+    const registration = this.registrationRepo.create({
+      ...dto,
+      eventId: dto.eventId ? Number(dto.eventId) : undefined,
+    } as Partial<EventRegistration>);
+    const saved = await this.registrationRepo.save(registration);
 
-    // 2. Populate event information
-    const populatedRegistration = (await this.registrationModel
-      .findById(registration._id)
-      .populate('eventId', 'title date')
-      .exec()) as PopulatedEventRegistration | null;
-
-    if (!populatedRegistration) {
-      throw new NotFoundException('Registration not found');
-    }
-
-    // 3. Send email in background
     setImmediate(async () => {
       try {
         await this.mailService.sendEventRegistrationEmail({
-          fullName: populatedRegistration.fullName,
-
-          email: populatedRegistration.email,
-
-          phone: populatedRegistration.phone,
-
-          // Localized event title
-          eventTitle: populatedRegistration.eventId.title.fr,
-
-          eventDate: populatedRegistration.eventId.date,
+          fullName: saved.fullName,
+          email: saved.email,
+          phone: saved.phone,
+          eventTitle: String(saved.eventId),
+          eventDate: new Date(),
         });
-
-        console.log(
-          `✅ Event registration email sent for ${populatedRegistration.fullName}`,
-        );
+        console.log(`✅ Event registration email sent for ${saved.fullName}`);
       } catch (error) {
-        console.error(
-          `❌ Failed to send event registration email for ${populatedRegistration.fullName}:`,
-          error,
-        );
+        console.error(`❌ Failed to send event registration email for ${saved.fullName}:`, error);
       }
     });
 
-    // 4. Return immediately
-    return registration;
+    return saved;
   }
 
   findAll(eventId?: string) {
-    const filter: Record<string, unknown> = {};
-    if (eventId) filter.eventId = eventId;
-    return this.registrationModel
-      .find(filter)
-      .populate('eventId', 'title date')
-      .sort({ registrationDate: -1 })
-      .exec();
+    const where: Record<string, unknown> = {};
+    if (eventId) where['eventId'] = Number(eventId);
+    return this.registrationRepo.find({ where, order: { registrationDate: 'DESC' } });
   }
 
   async findOne(id: string) {
-    const reg = await this.registrationModel
-      .findById(id)
-      .populate('eventId', 'title date')
-      .exec();
+    const reg = await this.registrationRepo.findOne({ where: { id: Number(id) } });
     if (!reg) throw new NotFoundException(`Registration ${id} not found`);
     return reg;
   }
 
   async remove(id: string) {
-    const reg = await this.registrationModel.findByIdAndDelete(id).exec();
+    const reg = await this.registrationRepo.findOne({ where: { id: Number(id) } });
     if (!reg) throw new NotFoundException(`Registration ${id} not found`);
+    await this.registrationRepo.remove(reg);
     return { deleted: true };
   }
 
   async markAsRead(id: string) {
-    const reg = await this.registrationModel.findById(id).exec();
+    const reg = await this.registrationRepo.findOne({ where: { id: Number(id) } });
     if (!reg) throw new NotFoundException(`Registration ${id} not found`);
     if (reg.readAt) return reg;
     reg.readAt = new Date();
-    return reg.save();
+    return this.registrationRepo.save(reg);
   }
 }

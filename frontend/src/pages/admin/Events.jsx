@@ -302,26 +302,28 @@ const existingCategories = Object.values(
         onAdd={openCreate}
       />
 
-     {
-groupedEvents.map(group=>(
-<div 
- key={group.category}
- className="mb-8"
->
+      {groupedEvents.length === 0 && (
+        <DataTable
+          columns={columns}
+          rows={[]}
+          loading={loading}
+          searchPlaceholder="Search events..."
+          emptyMessage="No events yet. Click 'Add New' to create one."
+        />
+      )}
 
-
-<h2 className="text-lg font-bold mb-3">
- {group.category}
-</h2>
-
-
-<DataTable
- columns={columns}
- rows={group.events}
- loading={loading}
- searchPlaceholder="Search events..."
- emptyMessage="No events"
-/>
+      {groupedEvents.map((group) => (
+        <div key={group.category} className="mb-8">
+          <h2 className="text-lg font-bold mb-3">{group.category}</h2>
+          <DataTable
+            columns={columns}
+            rows={group.events}
+            loading={loading}
+            searchPlaceholder="Search events..."
+            emptyMessage="No events"
+          />
+        </div>
+      ))}
 
       <Drawer
         open={drawerOpen}
@@ -388,12 +390,12 @@ groupedEvents.map(group=>(
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-           <MultilingualInput
-            as="textarea" rows={1}
-            label="Category"
-            value={form.category}
-            onChange={(v) => setForm({ ...form, category: v })}
-          />
+            <MultilingualInput
+              as="textarea" rows={1}
+              label="Category"
+              value={form.category}
+              onChange={(v) => setForm({ ...form, category: v })}
+            />
             <Field label="Max participants">
               <NumberInput
                 min={0}
@@ -403,28 +405,22 @@ groupedEvents.map(group=>(
             </Field>
           </div>
 
-        <Field label="Cover image">
-  <input
-    type="file"
-    accept="image/*"
-    onChange={(e) => setImageFile(e.target.files[0])}
-  />
-</Field>
+          <Field label="Cover image">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files[0])}
+            />
+          </Field>
 
-{(imageFile || form.coverImage) && (
-  <img
-    src={
-      imageFile
-        ? URL.createObjectURL(imageFile)
-        : form.coverImage
-    }
-    alt="cover preview"
-    className="w-32 h-32 rounded-lg object-cover border mt-2"
-    onError={(e) => {
-        e.currentTarget.style.display = "none";
-      }}
-  />
-)}
+          {(imageFile || form.coverImage) && (
+            <img
+              src={imageFile ? URL.createObjectURL(imageFile) : form.coverImage}
+              alt="cover preview"
+              className="w-32 h-32 rounded-lg object-cover border mt-2"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          )}
 
           <Field label="Registration link">
             <UrlInput
@@ -454,9 +450,6 @@ groupedEvents.map(group=>(
           </div>
         </form>
       </Drawer>
-</div>
-))
-}
       <ConfirmDialog
         open={!!confirmDelete}
         title="Delete event?"

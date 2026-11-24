@@ -1,19 +1,16 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '../services/jwt/jwt.modul';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { User } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
 import { DepartmentsAdminGuard } from './departments-admin.guard';
 import { DepartmentsController } from './departments.controller';
 import { DepartmentsService } from './departments.service';
-import { Department, DepartmentSchema } from './schemas/department.schema';
+import { Department } from './entities/department.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Department.name, schema: DepartmentSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([Department, User]),
     UsersModule,
     JwtModule,
   ],

@@ -9,8 +9,6 @@ import {
   Query,
   Req,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -22,7 +20,6 @@ import { Roles } from '../services/jwt/roles.decorator';
 import { getUserId } from '../services/jwt/current-user';
 
 @UseGuards(JwtAuthGuard, ActiveRoleGuard)
-@UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
@@ -33,15 +30,8 @@ export class TasksController {
     @Query('status') status?: string,
     @Query('assignedTo') assignedTo?: string,
     @Query('priority') priority?: string,
-    @Query('departmentId') departmentId?: string,
   ) {
-    return this.tasksService.findAll(
-      getUserId(req),
-      status,
-      assignedTo,
-      priority,
-      departmentId,
-    );
+    return this.tasksService.findAll(getUserId(req), status, assignedTo, priority);
   }
 
   @Get(':id')

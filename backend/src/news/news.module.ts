@@ -1,19 +1,16 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { NewsService } from './news.service';
 import { NewsController } from './news.controller';
-import { News, NewsSchema } from './schemas/news.schema';
+import { News } from './entities/news.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { UploadModule } from '../upload/upload.module';
-import { User, UserSchema } from '../users/schemas/user.schema'; // ← NEW
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: News.name, schema: NewsSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([News, User]),
     JwtModule,
     UploadModule,
   ],

@@ -7,11 +7,11 @@ export class UpdateFollowupNoteDto {
 
   @IsOptional()
   @IsMongoId()
-  departmentId?: string | null;
+  departmentId?: string;
 
   @IsOptional()
   @IsMongoId()
-  memberId?: string | null;
+  memberId?: string;
 
   @IsOptional()
   @IsEnum(['info', 'warning', 'action'])

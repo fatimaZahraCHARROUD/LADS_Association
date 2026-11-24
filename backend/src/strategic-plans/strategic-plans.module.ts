@@ -1,21 +1,15 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { StrategicPlansService } from './strategic-plans.service';
 import { StrategicPlansController } from './strategic-plans.controller';
-import {
-  StrategicPlan,
-  StrategicPlanSchema,
-} from './schemas/strategic-plan.schema';
+import { StrategicPlan } from './entities/strategic-plan.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
-import { User, UserSchema } from '../users/schemas/user.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: StrategicPlan.name, schema: StrategicPlanSchema },
-      { name: User.name, schema: UserSchema }, // requis par ActiveRoleGuard
-    ]),
+    TypeOrmModule.forFeature([StrategicPlan, User]),
     JwtModule,
   ],
   controllers: [StrategicPlansController],

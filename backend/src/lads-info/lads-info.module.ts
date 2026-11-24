@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { LadsInfoService } from './lads-info.service';
 import { LadsInfoController } from './lads-info.controller';
-import { LadsInfo, LadsInfoSchema } from './schemas/lads-info.schema';
+import { LadsInfo } from './entities/lads-info.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
-import { User, UserSchema } from '../users/schemas/user.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: LadsInfo.name, schema: LadsInfoSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([LadsInfo, User]),
     JwtModule,
   ],
   controllers: [LadsInfoController],

@@ -1,22 +1,16 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventRegistrationsService } from './event-registrations.service';
 import { EventRegistrationsController } from './event-registrations.controller';
-import {
-  EventRegistration,
-  EventRegistrationSchema,
-} from './schemas/event-registration.schema';
+import { EventRegistration } from './entities/event-registration.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { MailModule } from '../mail/mail.module';
-import { User, UserSchema } from '../users/schemas/user.schema'; // ← NEW
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: EventRegistration.name, schema: EventRegistrationSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([EventRegistration, User]),
     JwtModule,
     MailModule,
   ],

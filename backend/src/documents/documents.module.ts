@@ -1,23 +1,19 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
-import { LadsDocument, DocumentSchema } from './schemas/document.schema';
-import { Department, DepartmentSchema } from '../departments/schemas/department.schema';
+import { LadsDocument } from './entities/document.entity';
+import { Department } from '../departments/entities/department.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../services/jwt/jwt.guard';
 import { WriterRoleGuard } from '../services/jwt/writer-role.guard';
 import { JwtModule } from '../services/jwt/jwt.modul';
 import { UsersModule } from '../users/users.module';
-import { User, UserSchema } from '../users/schemas/user.schema';
 import { ActiveRoleGuard } from '../services/jwt/active-role.guard';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: LadsDocument.name, schema: DocumentSchema },
-      { name: Department.name, schema: DepartmentSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    TypeOrmModule.forFeature([LadsDocument, Department, User]),
     JwtModule,
     UsersModule,
   ],

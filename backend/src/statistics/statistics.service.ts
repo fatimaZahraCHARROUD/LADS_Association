@@ -1,31 +1,18 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage, Types } from 'mongoose';
-import {
-  Activity,
-  ActivityDocument,
-} from '../activities/schemas/activity.schema';
-import {
-  Department,
-  DepartmentDocument,
-} from '../departments/schemas/department.schema';
-import {
-  FollowupNote,
-  FollowupNoteDocument,
-} from '../followups/schemas/followup-note.schema';
-import { Meeting, MeetingDocument } from '../meetings/schemas/meeting.schema';
-import {
-  Objective,
-  ObjectiveDocument,
-} from '../objectives/schemas/objective.schema';
-import { Project, ProjectDocument } from '../projects/schemas/project.schema';
-import { Task, TaskDocument } from '../tasks/schemas/task.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { Activity } from '../activities/entities/activity.entity';
+import { Department } from '../departments/entities/department.entity';
+import { FollowupNote } from '../followups/entities/followup-note.entity';
+import { Meeting } from '../meetings/entities/meeting.entity';
+import { Objective } from '../objectives/entities/objective.entity';
+import { Project } from '../projects/entities/project.entity';
+import { Task } from '../tasks/entities/task.entity';
+import { User } from '../users/entities/user.entity';
 
 export interface DashboardFilters {
   departmentId?: string;
@@ -39,1450 +26,334 @@ function getCurrentWeekRange() {
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
   start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
-
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 6);
   end.setUTCHours(23, 59, 59, 999);
-
   return { start, end };
-}
-
-function utcDay(value: Date | string) {
-  const date = new Date(value);
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-}
-
-function isOverdueTask(task: {
-  deadline?: Date | string | null;
-  status?: string;
-}, now = new Date()) {
-  return (
-    !!task.deadline &&
-    String(task.status ?? '').toLowerCase() !== 'done' &&
-    utcDay(task.deadline) < utcDay(now)
-  );
 }
 
 @Injectable()
 export class StatisticsService {
   constructor(
-    @InjectModel(Department.name)
-    private readonly departmentModel: Model<DepartmentDocument>,
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
-    @InjectModel(Project.name)
-    private readonly projectModel: Model<ProjectDocument>,
-    @InjectModel(Task.name)
-    private readonly taskModel: Model<TaskDocument>,
-    @InjectModel(Meeting.name)
-    private readonly meetingModel: Model<MeetingDocument>,
-    @InjectModel(Objective.name)
-    private readonly objectiveModel: Model<ObjectiveDocument>,
-    @InjectModel(Activity.name)
-    private readonly activityModel: Model<ActivityDocument>,
-    @InjectModel(FollowupNote.name)
-    private readonly followupModel: Model<FollowupNoteDocument>,
+    @InjectRepository(Department) private readonly departmentRepo: Repository<Department>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Project) private readonly projectRepo: Repository<Project>,
+    @InjectRepository(Task) private readonly taskRepo: Repository<Task>,
+    @InjectRepository(Meeting) private readonly meetingRepo: Repository<Meeting>,
+    @InjectRepository(Objective) private readonly objectiveRepo: Repository<Objective>,
+    @InjectRepository(Activity) private readonly activityRepo: Repository<Activity>,
+    @InjectRepository(FollowupNote) private readonly followupRepo: Repository<FollowupNote>,
   ) {}
 
   async getExecutiveDashboard() {
-    const [globalTotals, upcomingMeetings, objectives, departments] =
-      await Promise.all([
-        this.getGlobalDashboardTotals(),
-        this.getUpcomingMeetings(),
-        this.objectiveModel
-          .find({})
-          .select(
-            '_id title description weekStart weekEnd target achievement progress status departmentId createdAt updatedAt',
-          )
-          .populate('departmentId', 'name')
-          .sort({ weekEnd: 1 })
-          .lean()
-          .exec(),
-        this.getExecutiveDepartments(),
-      ]);
-    return {
-      overview: globalTotals,
-      data: {
-        objectives,
-        departments,
-        upcomingMeetings,
-      },
-    };
-  }
-
-  private async getGlobalDashboardTotals() {
-    const [
-      totalDepartments,
-      totalProjects,
-      totalUpcomingMeetings,
-      totalMembers,
-    ] = await Promise.all([
-      this.departmentModel.countDocuments({}).exec(),
-      this.projectModel.countDocuments({}).exec(),
-      this.meetingModel.countDocuments(this.upcomingMeetingsFilter()).exec(),
-      this.countDepartmentMembers(),
+    const [totalDepartments, totalMembers, totalProjects, objectives, projects] = await Promise.all([
+      this.departmentRepo.count(),
+      this.userRepo.count({ where: { isAdmin: false } }),
+      this.projectRepo.count(),
+      this.objectiveRepo.find({ order: { weekEnd: 'ASC' } }),
+      this.projectRepo.find({ order: { endDate: 'ASC' } }),
     ]);
 
     return {
-      totalDepartments: totalDepartments ?? 0,
-      totalMembers,
-      totalProjects: totalProjects ?? 0,
-      totalUpcomingMeetings: totalUpcomingMeetings ?? 0,
-    };
-  }
-
-  private async getExecutiveDepartments() {
-    const [departmentRecords, projectCounts, memberCounts] = await Promise.all([
-      this.departmentModel
-        .find({})
-        .select('_id name manager')
-        .sort({ name: 1 })
-        .lean()
-        .exec(),
-      this.projectModel
-        .aggregate<{
-          _id: Types.ObjectId;
-          count: number;
-        }>([
-          { $match: { departmentId: { $ne: null } } },
-          { $group: { _id: '$departmentId', count: { $sum: 1 } } },
-        ])
-        .exec(),
-      this.getDepartmentMemberCounts(),
-    ]);
-    const managerIds = departmentRecords
-      .map((department) => department.manager)
-      .filter((managerId): managerId is Types.ObjectId => managerId != null);
-    const managers = managerIds.length
-      ? await this.userModel
-          .find({ _id: { $in: managerIds } })
-          .select('_id fullName')
-          .lean()
-          .exec()
-      : [];
-    const managerNames = new Map(
-      managers.map((manager) => [String(manager._id), manager.fullName]),
-    );
-    const projectCountByDepartment = new Map(
-      projectCounts.map((item) => [String(item._id), item.count]),
-    );
-    const memberCountByDepartment = new Map(
-      memberCounts.map((item) => [String(item._id), item.count]),
-    );
-
-    return departmentRecords.map((department) => ({
-      _id: department._id,
-      name: department.name,
-      membersCount: memberCountByDepartment.get(String(department._id)) ?? 0,
-      projectsCount: projectCountByDepartment.get(String(department._id)) ?? 0,
-      manager: department.manager
-        ? (managerNames.get(String(department.manager)) ?? null)
-        : null,
-    }));
-  }
-
-  private activeDepartmentMemberPipeline(
-    departmentIds?: Types.ObjectId[],
-  ): PipelineStage[] {
-    const pipeline: PipelineStage[] = [
-      { $match: { isAdmin: { $ne: true }, status: 'active' } },
-      { $unwind: '$memberships' },
-      { $match: { 'memberships.departmentId': { $ne: null } } },
-    ];
-    if (departmentIds) {
-      pipeline.push({
-        $match: { 'memberships.departmentId': { $in: departmentIds } },
-      });
-    }
-    return pipeline;
-  }
-
-  private getDepartmentMemberCounts() {
-    return this.userModel
-      .aggregate<{ _id: Types.ObjectId; count: number }>([
-        ...this.activeDepartmentMemberPipeline(),
-        {
-          $group: {
-            _id: {
-              departmentId: '$memberships.departmentId',
-              userId: '$_id',
-            },
-          },
-        },
-        {
-          $group: {
-            _id: '$_id.departmentId',
-            count: { $sum: 1 },
-          },
-        },
-      ])
-      .exec();
-  }
-
-  private async countDepartmentMembers(departmentIds?: Types.ObjectId[]) {
-    const [result] = await this.userModel
-      .aggregate<{
-        count: number;
-      }>([
-        ...this.activeDepartmentMemberPipeline(departmentIds),
-        { $group: { _id: '$_id' } },
-        { $count: 'count' },
-      ])
-      .exec();
-    return result?.count ?? 0;
-  }
-
-  private getUpcomingMeetings(
-    userId?: string,
-    departmentIds: Types.ObjectId[] = [],
-  ) {
-    return this.meetingModel
-      .find(this.upcomingMeetingsFilter(userId, departmentIds))
-      .select(
-        '_id title description department departmentId startAt endAt status meetingLink',
-      )
-      .populate('departmentId', 'name')
-      .populate('department', 'name')
-      .sort({ startAt: 1 })
-      .limit(5)
-      .lean()
-      .exec();
-  }
-
-  private upcomingMeetingsFilter(
-    userId?: string,
-    departmentIds: Types.ObjectId[] = [],
-  ) {
-    const scope =
-      userId || departmentIds.length
-        ? {
-            $or: [
-              ...(departmentIds.length
-                ? [
-                    { departmentId: { $in: departmentIds } },
-                    { department: { $in: departmentIds } },
-                  ]
-                : []),
-              ...(userId ? [{ participants: new Types.ObjectId(userId) }] : []),
-            ],
-          }
-        : {};
-    return {
-      startAt: { $gte: new Date() },
-      status: { $ne: 'cancelled' },
-      ...scope,
+      overview: { totalDepartments, totalMembers, totalProjects },
+      data: { objectives, projects },
     };
   }
 
   async getTeamManagerDashboard(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new ForbiddenException('Invalid user session');
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    const user = await this.userModel
-      .findById(userObjectId)
-      .select('isAdmin role memberships')
-      .lean()
-      .exec();
+    const numId = Number(userId);
+    const user = await this.userRepo.findOne({ where: { id: numId }, relations: ['memberships'] });
     if (!user) throw new ForbiddenException('User session is invalid');
 
-    const isGlobalAdmin =
-      user.isAdmin === true || (user.role ?? []).includes('President');
+    const isGlobalAdmin = user.isAdmin === true || (user.role ?? []).includes('President');
     const memberships = user.memberships ?? [];
-    const membershipDepartmentIds = memberships
-      .filter(
-        (membership) =>
-          membership.role === 'Team Manager' && membership.departmentId,
-      )
-      .map((membership) => new Types.ObjectId(String(membership.departmentId)));
+    const tmDeptIds = memberships.filter((m: any) => m.role === 'Team Manager' && m.departmentId).map((m: any) => Number(m.departmentId));
 
-    const departments = isGlobalAdmin
-      ? []
-      : await this.departmentModel
-          .find({
-            $or: [
-              { manager: userObjectId },
-              { viceManager: userObjectId },
-              { teamManagers: userObjectId },
-              { _id: { $in: membershipDepartmentIds } },
-            ],
-          })
-          .select('_id')
-          .lean()
-          .exec();
+    let departments: Department[];
+    if (isGlobalAdmin) {
+      departments = [];
+    } else {
+      departments = await this.departmentRepo
+        .createQueryBuilder('d')
+        .where('d.manager = :uid OR d.vice_manager = :uid OR JSON_CONTAINS(d.team_managers, :juid)', { uid: numId, juid: JSON.stringify(numId) })
+        .orWhere(tmDeptIds.length ? 'd.id IN (:...ids)' : '1=0', { ids: tmDeptIds.length ? tmDeptIds : [0] })
+        .getMany();
+    }
 
-    const departmentIds = departments.map(
-      (department) => new Types.ObjectId(String(department._id)),
-    );
-    const projectScope = isGlobalAdmin
-      ? {}
-      : {
-          $or: [
-            { departmentId: { $in: departmentIds } },
-            { managerIds: userObjectId },
-            { memberIds: userObjectId },
-          ],
-        };
-    const departmentScope = isGlobalAdmin
-      ? {}
-      : { _id: { $in: departmentIds } };
-    const departmentProjectScope = isGlobalAdmin
-      ? {}
-      : { departmentId: { $in: departmentIds } };
-    const activeProjectFilter = {
-      status: 'in_progress',
-      ...projectScope,
-    };
-    const [
-      totalDepartments,
-      totalMembers,
-      totalProjects,
-      activeProjects,
-      upcomingMeetings,
-      totalUpcomingMeetings,
-    ] = await Promise.all([
-      this.departmentModel.countDocuments(departmentScope).exec(),
-      this.countDepartmentMembers(isGlobalAdmin ? undefined : departmentIds),
-      this.projectModel.countDocuments(departmentProjectScope).exec(),
-      this.projectModel
-        .find(activeProjectFilter)
-        .select('_id title description departmentId endDate status progress')
-        .populate('departmentId', 'name')
-        .sort({ endDate: 1 })
-        .lean()
-        .exec(),
-      this.getUpcomingMeetings(undefined, departmentIds),
-      this.meetingModel
-        .countDocuments(this.upcomingMeetingsFilter(undefined, departmentIds))
-        .exec(),
-    ]);
-    const taskScope = isGlobalAdmin
-      ? {}
-      : departmentIds.length
-        ? { departmentId: { $in: departmentIds } }
-        : { _id: { $in: [] } };
-    const pendingTaskFilter = {
-      ...taskScope,
-      status: { $ne: 'done' },
-    };
-    const [totalPendingTasks, pendingTasks] = await Promise.all([
-      this.taskModel.countDocuments(pendingTaskFilter).exec(),
-      this.taskModel
-        .find(pendingTaskFilter)
-        .select(
-          '_id title description priority deadline status assignedTo departmentId',
-        )
-        .populate('assignedTo', 'fullName')
-        .populate('departmentId', 'name')
-        .sort({ deadline: 1, createdAt: -1 })
-        .limit(5)
-        .lean()
-        .exec(),
+    const departmentIds = departments.map((d) => d.id);
+    const [totalDepartments, totalMembers, totalProjects, activeProjects] = await Promise.all([
+      isGlobalAdmin ? this.departmentRepo.count() : Promise.resolve(departmentIds.length),
+      isGlobalAdmin
+        ? this.userRepo.count({ where: { isAdmin: false } })
+        : (departmentIds.length ? this.getMemberCountForDepts(departmentIds) : Promise.resolve(0)),
+      isGlobalAdmin ? this.projectRepo.count() : (departmentIds.length ? this.projectRepo.count({ where: { departmentId: In(departmentIds) } }) : Promise.resolve(0)),
+      isGlobalAdmin
+        ? this.projectRepo.find({ where: { status: 'in_progress' }, order: { endDate: 'ASC' } })
+        : (departmentIds.length ? this.projectRepo.find({ where: { status: 'in_progress', departmentId: In(departmentIds) }, order: { endDate: 'ASC' } }) : Promise.resolve([])),
     ]);
 
     return {
-      overview: {
-        totalDepartments: totalDepartments ?? 0,
-        totalMembers: totalMembers ?? 0,
-        totalProjects: totalProjects ?? 0,
-        totalPendingTasks: totalPendingTasks ?? 0,
-        totalUpcomingMeetings: totalUpcomingMeetings ?? 0,
-      },
-      data: { activeProjects, pendingTasks, upcomingMeetings },
+      overview: { totalDepartments, totalMembers, totalProjects },
+      data: { activeProjects },
     };
   }
 
   async getResponsableDashboard(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new ForbiddenException('Invalid user session');
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    const user = await this.userModel
-      .findById(userObjectId)
-      .select('memberships')
-      .lean()
-      .exec();
+    const numId = Number(userId);
+    const user = await this.userRepo.findOne({ where: { id: numId }, relations: ['memberships'] });
     if (!user) throw new ForbiddenException('User session is invalid');
 
     const { start, end } = getCurrentWeekRange();
-    const departmentIds = [
-      ...new Set(
-        (user.memberships ?? [])
-          .filter(
-            (membership) =>
-              membership.role === 'Responsable' && membership.departmentId,
-          )
-          .map((membership) => String(membership.departmentId)),
-      ),
-    ].map((id) => new Types.ObjectId(id));
+    const memberships = user.memberships ?? [];
+    const deptIds = [...new Set(
+      memberships.filter((m: any) => m.role === 'Responsable' && m.departmentId).map((m: any) => Number(m.departmentId))
+    )];
 
-    const departments = departmentIds.length
-      ? await this.departmentModel
-          .find({ _id: { $in: departmentIds } })
-          .select('members')
-          .lean()
-          .exec()
-      : [];
-    const departmentMemberIds = [
-      ...new Set(
-        departments.flatMap((department) =>
-          (department.members ?? []).map((memberId) => String(memberId)),
-        ),
-      ),
-    ]
-      .filter((memberId) => memberId !== String(userObjectId))
-      .map((memberId) => new Types.ObjectId(memberId));
+    const departments = deptIds.length ? await this.departmentRepo.find({ where: { id: In(deptIds) } }) : [];
+    const deptMemberIds = [...new Set(departments.flatMap((d) => d.members ?? []).filter((id) => id !== numId))];
 
-    const memberFilter = departmentIds.length
-      ? {
-          _id: { $ne: userObjectId },
-          isAdmin: { $ne: true },
-          $or: [
-            { _id: { $in: departmentMemberIds } },
-            {
-              memberships: {
-                $elemMatch: {
-                  departmentId: { $in: departmentIds },
-                  role: 'Member',
-                },
-              },
-            },
-            { departement: { $in: departmentIds }, role: 'Member' },
-          ],
-        }
-      : { _id: { $in: [] } };
-    const [totalMembers, members] = await Promise.all([
-      this.userModel.countDocuments(memberFilter).exec(),
-      this.userModel
-        .find(memberFilter)
-        .select('_id fullName email status')
-        .sort({ fullName: 1 })
-        .lean()
-        .exec(),
-    ]);
-    const teamMemberIds = [
-      ...new Set([
-        ...departmentMemberIds.map(String),
-        ...members.map((member) => String(member._id)),
-      ]),
-    ].map((memberId) => new Types.ObjectId(memberId));
-    const taskScope = {
-      $or: [
-        { departmentId: { $in: departmentIds } },
-        { assignedTo: { $in: teamMemberIds } },
-      ],
-    };
+    const [totalMembers, members] = deptMemberIds.length
+      ? await Promise.all([
+          Promise.resolve(deptMemberIds.length),
+          this.userRepo.find({ where: { id: In(deptMemberIds) }, select: { id: true, fullName: true, email: true, status: true } as any, order: { fullName: 'ASC' } }),
+        ])
+      : [0, []];
 
-    const [
-      totalPendingTasks,
-      totalCompletedTasks,
-      pendingTasks,
-      objectives,
-      upcomingMeetings,
-      totalUpcomingMeetings,
-    ] = await Promise.all([
-      this.taskModel
-        .countDocuments({
-          ...taskScope,
-          status: { $in: ['todo', 'in-progress'] },
-        })
-        .exec(),
-      this.taskModel.countDocuments({ ...taskScope, status: 'done' }).exec(),
-      this.taskModel
-        .find({
-          ...taskScope,
-          status: { $in: ['todo', 'in-progress'] },
-        })
-        .select(
-          '_id title description priority deadline status assignedTo departmentId objectiveId',
-        )
-        .populate('assignedTo', 'fullName')
-        .populate('departmentId', 'name')
-        .sort({ deadline: 1, createdAt: -1 })
-        .lean()
-        .exec(),
-      departmentIds.length
-        ? this.objectiveModel
-            .find({
-              departmentId: { $in: departmentIds },
-              weekStart: { $lte: end },
-              weekEnd: { $gte: start },
-            })
-            .select(
-              '_id title description weekStart weekEnd target achievement progress status departmentId',
-            )
-            .populate('departmentId', 'name')
-            .sort({ weekStart: 1 })
-            .lean()
-            .exec()
-        : Promise.resolve([]),
-      this.getUpcomingMeetings(userId, departmentIds),
-      this.meetingModel
-        .countDocuments(this.upcomingMeetingsFilter(userId, departmentIds))
-        .exec(),
+    const [totalPendingTasks, totalCompletedTasks, pendingTasks, objectives] = await Promise.all([
+      deptIds.length ? this.taskRepo.count({ where: { departmentId: In(deptIds), status: In(['todo', 'in-progress']) } }) : Promise.resolve(0),
+      deptIds.length ? this.taskRepo.count({ where: { departmentId: In(deptIds), status: 'done' } }) : Promise.resolve(0),
+      deptIds.length ? this.taskRepo.find({ where: { departmentId: In(deptIds), status: In(['todo', 'in-progress']) }, order: { deadline: 'ASC' } }) : Promise.resolve([]),
+      deptIds.length ? this.objectiveRepo.createQueryBuilder('o').where('o.department_id IN (:...ids)', { ids: deptIds }).andWhere('o.week_start <= :end', { end }).andWhere('o.week_end >= :start', { start }).orderBy('o.weekStart', 'ASC').getMany() : Promise.resolve([]),
     ]);
 
     return {
-      overview: {
-        totalMembers: totalMembers ?? 0,
-        totalPendingTasks: totalPendingTasks ?? 0,
-        totalCompletedTasks: totalCompletedTasks ?? 0,
-        totalUpcomingMeetings: totalUpcomingMeetings ?? 0,
-      },
-      data: { objectives, members, pendingTasks, upcomingMeetings },
+      overview: { totalMembers, totalPendingTasks, totalCompletedTasks },
+      data: { objectives, members, pendingTasks },
     };
   }
 
   async getMemberDashboard(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new ForbiddenException('Invalid user session');
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    const user = await this.userModel
-      .findById(userObjectId)
-      .select('fullName email date_adhesion memberships departement')
-      .lean()
-      .exec();
+    const numId = Number(userId);
+    const user = await this.userRepo.findOne({ where: { id: numId }, relations: ['memberships'] });
     if (!user) throw new ForbiddenException('User session is invalid');
 
     const { start, end } = getCurrentWeekRange();
-    const departmentIds = [
-      ...new Set([
-        ...(user.memberships ?? [])
-          .filter(
-            (membership) =>
-              membership.role === 'Member' && membership.departmentId,
-          )
-          .map((membership) => String(membership.departmentId)),
-        ...(user.departement ?? []).map((departmentId) => String(departmentId)),
-      ]),
-    ].map((id) => new Types.ObjectId(id));
+    const memberships = user.memberships ?? [];
+    const deptIds = [...new Set(memberships.map((m: any) => Number(m.departmentId)).filter(Boolean))];
 
-    const [tasks, totalTasks, totalCompletedTasks, departments] =
-      await Promise.all([
-        this.taskModel
-          .find({ assignedTo: userObjectId })
-          .select(
-            '_id title description priority deadline status objectiveId departmentId createdAt',
-          )
-          .populate('departmentId', 'name')
-          .sort({ deadline: 1, createdAt: -1 })
-          .lean()
-          .exec(),
-        this.taskModel.countDocuments({ assignedTo: userObjectId }).exec(),
-        this.taskModel
-          .countDocuments({ assignedTo: userObjectId, status: 'done' })
-          .exec(),
-        this.departmentModel
-          .find({ _id: { $in: departmentIds } })
-          .select('_id name')
-          .sort({ name: 1 })
-          .lean()
-          .exec(),
-      ]);
-
-    const taskObjectiveIds = [
-      ...new Set(
-        tasks
-          .filter((task) => task.objectiveId)
-          .map((task) => String(task.objectiveId)),
-      ),
-    ].map((id) => new Types.ObjectId(id));
-    const objectiveScope = [
-      ...(departmentIds.length
-        ? [{ departmentId: { $in: departmentIds } }]
-        : []),
-      ...(taskObjectiveIds.length ? [{ _id: { $in: taskObjectiveIds } }] : []),
-    ];
-    const objectives = objectiveScope.length
-      ? await this.objectiveModel
-          .find({
-            $or: objectiveScope,
-            weekStart: { $lte: end },
-            weekEnd: { $gte: start },
-          })
-          .select(
-            '_id title description weekStart weekEnd target achievement progress status departmentId',
-          )
-          .populate('departmentId', 'name')
-          .sort({ weekStart: 1 })
-          .lean()
-          .exec()
-      : [];
-    const [upcomingMeetings, totalUpcomingMeetings] = await Promise.all([
-      this.getUpcomingMeetings(userId, departmentIds),
-      this.meetingModel
-        .countDocuments(this.upcomingMeetingsFilter(userId, departmentIds))
-        .exec(),
+    const [tasks, totalTasks, totalCompletedTasks] = await Promise.all([
+      this.taskRepo.find({ where: { assignedTo: numId }, order: { deadline: 'ASC', createdAt: 'DESC' } }),
+      this.taskRepo.count({ where: { assignedTo: numId } }),
+      this.taskRepo.count({ where: { assignedTo: numId, status: 'done' } }),
     ]);
-    const weeklyObjectiveIds = new Set(
-      objectives.map((objective) => String(objective._id)),
-    );
-    const objectivesById = new Map(
-      objectives.map((objective) => [String(objective._id), objective]),
-    );
+
+    const objectives = deptIds.length
+      ? await this.objectiveRepo.createQueryBuilder('o').where('o.department_id IN (:...ids)', { ids: deptIds }).andWhere('o.week_start <= :end', { end }).andWhere('o.week_end >= :start', { start }).orderBy('o.weekStart', 'ASC').getMany()
+      : [];
+
     const weeklyTasks = tasks.filter((task) => {
       const deadline = task.deadline ? new Date(task.deadline) : null;
-      const dueThisWeek =
-        deadline !== null && deadline >= start && deadline <= end;
-      const linkedToWeeklyObjective =
-        task.objectiveId !== null &&
-        task.objectiveId !== undefined &&
-        weeklyObjectiveIds.has(String(task.objectiveId));
-      return dueThisWeek || linkedToWeeklyObjective;
-    });
-    const withObjective = (task: (typeof tasks)[number]) => ({
-      ...task,
-      objectiveId: task.objectiveId
-        ? (objectivesById.get(String(task.objectiveId)) ?? null)
-        : null,
+      return deadline !== null && deadline >= start && deadline <= end;
     });
 
     return {
-      user: {
-        fullName: user.fullName,
-        email: user.email,
-        dateAdhesion: user.date_adhesion,
-      },
-      overview: {
-        totalTasks: totalTasks ?? 0,
-        totalCompletedTasks: totalCompletedTasks ?? 0,
-        totalPendingTasks: Math.max(
-          0,
-          (totalTasks ?? 0) - (totalCompletedTasks ?? 0),
-        ),
-        totalUpcomingMeetings: totalUpcomingMeetings ?? 0,
-      },
+      user: { fullName: user.fullName },
+      overview: { totalTasks, totalCompletedTasks },
       data: {
-        thisWeek: {
-          tasks: weeklyTasks.map(withObjective),
-          objectives,
-        },
-        tasks: tasks.map(withObjective),
-        departments,
-        upcomingMeetings,
+        thisWeek: { tasks: weeklyTasks, objectives },
+        tasks,
       },
     };
   }
 
   async getDashboard(userId: string, filters: DashboardFilters = {}) {
-    const access = await this.resolveAccess(
-      userId,
-      filters.departmentId,
-      filters.memberId,
-    );
+    const access = await this.resolveAccess(userId, filters.departmentId, filters.memberId);
+    const departmentIds = access.allowedDepartmentIds.length ? access.allowedDepartmentIds.map(Number) : await this.getAllDepartmentIds();
 
-    const departmentIds = access.allowAllDepartments
-      ? await this.getAllDepartmentIds()
-      : access.allowedDepartmentIds;
-
-    const fromDate =
-      this.parseDate(filters.from) ??
-      this.startOfPeriod(filters.period ?? 'month');
+    const fromDate = this.parseDate(filters.from) ?? this.startOfPeriod(filters.period ?? 'month');
     const toDate = this.parseDate(filters.to) ?? new Date();
-    if (filters.to && /^\d{4}-\d{2}-\d{2}$/.test(filters.to)) {
-      toDate.setUTCHours(23, 59, 59, 999);
-    }
-    if (fromDate > toDate) {
-      throw new BadRequestException('The from date must not be after to');
-    }
 
-    const departmentList = await this.departmentModel
-      .find(
-        access.allowAllDepartments
-          ? {}
-          : { _id: { $in: departmentIds.map((id) => new Types.ObjectId(id)) } },
-      )
-      .sort({ name: 1 })
-      .select('_id name manager viceManager members teamManagers')
-      .lean()
-      .exec();
+    const departmentList = access.allowAllDepartments
+      ? await this.departmentRepo.find({ order: { name: 'ASC' } })
+      : (departmentIds.length ? await this.departmentRepo.find({ where: { id: In(departmentIds) }, order: { name: 'ASC' } }) : []);
 
-    const memberIds = filters.departmentId
-      ? await this.getMemberIdsForDepartment(filters.departmentId)
-      : access.allowAllDepartments
-        ? await this.getAllMemberIds()
-        : await this.getMemberIdsForDepartments(departmentIds);
+    const memberIds = access.allowAllDepartments
+      ? await this.getAllMemberIds()
+      : (departmentIds.length ? await this.getMemberIdsForDepartments(departmentIds) : []);
 
-    const resolvedMemberIds = filters.memberId ? [filters.memberId] : memberIds;
-    const globalTotals =
-      access.allowAllDepartments && !filters.departmentId && !filters.memberId
-        ? await this.getGlobalDashboardTotals()
-        : null;
-    const totalProjects =
-      globalTotals?.totalProjects ??
-      (await this.projectModel
-        .countDocuments(
-          access.allowAllDepartments
-            ? {}
-            : {
-                departmentId: {
-                  $in: departmentIds.map((id) => new Types.ObjectId(id)),
-                },
-              },
-        )
-        .exec());
+    const resolvedMemberIds = filters.memberId ? [Number(filters.memberId)] : memberIds;
 
-    const taskFilter: Record<string, unknown> = {
-      createdAt: { $gte: fromDate, $lte: toDate },
-    };
-    if (filters.departmentId) {
-      taskFilter.departmentId = new Types.ObjectId(filters.departmentId);
-    } else if (!access.allowAllDepartments) {
-      taskFilter.departmentId = {
-        $in: departmentIds.map((id) => new Types.ObjectId(id)),
-      };
-    }
-    if (filters.memberId) {
-      taskFilter.assignedTo = new Types.ObjectId(filters.memberId);
-    }
+    const [totalProjects, tasks, meetings, activities, objectives] = await Promise.all([
+      access.allowAllDepartments ? this.projectRepo.count() : (departmentIds.length ? this.projectRepo.count({ where: { departmentId: In(departmentIds) } }) : Promise.resolve(0)),
+      resolvedMemberIds.length ? this.taskRepo.createQueryBuilder('t').where('t.assigned_to IN (:...mids)', { mids: resolvedMemberIds }).andWhere('t.createdAt BETWEEN :from AND :to', { from: fromDate, to: toDate }).getMany() : Promise.resolve([]),
+      departmentIds.length ? this.meetingRepo.createQueryBuilder('m').where('m.department_id IN (:...ids)', { ids: departmentIds }).andWhere('m.startAt BETWEEN :from AND :to', { from: fromDate, to: toDate }).getMany() : Promise.resolve([]),
+      this.activityRepo.find({ order: { createdAt: 'DESC' } }),
+      departmentIds.length ? this.objectiveRepo.find({ where: { departmentId: In(departmentIds) } }) : Promise.resolve([]),
+    ]);
 
-    const departmentRecordFilter = filters.departmentId
-      ? { departmentId: new Types.ObjectId(filters.departmentId) }
-      : access.allowAllDepartments
-        ? {}
-        : {
-            departmentId: {
-              $in: departmentIds.map((id) => new Types.ObjectId(id)),
-            },
-          };
-
-    const tasks = await this.taskModel
-      .find(taskFilter)
-      .populate('assignedTo', 'fullName')
-      .populate('departmentId', 'name')
-      .lean()
-      .exec();
-
-    const meetings = await this.meetingModel
-      .find({
-        ...departmentRecordFilter,
-        startAt: { $gte: fromDate, $lte: toDate },
-      })
-      .lean()
-      .exec();
-
-    const activities = await this.activityModel
-      .find({
-        ...departmentRecordFilter,
-        ...(filters.memberId
-          ? { memberId: new Types.ObjectId(filters.memberId) }
-          : {}),
-        createdAt: { $gte: fromDate, $lte: toDate },
-      })
-      .lean()
-      .exec();
-
-    const objectives = await this.objectiveModel
-      .find({
-        ...departmentRecordFilter,
-      })
-      .lean()
-      .exec();
-
-    const notes = await this.followupModel
-      .find({
-        ...departmentRecordFilter,
-        ...(filters.memberId
-          ? { memberId: new Types.ObjectId(filters.memberId) }
-          : {}),
-        createdAt: { $gte: fromDate, $lte: toDate },
-      })
-      .sort({ createdAt: -1 })
-      .populate('departmentId', 'name')
-      .populate('memberId', 'fullName')
-      .populate('author', 'fullName email')
-      .lean()
-      .exec();
-
-    const departmentSummaries = [] as any[];
-    for (const department of departmentList) {
-      const departmentId = String(department._id);
-      const departmentMemberIds = new Set([
-        ...(await this.getMemberIdsForDepartment(departmentId)),
-        ...(department.members ?? []).map((id: Types.ObjectId) => String(id)),
-        ...(department.teamManagers ?? []).map((id: Types.ObjectId) =>
-          String(id),
-        ),
-        ...(department.manager ? [String(department.manager)] : []),
-        ...(department.viceManager ? [String(department.viceManager)] : []),
-      ]);
-      const relevantTasks = tasks.filter(
-        (task) =>
-          String((task.departmentId as any)?._id ?? task.departmentId) ===
-            departmentId &&
-          (!filters.memberId ||
-            String((task.assignedTo as any)?._id ?? task.assignedTo) ===
-              filters.memberId),
-      );
-      const relevantMeetings = meetings.filter(
-        (meeting) => String(meeting.departmentId) === String(department._id),
-      );
-      const relevantObjectives = objectives.filter(
-        (objective) =>
-          String(objective.departmentId) === String(department._id),
-      );
-      const relevantNotes = notes.filter(
-        (note) =>
-          String((note.departmentId as any)?._id ?? note.departmentId) ===
-          String(department._id),
-      );
-
-      departmentSummaries.push({
-        _id: department._id,
-        name: department.name,
-        ...this.calculateDepartmentSummary({
-          departmentName: department.name,
-          members: (await this.userModel
-            .find({
-              _id: {
-                $in: Array.from(departmentMemberIds).map(
-                  (id) => new Types.ObjectId(id),
-                ),
-              },
-            })
-            .select('_id fullName')
-            .lean()
-            .exec()).filter(
-            (member) => !filters.memberId || String(member._id) === filters.memberId,
-          ),
-          tasks: relevantTasks,
-          meetings: relevantMeetings,
-          objectives: relevantObjectives,
-          notes: relevantNotes,
-        }),
-      });
-    }
+    const notes = departmentIds.length
+      ? await this.followupRepo.createQueryBuilder('n').where('n.department_id IN (:...ids)', { ids: departmentIds }).andWhere('n.createdAt BETWEEN :from AND :to', { from: fromDate, to: toDate }).orderBy('n.createdAt', 'DESC').getMany()
+      : [];
 
     const overview = {
-      totalDepartments: globalTotals?.totalDepartments ?? departmentList.length,
-      totalMembers: globalTotals?.totalMembers ?? resolvedMemberIds.length,
-      totalProjects: globalTotals?.totalProjects ?? totalProjects,
-      totalUpcomingMeetings:
-        globalTotals?.totalUpcomingMeetings ??
-        (await this.meetingModel
-          .countDocuments(
-            this.upcomingMeetingsFilter(
-              filters.memberId,
-              access.allowAllDepartments
-                ? []
-                : departmentIds.map((id) => new Types.ObjectId(id)),
-            ),
-          )
-          .exec()) ??
-        0,
+      totalDepartments: departmentList.length,
+      totalMembers: resolvedMemberIds.length,
+      totalProjects,
       totalTasks: tasks.length,
-      completedTasks: tasks.filter(
-        (task) => String(task.status).toLowerCase() === 'done',
-      ).length,
-      pendingTasks: tasks.filter(
-        (task) => String(task.status).toLowerCase() === 'todo',
-      ).length,
-      inProgressTasks: tasks.filter(
-        (task) => String(task.status).toLowerCase() === 'in-progress',
-      ).length,
-      completionRate: tasks.length
-        ? Math.round(
-            (tasks.filter(
-              (task) => String(task.status).toLowerCase() === 'done',
-            ).length /
-              tasks.length) *
-              100,
-          )
-        : 0,
-      overdueTasks: tasks.filter((task) => isOverdueTask(task)).length,
+      completedTasks: tasks.filter((t) => t.status === 'done').length,
+      pendingTasks: tasks.filter((t) => t.status !== 'done').length,
+      overdueTasks: tasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== 'done').length,
       meetingsHeld: meetings.length,
       totalActivities: activities.length,
     };
 
     return {
       overview,
-      departments: departmentSummaries,
-      activityTrend: this.buildTrend(
-        tasks,
-        meetings,
-        activities,
-        fromDate,
-        toDate,
-      ),
+      departments: [],
+      activityTrend: this.buildTrend(tasks, meetings, activities, fromDate, toDate),
       recentActivities: this.buildRecentActivities(tasks, meetings, activities),
       recentNotes: notes.slice(0, 8),
     };
   }
 
   async getDepartmentSummary(userId: string, departmentId: string) {
-    if (!Types.ObjectId.isValid(departmentId)) {
-      throw new BadRequestException('Invalid department ID');
-    }
     const access = await this.resolveAccess(userId, departmentId);
-    if (
-      !access.allowAllDepartments &&
-      !access.allowedDepartmentIds.includes(departmentId)
-    ) {
+    if (!access.allowAllDepartments && !access.allowedDepartmentIds.includes(departmentId)) {
       throw new ForbiddenException('You cannot access this department');
     }
 
-    const department = await this.departmentModel
-      .findById(departmentId)
-      .select('_id name manager viceManager teamManagers members')
-      .lean()
-      .exec();
-    if (!department)
-      throw new NotFoundException(`Department ${departmentId} not found`);
+    const numId = Number(departmentId);
+    const department = await this.departmentRepo.findOne({ where: { id: numId } });
+    if (!department) throw new NotFoundException(`Department ${departmentId} not found`);
 
-    const membershipUsers = await this.userModel
-      .find({
-        memberships: {
-          $elemMatch: { departmentId: new Types.ObjectId(departmentId) },
-        },
-      })
-      .select('_id fullName memberships')
-      .lean()
-      .exec();
-    const memberIds = new Set([
-      ...membershipUsers.map((member) => String(member._id)),
-      ...(department.members ?? []).map((id) => String(id)),
-      ...(department.teamManagers ?? []).map((id) => String(id)),
-      ...(department.manager ? [String(department.manager)] : []),
-      ...(department.viceManager ? [String(department.viceManager)] : []),
+    const memberIds = [...(department.members ?? []), ...(department.teamManagers ?? [])];
+    if (department.manager) memberIds.push(department.manager);
+    if (department.viceManager) memberIds.push(department.viceManager);
+
+    const [members, tasks, meetings, objectives, notes] = await Promise.all([
+      memberIds.length ? this.userRepo.find({ where: { id: In(memberIds) }, select: { id: true, fullName: true } as any }) : Promise.resolve([]),
+      memberIds.length ? this.taskRepo.find({ where: { assignedTo: In(memberIds) } }) : Promise.resolve([]),
+      this.meetingRepo.find({ where: { departmentId: numId } }),
+      this.objectiveRepo.find({ where: { departmentId: numId } }),
+      this.followupRepo.find({ where: { departmentId: numId }, order: { createdAt: 'DESC' } }),
     ]);
-    const members = await this.userModel
-      .find({ _id: { $in: Array.from(memberIds).map((id) => new Types.ObjectId(id)) } })
-      .select('_id fullName memberships')
-      .lean()
-      .exec();
-    const tasks = await this.taskModel
-      .find({ departmentId: new Types.ObjectId(departmentId) })
-      .lean()
-      .exec();
-    const meetings = await this.meetingModel
-      .find({ departmentId: new Types.ObjectId(departmentId) })
-      .lean()
-      .exec();
-    const objectives = await this.objectiveModel
-      .find({ departmentId: new Types.ObjectId(departmentId) })
-      .lean()
-      .exec();
-    const notes = await this.followupModel
-      .find({ departmentId: new Types.ObjectId(departmentId) })
-      .sort({ createdAt: -1 })
-      .populate('departmentId', 'name')
-      .populate('memberId', 'fullName')
-      .populate('author', 'fullName email')
-      .lean()
-      .exec();
 
     return {
-      department: { _id: department._id, name: department.name },
-      ...this.calculateDepartmentSummary({
-        departmentName: department.name,
-        members,
-        tasks,
-        meetings,
-        objectives,
-        notes,
-      }),
+      department: { id: department.id, name: department.name },
+      ...this.calculateDepartmentSummary({ departmentName: department.name, members, tasks, meetings, objectives, notes }),
       members,
       recentNotes: notes.slice(0, 8),
     };
   }
 
   async getMemberSummary(userId: string, memberId: string) {
-    if (!Types.ObjectId.isValid(memberId)) {
-      throw new BadRequestException('Invalid member ID');
-    }
+    const numMemberId = Number(memberId);
     const access = await this.resolveAccess(userId, undefined, memberId);
-    const member = await this.userModel
-      .findById(memberId)
-      .select('_id fullName email memberships departement')
-      .lean()
-      .exec();
+    const member = await this.userRepo.findOne({ where: { id: numMemberId }, relations: ['memberships'] });
     if (!member) throw new NotFoundException(`Member ${memberId} not found`);
 
-    const memberDepartmentIds = (member.memberships ?? [])
-      .filter((m) => m.departmentId)
-      .map((m) => String(m.departmentId));
-    (member.departement ?? []).forEach((id) =>
-      memberDepartmentIds.push(String(id)),
-    );
-    const departmentAssignments = await this.departmentModel
-      .find({
-        $or: [
-          { manager: new Types.ObjectId(memberId) },
-          { viceManager: new Types.ObjectId(memberId) },
-          { teamManagers: new Types.ObjectId(memberId) },
-          { members: new Types.ObjectId(memberId) },
-        ],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    const uniqueMemberDepartmentIds = [...new Set([
-      ...memberDepartmentIds,
-      ...departmentAssignments.map((department) => String(department._id)),
-    ])];
-
-    if (
-      !access.allowAllDepartments &&
-      !uniqueMemberDepartmentIds.some((id) =>
-        access.allowedDepartmentIds.includes(id),
-      )
-    ) {
-      throw new ForbiddenException(
-        'This member is outside your department scope',
-      );
+    const memberDeptIds = (member.memberships ?? []).filter((m: any) => m.departmentId).map((m: any) => String(m.departmentId));
+    if (!access.allowAllDepartments && !memberDeptIds.some((id) => access.allowedDepartmentIds.includes(id))) {
+      throw new ForbiddenException('This member is outside your department scope');
     }
 
-    const visibleDepartmentIds = access.allowAllDepartments
-      ? uniqueMemberDepartmentIds
-      : uniqueMemberDepartmentIds.filter((id) =>
-          access.allowedDepartmentIds.includes(id),
-        );
-    const memberTaskFilter: Record<string, unknown> = {
-      assignedTo: new Types.ObjectId(memberId),
-    };
-    if (!access.allowAllDepartments) {
-      memberTaskFilter.departmentId = {
-        $in: visibleDepartmentIds.map((id) => new Types.ObjectId(id)),
-      };
-    }
-
-    const tasks = await this.taskModel
-      .find(memberTaskFilter)
-      .populate('departmentId', 'name')
-      .lean()
-      .exec();
-    const meetings = await this.meetingModel
-      .find({
-        participants: new Types.ObjectId(memberId),
-        ...(!access.allowAllDepartments
-          ? {
-              departmentId: {
-                $in: visibleDepartmentIds.map((id) => new Types.ObjectId(id)),
-              },
-            }
-          : {}),
-      })
-      .populate('departmentId', 'name')
-      .lean()
-      .exec();
-    const notes = await this.followupModel
-      .find({
-        memberId: new Types.ObjectId(memberId),
-        ...(!access.allowAllDepartments
-          ? {
-              departmentId: {
-                $in: visibleDepartmentIds.map((id) => new Types.ObjectId(id)),
-              },
-            }
-          : {}),
-      })
-      .sort({ createdAt: -1 })
-      .populate('departmentId', 'name')
-      .populate('memberId', 'fullName')
-      .populate('author', 'fullName email')
-      .lean()
-      .exec();
+    const [tasks, meetings, notes] = await Promise.all([
+      this.taskRepo.find({ where: { assignedTo: numMemberId } }),
+      this.meetingRepo.createQueryBuilder('m').where(`JSON_CONTAINS(m.participants, :uid)`, { uid: JSON.stringify(numMemberId) }).getMany(),
+      this.followupRepo.find({ where: { memberId: numMemberId }, order: { createdAt: 'DESC' } }),
+    ]);
 
     return {
-      member: {
-        _id: member._id,
-        fullName: member.fullName,
-        email: member.email,
-        departments: visibleDepartmentIds,
-      },
-      ...this.calculateMemberSummary({
-        memberId,
-        tasks,
-        meetings,
-        notes,
-      }),
+      member: { id: member.id, fullName: member.fullName, email: member.email, departments: memberDeptIds },
+      ...this.calculateMemberSummary({ memberId, tasks, meetings, notes }),
       recentNotes: notes.slice(0, 8),
     };
   }
 
-  calculateDepartmentSummary({
-    departmentName,
-    members,
-    tasks,
-    meetings,
-    objectives,
-    notes,
-  }: {
-    departmentName: string;
-    members: any[];
-    tasks: any[];
-    meetings: any[];
-    objectives: any[];
-    notes: any[];
-  }) {
-    const totalMembers = members.length ?? 0;
-    const totalTasks = tasks.length ?? 0;
-    const completedTasks = tasks.filter(
-      (task) => String(task.status ?? '').toLowerCase() === 'done',
-    ).length;
-    const pendingTasks = tasks.filter(
-      (task) => String(task.status ?? '').toLowerCase() === 'todo',
-    ).length;
-    const inProgressTasks = tasks.filter(
-      (task) => String(task.status ?? '').toLowerCase() === 'in-progress',
-    ).length;
-    const overdueTasks = tasks.filter((task) => isOverdueTask(task)).length;
-    const meetingsHeld = meetings.length ?? 0;
-    const currentProgress = objectives.length
-      ? Math.round(
-          objectives.reduce(
-            (sum, objective) => sum + (Number(objective.progress ?? 0) || 0),
-            0,
-          ) / objectives.length,
-        )
-      : 0;
-    const latestFollowUp = notes.length
-      ? [...notes].sort(
-          (a, b) =>
-            new Date(b.createdAt ?? 0).getTime() -
-            new Date(a.createdAt ?? 0).getTime(),
-        )[0]
-      : null;
+  calculateDepartmentSummary({ departmentName, members, tasks, meetings, objectives, notes }: { departmentName: string; members: any[]; tasks: any[]; meetings: any[]; objectives: any[]; notes: any[] }) {
+    const completedTasks = tasks.filter((t) => t.status === 'done').length;
+    const pendingTasks = tasks.filter((t) => t.status !== 'done').length;
+    const overdueTasks = tasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== 'done').length;
+    const currentProgress = objectives.length ? Math.round(objectives.reduce((sum, o) => sum + (Number(o.progress ?? 0) || 0), 0) / objectives.length) : 0;
+    const latestFollowUp = notes.length ? notes[0] : null;
 
     return {
       departmentName,
-      totalMembers,
-      totalTasks,
+      totalMembers: members.length,
+      totalTasks: tasks.length,
       completedTasks,
       pendingTasks,
-      inProgressTasks,
       overdueTasks,
-      completionRate: totalTasks
-        ? Math.round((completedTasks / totalTasks) * 100)
-        : 0,
-      meetingsHeld,
+      meetingsHeld: meetings.length,
       currentProgress,
-      latestFollowUpDate: latestFollowUp
-        ? new Date(latestFollowUp.createdAt ?? Date.now()).toISOString()
-        : null,
-      latestFollowUpNote: latestFollowUp
-        ? (latestFollowUp.text ?? 'Recent follow-up available')
-        : null,
+      latestFollowUpDate: latestFollowUp ? new Date(latestFollowUp.createdAt ?? Date.now()).toISOString() : null,
+      latestFollowUpNote: latestFollowUp ? (latestFollowUp.text ?? 'Recent follow-up available') : null,
     };
   }
 
-  calculateMemberSummary({
-    memberId,
-    tasks,
-    meetings,
-    notes,
-  }: {
-    memberId: string;
-    tasks: any[];
-    meetings: any[];
-    notes: any[];
-  }) {
-    const completedTasks = tasks.filter(
-      (task) => String(task.status ?? '').toLowerCase() === 'done',
-    ).length;
-    const pendingTasks = tasks.filter(
-      (task) => String(task.status ?? '').toLowerCase() === 'todo',
-    ).length;
-    const inProgressTasks = tasks.filter(
-      (task) => String(task.status ?? '').toLowerCase() === 'in-progress',
-    ).length;
-    const overdueTasks = tasks.filter((task) => {
-      const deadline = task.deadline ? new Date(task.deadline) : null;
-      return (
-        !!deadline &&
-        deadline.getTime() < Date.now() &&
-        String(task.status ?? '').toLowerCase() !== 'done'
-      );
-    }).length;
-    const completedWithDeadline = tasks.filter(
-      (task) =>
-        String(task.status ?? '').toLowerCase() === 'done' &&
-        task.deadline &&
-        task.completedAt,
-    );
-    const completedBeforeDeadline = completedWithDeadline.filter(
-      (task) => utcDay(task.completedAt) < utcDay(task.deadline),
-    ).length;
-    const completedOnDeadline = completedWithDeadline.filter(
-      (task) => utcDay(task.completedAt) === utcDay(task.deadline),
-    ).length;
-    const completedLate = completedWithDeadline.filter(
-      (task) => utcDay(task.completedAt) > utcDay(task.deadline),
-    ).length;
-    const completedOnTime = completedBeforeDeadline + completedOnDeadline;
-
-    const activityDates = [
-      ...tasks.map((task) => new Date(task.deadline ?? Date.now()).getTime()),
-      ...meetings.map((meeting) =>
-        new Date(meeting.startAt ?? Date.now()).getTime(),
-      ),
-      ...notes.map((note) => new Date(note.createdAt ?? Date.now()).getTime()),
-    ].filter((value) => Number.isFinite(value));
-
+  calculateMemberSummary({ memberId, tasks, meetings, notes }: { memberId: string; tasks: any[]; meetings: any[]; notes: any[] }) {
+    const completedTasks = tasks.filter((t) => t.status === 'done').length;
+    const pendingTasks = tasks.filter((t) => t.status !== 'done').length;
+    const overdueTasks = tasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== 'done').length;
     return {
       memberId,
       totalAssignedTasks: tasks.length,
       completedTasks,
       pendingTasks,
-      inProgressTasks,
       overdueTasks,
-      completionRate: tasks.length
-        ? Math.round((completedTasks / tasks.length) * 100)
-        : 0,
-      completedOnTime,
-      completedBeforeDeadline,
-      completedOnDeadline,
-      completedLate,
-      onTimeCompletionRate: completedWithDeadline.length
-        ? Math.round((completedOnTime / completedWithDeadline.length) * 100)
-        : 0,
       meetingsAttended: meetings.length,
-      lastActivityDate: activityDates.length
-        ? new Date(Math.max(...activityDates)).toISOString()
-        : null,
+      lastActivityDate: null,
       recentFollowUpCount: notes.length,
     };
   }
 
-  private async resolveAccess(
-    userId: string,
-    departmentId?: string,
-    memberId?: string,
-  ) {
-    if (departmentId && !Types.ObjectId.isValid(departmentId)) {
-      throw new BadRequestException('Invalid department ID');
-    }
-    if (memberId && !Types.ObjectId.isValid(memberId)) {
-      throw new BadRequestException('Invalid member ID');
-    }
-
-    const user = await this.userModel
-      .findById(userId)
-      .select('isAdmin role memberships activeMembershipId')
-      .lean()
-      .exec();
-
+  private async resolveAccess(userId: string, departmentId?: string, memberId?: string) {
+    const numId = Number(userId);
+    const user = await this.userRepo.findOne({ where: { id: numId }, relations: ['memberships'] });
     if (!user) throw new ForbiddenException('User session is invalid');
-    const activeMembership = (user.memberships ?? []).find(
-      (membership: any) =>
-        String(membership._id) === String(user.activeMembershipId),
-    );
+    if (user.isAdmin || (user.role ?? []).includes('President')) {
+      return { allowAllDepartments: true, allowedDepartmentIds: [], role: 'President' };
+    }
+
+    const activeMembership = (user.memberships ?? []).find((m: any) => m.id === user.activeMembershipId);
     const role = activeMembership?.role ?? 'Member';
-    const allowAllDepartments =
-      user.isAdmin === true ||
-      (user.role ?? []).includes('President') ||
-      role === 'Director Executive';
+    const allowedDepartmentIds = new Set<string>((user.memberships ?? []).filter((m: any) => m.departmentId).map((m: any) => String(m.departmentId)));
 
-    let memberDepartmentIds: string[] | null = null;
-    if (memberId) {
-      const member = await this.userModel
-        .findById(memberId)
-        .select('memberships departement')
-        .lean()
-        .exec();
-      if (!member) throw new NotFoundException(`Member ${memberId} not found`);
-      memberDepartmentIds = await this.getDepartmentIdsForMember(memberId, member);
-      if (
-        departmentId &&
-        !memberDepartmentIds.includes(String(departmentId))
-      ) {
-        throw new BadRequestException(
-          'The member does not belong to the selected department',
-        );
-      }
-    }
+    if (role === 'Director Executive') return { allowAllDepartments: true, allowedDepartmentIds: [], role };
+    if (departmentId && !allowedDepartmentIds.has(String(departmentId))) throw new ForbiddenException('You do not have access to this department');
 
-    if (allowAllDepartments) {
-      return {
-        allowAllDepartments: true,
-        allowedDepartmentIds: [],
-        role: user.isAdmin || (user.role ?? []).includes('President')
-          ? 'President'
-          : role,
-      };
-    }
-
-    const allowedDepartmentIds = new Set<string>();
-    for (const membership of user.memberships ?? []) {
-      if (
-        membership.departmentId &&
-        ['Team Manager', 'Responsable'].includes(membership.role)
-      ) {
-        allowedDepartmentIds.add(String(membership.departmentId));
-      }
-    }
-
-    const assignedDepartments = await this.departmentModel
-      .find({
-        $or: [
-          { manager: new Types.ObjectId(userId) },
-          { viceManager: new Types.ObjectId(userId) },
-          { teamManagers: new Types.ObjectId(userId) },
-        ],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    assignedDepartments.forEach((department) =>
-      allowedDepartmentIds.add(String(department._id)),
-    );
-
-    if (departmentId && !allowedDepartmentIds.has(String(departmentId))) {
-      throw new ForbiddenException('You do not have access to this department');
-    }
-
-    if (memberDepartmentIds) {
-      const isAllowed = memberDepartmentIds.some((id) =>
-        allowedDepartmentIds.has(id),
-      );
-      if (!isAllowed) {
-        throw new ForbiddenException(
-          'This member is outside your allowed department scope',
-        );
-      }
-    }
-
-    return {
-      allowAllDepartments: false,
-      allowedDepartmentIds: [...allowedDepartmentIds],
-      role,
-    };
+    return { allowAllDepartments: false, allowedDepartmentIds: [...allowedDepartmentIds], role };
   }
 
-  private async getDepartmentIdsForMember(memberId: string, member?: any) {
-    const result = new Set<string>(
-      (member?.memberships ?? [])
-        .filter((membership: any) => membership.departmentId)
-        .map((membership: any) => String(membership.departmentId)),
-    );
-    (member?.departement ?? []).forEach((departmentId: Types.ObjectId) =>
-      result.add(String(departmentId)),
-    );
-
-    const assignedDepartments = await this.departmentModel
-      .find({
-        $or: [
-          { manager: new Types.ObjectId(memberId) },
-          { viceManager: new Types.ObjectId(memberId) },
-          { teamManagers: new Types.ObjectId(memberId) },
-          { members: new Types.ObjectId(memberId) },
-        ],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    assignedDepartments.forEach((department) =>
-      result.add(String(department._id)),
-    );
-    return [...result];
+  private async getAllDepartmentIds(): Promise<number[]> {
+    const depts = await this.departmentRepo.find({ select: { id: true } as any });
+    return depts.map((d) => d.id);
   }
 
-  private async getAllDepartmentIds() {
-    const departments = await this.departmentModel
-      .find()
-      .select('_id')
-      .lean()
-      .exec();
-    return departments.map((department) => String(department._id));
+  private async getMemberIdsForDepartments(departmentIds: number[]): Promise<number[]> {
+    const members = await this.userRepo.createQueryBuilder('u').where('u.isAdmin = false').getMany();
+    return members.filter((u) => u.departement?.some((dId) => departmentIds.includes(dId))).map((u) => u.id);
   }
 
-  private async getMemberIdsForDepartment(departmentId: string) {
-    const members = await this.userModel
-      .find({
-        $or: [
-          {
-            memberships: {
-              $elemMatch: { departmentId: new Types.ObjectId(departmentId) },
-            },
-          },
-          { departement: new Types.ObjectId(departmentId) },
-        ],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    const department = await this.departmentModel
-      .findById(new Types.ObjectId(departmentId))
-      .select('manager viceManager teamManagers members')
-      .lean()
-      .exec();
-    return [
-      ...new Set([
-        ...members.map((member) => String(member._id)),
-        ...(department?.members ?? []).map((id: Types.ObjectId) => String(id)),
-        ...(department?.teamManagers ?? []).map((id: Types.ObjectId) =>
-          String(id),
-        ),
-        ...(department?.manager ? [String(department.manager)] : []),
-        ...(department?.viceManager ? [String(department.viceManager)] : []),
-      ]),
-    ];
+  private async getMemberCountForDepts(departmentIds: number[]): Promise<number> {
+    return (await this.getMemberIdsForDepartments(departmentIds)).length;
   }
 
-  private async getMemberIdsForDepartments(departmentIds: string[]) {
-    if (departmentIds.length === 0) return [];
-
-    const ids = departmentIds.map((id) => new Types.ObjectId(id));
-    const members = await this.userModel
-      .find({
-        isAdmin: { $ne: true },
-        $or: [
-          { memberships: { $elemMatch: { departmentId: { $in: ids } } } },
-          { departement: { $in: ids } },
-        ],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    const departments = await this.departmentModel
-      .find({ _id: { $in: ids } })
-      .select('manager viceManager teamManagers members')
-      .lean()
-      .exec();
-    return [
-      ...new Set([
-        ...members.map((member) => String(member._id)),
-        ...departments.flatMap((department) => [
-          ...(department.members ?? []).map((id: Types.ObjectId) =>
-            String(id),
-          ),
-          ...(department.teamManagers ?? []).map((id: Types.ObjectId) =>
-            String(id),
-          ),
-          ...(department.manager ? [String(department.manager)] : []),
-          ...(department.viceManager ? [String(department.viceManager)] : []),
-        ]),
-      ]),
-    ];
-  }
-
-  private async getAllMemberIds() {
-    const members = await this.userModel
-      .find({ isAdmin: { $ne: true } })
-      .select('_id')
-      .lean()
-      .exec();
-    return members.map((member) => String(member._id));
+  private async getAllMemberIds(): Promise<number[]> {
+    const members = await this.userRepo.find({ where: { isAdmin: false }, select: { id: true } as any });
+    return members.map((u) => u.id);
   }
 
   private parseDate(value?: string): Date | null {
     if (!value) return null;
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException('Invalid date filter');
-    }
-    return parsed;
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   private startOfPeriod(period: string): Date {
     const now = new Date();
     if (period === 'week') {
-      const day = now.getDay();
-      const diff = (day + 6) % 7;
+      const diff = (now.getDay() + 6) % 7;
       const current = new Date(now);
       current.setHours(0, 0, 0, 0);
       current.setDate(current.getDate() - diff);
@@ -1493,95 +364,32 @@ export class StatisticsService {
     return current;
   }
 
-  private buildTrend(
-    tasks: any[],
-    meetings: any[],
-    activities: any[],
-    from: Date,
-    to: Date,
-  ) {
-    const steps: Array<{
-      label: string;
-      tasks: number;
-      meetings: number;
-      activities: number;
-    }> = [];
+  private buildTrend(tasks: any[], meetings: any[], activities: any[], from: Date, to: Date) {
+    const steps: any[] = [];
     const start = new Date(from);
-    const end = new Date(to);
-    const totalDays = Math.max(
-      1,
-      Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1,
-    );
-
-    for (let index = 0; index < totalDays; index += 1) {
+    const totalDays = Math.max(1, Math.ceil((to.getTime() - start.getTime()) / 86400000) + 1);
+    for (let i = 0; i < totalDays; i++) {
       const day = new Date(start);
-      day.setDate(start.getDate() + index);
+      day.setDate(start.getDate() + i);
       const key = day.toISOString().slice(0, 10);
-      const tasksCount = tasks.filter(
-        (task) =>
-          task.createdAt && task.createdAt.toISOString().slice(0, 10) === key,
-      ).length;
-      const meetingsCount = meetings.filter(
-        (meeting) =>
-          meeting.startAt && meeting.startAt.toISOString().slice(0, 10) === key,
-      ).length;
-      const activitiesCount = activities.filter(
-        (activity) =>
-          activity.createdAt &&
-          activity.createdAt.toISOString().slice(0, 10) === key,
-      ).length;
       steps.push({
-        label: day.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        }),
-        tasks: tasksCount,
-        meetings: meetingsCount,
-        activities: activitiesCount,
+        label: day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        tasks: tasks.filter((t) => t.createdAt?.toISOString?.().slice(0, 10) === key).length,
+        meetings: meetings.filter((m) => m.startAt?.toISOString?.().slice(0, 10) === key).length,
+        activities: activities.filter((a) => a.createdAt?.toISOString?.().slice(0, 10) === key).length,
       });
     }
-
     return steps;
   }
 
-  private buildRecentActivities(
-    tasks: any[],
-    meetings: any[],
-    activities: any[],
-  ) {
+  private buildRecentActivities(tasks: any[], meetings: any[], activities: any[]) {
     return [
-      ...tasks.map((task) => ({
-        type: 'task',
-        title: task.title ?? 'Task update',
-        detail: `Assigned to ${task.assignedTo ?? 'team member'}`,
-        timestamp: task.createdAt ?? new Date(),
-      })),
-      ...meetings.map((meeting) => ({
-        type: 'meeting',
-        title: meeting.title ?? 'Meeting',
-        detail: meeting.departmentId
-          ? `Department meeting`
-          : 'Cross-functional meeting',
-        timestamp: meeting.startAt ?? new Date(),
-      })),
-      ...activities.map((activity) => ({
-        type: 'activity',
-        title: activity.title?.en ?? activity.title ?? 'Activity',
-        detail: activity.description?.en ?? 'Association activity',
-        timestamp: activity.createdAt ?? new Date(),
-      })),
+      ...tasks.map((t) => ({ type: 'task', title: t.title ?? 'Task update', detail: `Assigned`, timestamp: t.createdAt ?? new Date() })),
+      ...meetings.map((m) => ({ type: 'meeting', title: m.title ?? 'Meeting', detail: 'Department meeting', timestamp: m.startAt ?? new Date() })),
+      ...activities.map((a) => ({ type: 'activity', title: a.title ?? 'Activity', detail: 'Association activity', timestamp: a.createdAt ?? new Date() })),
     ]
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      )
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 8)
-      .map((item) => ({
-        ...item,
-        timestamp:
-          item.timestamp instanceof Date
-            ? item.timestamp.toISOString()
-            : new Date(item.timestamp).toISOString(),
-      }));
+      .map((item) => ({ ...item, timestamp: new Date(item.timestamp).toISOString() }));
   }
 }

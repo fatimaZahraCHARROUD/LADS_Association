@@ -1,17 +1,16 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In, ILike } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserDocument } from '../users/schemas/user.schema';
-import {
-  Department,
-  DepartmentDocument,
-} from '../departments/schemas/department.schema';
-import { Cellule, CelluleDocument } from '../cellules/schemas/cellule.schema';
+import { User } from '../users/entities/user.entity';
+import { Membership } from '../users/entities/membership.entity';
+import { Department } from '../departments/entities/department.entity';
+import { Cellule } from '../cellules/entities/cellule.entity';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 
@@ -27,25 +26,14 @@ const GLOBAL_ROLES = ['President', 'Director Executive'];
 @Injectable()
 export class MembersService {
   constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Department.name)
-    private departmentModel: Model<DepartmentDocument>,
-    @InjectModel(Cellule.name)
-    private celluleModel: Model<CelluleDocument>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Membership) private membershipRepo: Repository<Membership>,
+    @InjectRepository(Department) private departmentRepo: Repository<Department>,
+    @InjectRepository(Cellule) private celluleRepo: Repository<Cellule>,
   ) {}
 
-  // ─────────────────────────────────────────────
-  //  CREATE
-  // ─────────────────────────────────────────────
   async create(dto: CreateMemberDto, file?: Express.Multer.File) {
-    console.log(
-      '[create] role=',
-      JSON.stringify(dto.role),
-      'departement=',
-      JSON.stringify(dto.departement),
-    );
-
-    const existing = await this.userModel.findOne({ email: dto.email });
+    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
     if (existing) throw new BadRequestException('Email already exists');
 
     const profileImage = file ? `/uploads/members/${file.filename}` : '';
@@ -54,182 +42,134 @@ export class MembersService {
 
     const requestedRole = (dto.role || 'Member').trim();
     const isGlobal = GLOBAL_ROLES.includes(requestedRole);
-
-    const memberships: any[] = [];
-
-    // 1. ALWAYS add the global membership if the requested role is global
-    if (isGlobal) {
-      memberships.push({
-        _id: new Types.ObjectId(),
-        departmentId: null,
-        role: requestedRole,
-      });
-    }
-
-    // 2. Add a department membership if a department was provided
     const deptId = await this.resolveDepartmentId(dto.departement);
-    if (deptId) {
-      memberships.push({
-        _id: new Types.ObjectId(),
-        departmentId: deptId,
-        role: 'Member', // department default; Team Manager/Responsable come from the Departments page
-      });
-    }
 
-    // 3. Never leave the user without at least one membership
-    if (memberships.length === 0) {
-      memberships.push({
-        _id: new Types.ObjectId(),
-        departmentId: null,
-        role: 'Member',
-      });
-    }
-
-    // 4. activeMembershipId: prefer the global one, else the department one
-    const activeMembershipId =
-      memberships.find((m) => !m.departmentId)?._id ?? memberships[0]._id;
-
-    // 5. Legacy `role` array = union of membership roles
-    const roleArray = Array.from(
-      new Set(memberships.map((m) => m.role).filter(Boolean)),
-    );
-
-    const { role: _ignoredRole, ...rest } = dto as any;
-
-    const member = await this.userModel.create({
+    const { role: _r, ...rest } = dto as any;
+    const member = this.userRepo.create({
       ...rest,
       password: hashedPassword,
       profileImage,
       membershipNumber,
       date_adhesion: dto.date_adhesion ?? new Date().toISOString().slice(0, 10),
-      memberships,
-      activeMembershipId,
-      role: roleArray,
+      role: [requestedRole],
       departement: deptId ? [deptId] : [],
       isAdmin: requestedRole === 'President',
-    });
+    } as Partial<User>);
 
-    const obj: any = member.toObject();
-    delete obj.password;
-    return obj;
+    const saved = await this.userRepo.save(member);
+
+    const membershipsToCreate: Partial<Membership>[] = [];
+    if (isGlobal) {
+      membershipsToCreate.push({ userId: saved.id, departmentId: null, role: requestedRole });
+    }
+    if (deptId) {
+      membershipsToCreate.push({ userId: saved.id, departmentId: deptId, role: 'Member' });
+    }
+    if (membershipsToCreate.length === 0) {
+      membershipsToCreate.push({ userId: saved.id, departmentId: null, role: 'Member' });
+    }
+
+    const createdMemberships = await this.membershipRepo.save(
+      membershipsToCreate.map((m) => this.membershipRepo.create(m)),
+    );
+
+    const activeMembership = createdMemberships.find((m) => !m.departmentId) ?? createdMemberships[0];
+    await this.userRepo.update(saved.id, { activeMembershipId: activeMembership.id });
+
+    const result = await this.userRepo.findOne({ where: { id: saved.id }, relations: ['memberships'] });
+    const { password: _pw, ...safeResult } = result as any;
+    return safeResult;
   }
 
   private async generateMembershipNumber(): Promise<string> {
-    const count = await this.userModel.countDocuments({
-      membershipNumber: /^MEM-/,
-    });
+    const count = await this.userRepo.count();
     let number = count + 1;
     let candidate = `MEM-${String(number).padStart(4, '0')}`;
-
-    while (await this.userModel.findOne({ membershipNumber: candidate })) {
+    while (await this.userRepo.findOne({ where: { membershipNumber: candidate } })) {
       number += 1;
       candidate = `MEM-${String(number).padStart(4, '0')}`;
     }
-
     return candidate;
   }
 
-  // ─────────────────────────────────────────────
-  //  READ
-  // ─────────────────────────────────────────────
-    async findAll(filter: MemberFilter = {}, userId?: string) {
-    console.log('[MEMBERS] userId =', userId, '| type =', typeof userId);
-  console.log('[MEMBERS] activeMembershipId check — firing getActiveRole next');
-      const query: any = { isAdmin: { $ne: true } };
+  async findAll(filter: MemberFilter = {}, userId?: string) {
+    const numUserId = userId ? Number(userId) : null;
+    const role = numUserId ? await this.getActiveRole(userId!) : null;
+    const isGlobalUser = !role || GLOBAL_ROLES.includes(role);
 
-    let scopedRoles: Map<string, string> | null = null;
+    let allowedUserIds: number[] | null = null;
 
-    if (userId) {
-      const role = await this.getActiveRole(userId);
-     console.log('[MEMBERS] role =', role); 
-      const globalRoles = ['President', 'Director Executive'];
-console.log('[MEMBERS] isGlobal =', globalRoles.includes(role ?? ''));
-
-      if (!globalRoles.includes(role ?? '')) {
-  if (role === 'Team Manager') {
-    // TOUS mes départements (manager / viceManager / teamManagers)
-    const deptIds = await this.getTeamManagerDepartmentIds(userId);
-
-    if (deptIds.length === 0) {
-      query._id = { $in: [] }; // aucun département → rien
-    } else if (filter.departement) {
-      const filterDeptId = await this.resolveDepartmentId(filter.departement);
-      const allowed =
-        filterDeptId &&
-        deptIds.some((id) => String(id) === String(filterDeptId));
-      if (!allowed) {
-        query._id = { $in: [] }; // filtre en dehors de mes départements
+    if (!isGlobalUser && numUserId) {
+      if (role === 'Team Manager') {
+        const deptIds = await this.getTeamManagerDepartmentIds(numUserId);
+        if (deptIds.length === 0) return [];
+        const members = await this.userRepo.find({ where: { isAdmin: false } });
+        const filtered = members.filter((u) => u.departement?.some((dId) => deptIds.includes(dId)));
+        if (filter.departement) {
+          const deptId = await this.resolveDepartmentId(filter.departement);
+          if (!deptId || !deptIds.includes(deptId)) return [];
+          allowedUserIds = filtered.filter((u) => u.departement?.includes(deptId)).map((u) => u.id);
+        } else {
+          allowedUserIds = filtered.map((u) => u.id);
+        }
+      } else if (role === 'Responsable') {
+        const scope = await this.getResponsableScopedMembers(numUserId, filter.departement);
+        if (scope.ids.length === 0) return [];
+        allowedUserIds = scope.ids;
       } else {
-        query.departement = filterDeptId; // uniquement ce département
+        allowedUserIds = [numUserId];
       }
-    } else {
-      query.departement = { $in: deptIds }; // tous mes départements
     }
-  }
-        else if (role === 'Responsable') {
-  const scope = await this.getResponsableScopedMembers(userId, filter.departement);
 
-  if (scope.ids.length === 0) {
-    query._id = { $in: [] };
-  } else {
-    query._id = { $in: scope.ids.map((id) => new Types.ObjectId(id)) };
+    const where: any = { isAdmin: false };
+    if (allowedUserIds !== null) {
+      if (allowedUserIds.length === 0) return [];
+      where.id = In(allowedUserIds);
+    }
+    if (filter.nom) where.fullName = ILike(`%${filter.nom}%`);
+    if (filter.ville) where.ville = ILike(`%${filter.ville}%`);
+    if (filter.status) where.status = filter.status;
+    if (filter.departement && !allowedUserIds) {
+      const deptId = await this.resolveDepartmentId(filter.departement);
+      if (!deptId) return [];
+      const deptMembers = await this.userRepo.find({ where: { isAdmin: false } });
+      const ids = deptMembers.filter((u) => u.departement?.includes(deptId)).map((u) => u.id);
+      if (ids.length === 0) return [];
+      where.id = In(ids);
+    }
+
+    const rows = await this.userRepo.find({ where, relations: ['memberships'], order: { createdAt: 'DESC' } });
+    return rows.map(({ password: _pw, ...rest }: any) => rest);
   }
 
-  scopedRoles = scope.roles;
-} else {
-          query._id = Types.ObjectId.isValid(userId)
-            ? new Types.ObjectId(userId)
-            : new Types.ObjectId();
+  async findOne(id: string, requesterId?: string) {
+    const member = await this.userRepo.findOne({ where: { id: Number(id) }, relations: ['memberships'] });
+    if (!member) throw new NotFoundException(`Member ${id} not found`);
+
+    if (requesterId) {
+      const requesterRole = await this.getActiveRole(requesterId);
+      const isGlobal = !requesterRole || GLOBAL_ROLES.includes(requesterRole) || requesterRole === 'President';
+      if (!isGlobal) {
+        const isSelf = String(requesterId) === String(id);
+        if (!isSelf) {
+          // Allow if requester shares a department with the target
+          const requesterUser = await this.userRepo.findOne({ where: { id: Number(requesterId) } });
+          const sharedDept = (requesterUser?.departement ?? []).some((dId: number) =>
+            (member.departement ?? []).includes(dId),
+          );
+          if (!sharedDept) {
+            throw new ForbiddenException('Access denied');
+          }
         }
       }
     }
 
-    if (filter.nom) query.fullName = { $regex: filter.nom, $options: 'i' };
-    if (filter.ville) query.ville = { $regex: filter.ville, $options: 'i' };
-    if (filter.status) query.status = filter.status;
-   if (filter.departement && query.departement === undefined) {
-  const deptId = await this.resolveDepartmentId(filter.departement);
-  if (deptId) {
-    query.departement = deptId;
-  } else {
-    query._id = { $in: [] };
-  }
-}
-console.log('[MEMBERS] query =', JSON.stringify(query));
-    const rows = await this.userModel
-      .find(query)
-      .select('-password')
-      .populate('memberships.departmentId', 'name')
-       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
-
-    // Attach deptRole for Responsable view
-    if (scopedRoles) {
-      return rows.map((r: any) => ({
-        ...r,
-        deptRole: scopedRoles!.get(String(r._id)) ?? 'Member',
-      }));
-    }
-
-    return rows;
+    const { password: _pw, ...rest } = member as any;
+    return rest;
   }
 
-  async findOne(id: string) {
-    const member = await this.userModel
-      .findById(id)
-      .select('-password')
-      .populate('memberships.departmentId', 'name')
-      .exec();
-    if (!member) throw new NotFoundException(`Member ${id} not found`);
-    return member;
-  }
-
-  // ─────────────────────────────────────────────
-  //  UPDATE
-  // ─────────────────────────────────────────────
   async update(id: string, dto: UpdateMemberDto, file?: Express.Multer.File) {
-    const memberDoc = await this.userModel.findById(id).exec();
+    const memberDoc = await this.userRepo.findOne({ where: { id: Number(id) }, relations: ['memberships'] });
     if (!memberDoc) throw new NotFoundException(`Member ${id} not found`);
 
     const { role: newRole, departement: newDept, ...rest } = dto as any;
@@ -238,307 +178,133 @@ console.log('[MEMBERS] query =', JSON.stringify(query));
     if (data.password) data.password = await bcrypt.hash(data.password, 10);
     if (file) data.profileImage = `/uploads/members/${file.filename}`;
 
-    // Snapshot existing memberships (plain objects)
-    const existing: any[] = (memberDoc.memberships ?? []).map((m: any) =>
-      typeof m.toObject === 'function' ? m.toObject() : m,
-    );
+    const existingMemberships = memberDoc.memberships ?? [];
+    const currentGlobal = existingMemberships.find((m: any) => !m.departmentId && GLOBAL_ROLES.includes(m.role));
 
-    // Keep the current global membership around unless the caller explicitly
-    // demotes the user to a *non-global* role.
-    const currentGlobal = existing.find(
-      (m) => !m.departmentId && GLOBAL_ROLES.includes(m.role),
-    );
-
-    // What global role should we end up with?
     let targetGlobalRole: string | null = currentGlobal?.role ?? null;
     if (newRole !== undefined) {
       const roleTrimmed = String(newRole).trim();
       if (GLOBAL_ROLES.includes(roleTrimmed)) {
         targetGlobalRole = roleTrimmed;
       } else if (!currentGlobal) {
-        // Caller sent a non-global role and the user had no global role
-        // before → stay non-global (null).
         targetGlobalRole = null;
       }
-      // else: caller sent a non-global role but the user IS a global role →
-      // keep the existing global role (Model 2: coexist).
     }
 
-    // Start from department memberships only
-    let memberships = existing.filter((m) => !!m.departmentId);
+    let memberships = existingMemberships.filter((m: any) => !!m.departmentId);
 
-    // Handle department change
     if (newDept !== undefined) {
       const deptId = await this.resolveDepartmentId(newDept);
       if (deptId) {
-        const currentDept = existing.find((m) => !!m.departmentId);
+        const currentDept = existingMemberships.find((m: any) => !!m.departmentId);
         const preservedRole =
-          currentDept &&
-          ['Team Manager', 'Responsable'].includes(currentDept.role)
+          currentDept && ['Team Manager', 'Responsable'].includes(currentDept.role)
             ? currentDept.role
             : 'Member';
-        memberships = memberships.filter(
-          (m) => String(m.departmentId) !== String(deptId),
-        );
-        memberships.push({
-          _id: new Types.ObjectId(),
-          departmentId: deptId,
-          role: preservedRole,
-        });
+        memberships = memberships.filter((m: any) => m.departmentId !== deptId);
+        const newMs = this.membershipRepo.create({ userId: Number(id), departmentId: deptId, role: preservedRole });
+        memberships.push(await this.membershipRepo.save(newMs) as any);
       }
     }
 
-    // Add the global membership back if we have one
     if (targetGlobalRole) {
-      memberships.push({
-        _id: currentGlobal?._id ?? new Types.ObjectId(),
-        departmentId: null,
-        role: targetGlobalRole,
-      });
+      if (currentGlobal) {
+        await this.membershipRepo.update(currentGlobal.id, { role: targetGlobalRole });
+        const updated = { ...currentGlobal, role: targetGlobalRole };
+        memberships.push(updated as any);
+      } else {
+        const newMs = this.membershipRepo.create({ userId: Number(id), departmentId: null, role: targetGlobalRole });
+        memberships.push(await this.membershipRepo.save(newMs) as any);
+      }
     }
 
-    // Never leave the user with zero memberships
     if (memberships.length === 0) {
-      memberships.push({
-        _id: new Types.ObjectId(),
-        departmentId: null,
-        role: 'Member',
-      });
+      const newMs = this.membershipRepo.create({ userId: Number(id), departmentId: null, role: 'Member' });
+      memberships.push(await this.membershipRepo.save(newMs) as any);
     }
 
-    // activeMembershipId
-    const activeStillValid = memberships.some(
-      (m) => String(m._id) === String(memberDoc.activeMembershipId),
-    );
+    const activeStillValid = memberships.some((m: any) => m.id === memberDoc.activeMembershipId);
     if (!activeStillValid) {
-      const globalMembership = memberships.find((m) => !m.departmentId);
-      data.activeMembershipId = globalMembership?._id ?? memberships[0]._id;
+      const globalMs = memberships.find((m: any) => !m.departmentId);
+      data.activeMembershipId = globalMs?.id ?? (memberships[0] as any).id;
     }
 
-    // Legacy fields
-    data.memberships = memberships;
-    data.role = Array.from(
-      new Set(memberships.map((m) => m.role).filter(Boolean)),
-    );
-    data.departement = memberships
-      .filter((m) => !!m.departmentId)
-      .map((m) => m.departmentId);
-    data.isAdmin = memberships.some(
-      (m) => !m.departmentId && m.role === 'President',
-    );
+    data.role = [...new Set(memberships.map((m: any) => m.role).filter(Boolean))];
+    data.departement = memberships.filter((m: any) => !!m.departmentId).map((m: any) => m.departmentId);
+    data.isAdmin = memberships.some((m: any) => !m.departmentId && m.role === 'President');
 
-    const member = await this.userModel
-      .findByIdAndUpdate(id, data, { new: true })
-      .select('-password')
-      .populate('memberships.departmentId', 'name')
-      .exec();
-    if (!member) throw new NotFoundException(`Member ${id} not found`);
-    return member;
+    await this.userRepo.update(Number(id), data);
+    const result = await this.userRepo.findOne({ where: { id: Number(id) }, relations: ['memberships'] });
+    if (!result) throw new NotFoundException(`Member ${id} not found`);
+    const { password: _pw, ...safeResult } = result as any;
+    return safeResult;
   }
 
   async remove(id: string) {
-    const member = await this.userModel.findByIdAndDelete(id).exec();
+    const member = await this.userRepo.findOne({ where: { id: Number(id) } });
     if (!member) throw new NotFoundException(`Member ${id} not found`);
+    await this.userRepo.remove(member);
     return { deleted: true };
   }
 
-  // ─────────────────────────────────────────────
-  //  Helpers
-  // ─────────────────────────────────────────────
-  private async getActiveRole(userId: string): Promise<string | null> {
-    const user = await this.userModel
-      .findById(userId)
-      .select('memberships activeMembershipId isAdmin role')
-      .lean()
-      .exec();
-    if (!user) return null;
-    if (user.isAdmin === true || (user.role ?? []).includes('President')) {
-      return 'President';
-    }
-    const active = (user.memberships ?? []).find(
-      (m: any) => String(m._id) === String(user.activeMembershipId),
-    );
-    return active?.role ?? null;
-  }
-
-  private async resolveDepartmentId(
-    names?: string[] | string,
-  ): Promise<Types.ObjectId | null> {
-    const name = Array.isArray(names) ? names[0] : (names ?? null);
-    if (!name) return null;
-
-    // Accept both _id and name
-    if (Types.ObjectId.isValid(name)) {
-      const exists = await this.departmentModel.exists({
-        _id: new Types.ObjectId(name),
-      });
-      if (exists) return new Types.ObjectId(name);
-    }
-
-    const dept = await this.departmentModel
-      .findOne({ name })
-      .select('_id')
-      .lean()
-      .exec();
-    return dept ? dept._id : null;
-  }
-
-  // Tous les départements où user = manager, vice-manager ou team-manager
-  private async getTeamManagerDepartmentIds(
-    userId: string,
-  ): Promise<Types.ObjectId[]> {
-    if (!Types.ObjectId.isValid(userId)) return [];
-    const oid = new Types.ObjectId(userId);
-    const depts = await this.departmentModel
-      .find({
-        $or: [{ manager: oid }, { viceManager: oid }, { teamManagers: oid }],
-      })
-      .select('_id')
-      .lean()
-      .exec();
-    return depts.map((d: any) => d._id as Types.ObjectId);
-  }
-
-  // Départements à afficher dans la dropdown du front
   async getMyDepartments(userId: string) {
     const role = await this.getActiveRole(userId);
     if (role === 'Team Manager') {
-      const ids = await this.getTeamManagerDepartmentIds(userId);
-      return this.departmentModel
-        .find({ _id: { $in: ids } })
-        .select('_id name')
-        .lean()
-        .exec();
+      const ids = await this.getTeamManagerDepartmentIds(Number(userId));
+      return ids.length ? this.departmentRepo.find({ where: { id: In(ids) } }) : [];
     }
-    // Global (President / Director Executive) → tous les départements
-    return this.departmentModel.find().select('_id name').lean().exec();
+    return this.departmentRepo.find({ select: { id: true, name: true } as any });
   }
 
-  //  private async getResponsableMemberIds(userId: string): Promise<string[]> {
-  //   const oid = Types.ObjectId.isValid(userId)
-  //     ? new Types.ObjectId(userId)
-  //     : userId;
+  private async getActiveRole(userId: string): Promise<string | null> {
+    const user = await this.userRepo.findOne({ where: { id: Number(userId) }, relations: ['memberships'] });
+    if (!user) return null;
+    if (user.isAdmin === true || (user.role ?? []).includes('President')) return 'President';
+    const active = (user.memberships ?? []).find((m: any) => m.id === user.activeMembershipId);
+    return active?.role ?? null;
+  }
 
-  //   // 1. Departments where this user is Responsable (from their memberships)
-  //   const me = await this.userModel
-  //     .findById(userId)
-  //     .select('memberships')
-  //     .lean()
-  //     .exec();
+  private async resolveDepartmentId(names?: string[] | string): Promise<number | null> {
+    const name = Array.isArray(names) ? names[0] : (names ?? null);
+    if (!name) return null;
+    const numId = Number(name);
+    if (!isNaN(numId)) {
+      const exists = await this.departmentRepo.findOne({ where: { id: numId } });
+      return exists ? numId : null;
+    }
+    const dept = await this.departmentRepo.findOne({ where: { name } as any });
+    return dept ? dept.id : null;
+  }
 
-  //   const deptIds = new Set<string>();
-  //   (me?.memberships ?? []).forEach((m: any) => {
-  //     if (m.role === 'Responsable' && m.departmentId) {
-  //       deptIds.add(String(m.departmentId));
-  //     }
-  //   });
+  private async getTeamManagerDepartmentIds(userId: number): Promise<number[]> {
+    const depts = await this.departmentRepo
+      .createQueryBuilder('d')
+      .where('d.manager = :uid OR d.vice_manager = :uid OR JSON_CONTAINS(d.team_managers, :juid)', { uid: userId, juid: JSON.stringify(userId) })
+      .getMany();
+    return depts.map((d) => d.id);
+  }
 
-  //   // 2. Departments of cellules they manage + members directly in those cellules
-  //   const cellules = await this.celluleModel
-  //     .find({ managerId: oid })
-  //     .select('departmentId members')
-  //     .lean()
-  //     .exec();
-
-  //   const directMemberIds = new Set<string>();
-  //   cellules.forEach((c: any) => {
-  //     if (c.departmentId) deptIds.add(String(c.departmentId));
-  //     (c.members ?? []).forEach((m: any) => directMemberIds.add(String(m)));
-  //   });
-
-  //   if (deptIds.size === 0 && directMemberIds.size === 0) return [];
-
-  //   const deptObjectIds = [...deptIds].map((id) => new Types.ObjectId(id));
-  //   const memberObjectIds = [...directMemberIds].map(
-  //     (id) => new Types.ObjectId(id),
-  //   );
-
-  //   // 3. Members = users whose `departement` array overlaps my departments
-  //   //    OR users directly listed in a cellule I manage.
-  //   const or: any[] = [];
-  //   if (deptObjectIds.length) {
-  //     or.push({ departement: { $in: deptObjectIds } });
-  //     or.push({ 'memberships.departmentId': { $in: deptObjectIds } });
-  //   }
-  //   if (memberObjectIds.length) {
-  //     or.push({ _id: { $in: memberObjectIds } });
-  //   }
-
-  //   const members = await this.userModel
-  //     .find({ $or: or, isAdmin: { $ne: true } })
-  //     .select('_id')
-  //     .lean()
-  //     .exec();
-
-  //   return members.map((m: any) => String(m._id));
-  // }
-
-  /**
-   * A Responsable sees members of the department tied to their
-   * CURRENTLY ACTIVE membership only.
-   *
-   * Returns:
-   *   ids:   unique user ids (as strings)
-   *   roles: Map<userId, 'Manager' | 'Vice Manager' | 'Team Manager' | 'Member'>
-   */
   private async getResponsableScopedMembers(
-    userId: string,
+    userId: number,
     filterDeptName?: string,
-  ): Promise<{ ids: string[]; roles: Map<string, string> }> {
-    if (!Types.ObjectId.isValid(userId)) {
-      return { ids: [], roles: new Map() };
-    }
-    const oid = new Types.ObjectId(userId);
+  ): Promise<{ ids: number[]; roles: Map<number, string> }> {
+    const me = await this.userRepo.findOne({ where: { id: userId }, relations: ['memberships'] });
+    const activeMembership = (me?.memberships ?? []).find((m: any) => m.id === me?.activeMembershipId);
+    if (!activeMembership?.departmentId) return { ids: [], roles: new Map() };
 
-    // 1. Resolve the ACTIVE membership's department
-    const me = await this.userModel
-      .findById(userId)
-      .select('activeMembershipId memberships')
-      .lean()
-      .exec();
-
-    const activeMembership = (me?.memberships ?? []).find(
-      (m: any) => String(m._id) === String(me?.activeMembershipId),
-    );
-
-    if (!activeMembership || !activeMembership.departmentId) {
-      return { ids: [], roles: new Map() };
-    }
-
-    const activeDeptId = new Types.ObjectId(
-      String(activeMembership.departmentId),
-    );
-
-    // 2. Fetch that single department (with optional name filter for safety)
-    const deptQuery: any = { _id: activeDeptId };
+    const deptQuery: any = { id: activeMembership.departmentId };
     if (filterDeptName) deptQuery.name = filterDeptName;
+    const department = await this.departmentRepo.findOne({ where: deptQuery });
+    if (!department) return { ids: [], roles: new Map() };
 
-    const department = await this.departmentModel
-      .findOne(deptQuery)
-      .select('manager viceManager teamManagers members name')
-      .lean()
-      .exec();
-
-    if (!department) {
-      return { ids: [], roles: new Map() };
-    }
-
-    // 3. Build userId -> label (priority: Manager > Vice > TeamManager > Member)
-    const roles = new Map<string, string>();
-    const setIfAbsent = (uid: any, label: string) => {
-      const key = String(uid);
-      if (!roles.has(key)) roles.set(key, label);
-    };
+    const roles = new Map<number, string>();
+    const setIfAbsent = (uid: any, label: string) => { const key = Number(uid); if (!roles.has(key)) roles.set(key, label); };
 
     if (department.manager) setIfAbsent(department.manager, 'Manager');
     if (department.viceManager) setIfAbsent(department.viceManager, 'Vice Manager');
-    (department.teamManagers ?? []).forEach((u: any) =>
-      setIfAbsent(u, 'Team Manager'),
-    );
-    (department.members ?? []).forEach((u: any) => setIfAbsent(u, 'Member'));
-
-    // Don't show the Responsable themselves in the list
-    roles.delete(String(oid));
+    (department.teamManagers ?? []).forEach((u) => setIfAbsent(u, 'Team Manager'));
+    (department.members ?? []).forEach((u) => setIfAbsent(u, 'Member'));
+    roles.delete(userId);
 
     return { ids: [...roles.keys()], roles };
   }

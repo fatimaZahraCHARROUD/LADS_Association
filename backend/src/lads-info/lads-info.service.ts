@@ -1,41 +1,42 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { LadsInfo, LadsInfoDocument } from './schemas/lads-info.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { LadsInfo } from './entities/lads-info.entity';
 import { CreateLadsInfoDto } from './dto/create-lads-info.dto';
 import { UpdateLadsInfoDto } from './dto/update-lads-info.dto';
 
 @Injectable()
 export class LadsInfoService {
   constructor(
-    @InjectModel(LadsInfo.name) private ladsInfoModel: Model<LadsInfoDocument>,
+    @InjectRepository(LadsInfo) private ladsInfoRepo: Repository<LadsInfo>,
   ) {}
 
   create(dto: CreateLadsInfoDto) {
-    return this.ladsInfoModel.create(dto);
+    const info = this.ladsInfoRepo.create(dto as Partial<LadsInfo>);
+    return this.ladsInfoRepo.save(info);
   }
 
   findAll() {
-    return this.ladsInfoModel.find().exec();
+    return this.ladsInfoRepo.find();
   }
 
   async findOne(id: string) {
-    const info = await this.ladsInfoModel.findById(id).exec();
+    const info = await this.ladsInfoRepo.findOne({ where: { id: Number(id) } });
     if (!info) throw new NotFoundException(`LadsInfo ${id} not found`);
     return info;
   }
 
   async update(id: string, dto: UpdateLadsInfoDto) {
-    const info = await this.ladsInfoModel
-      .findByIdAndUpdate(id, dto, { new: true })
-      .exec();
+    const info = await this.ladsInfoRepo.findOne({ where: { id: Number(id) } });
     if (!info) throw new NotFoundException(`LadsInfo ${id} not found`);
-    return info;
+    Object.assign(info, dto);
+    return this.ladsInfoRepo.save(info);
   }
 
   async remove(id: string) {
-    const info = await this.ladsInfoModel.findByIdAndDelete(id).exec();
+    const info = await this.ladsInfoRepo.findOne({ where: { id: Number(id) } });
     if (!info) throw new NotFoundException(`LadsInfo ${id} not found`);
+    await this.ladsInfoRepo.remove(info);
     return { deleted: true };
   }
 }

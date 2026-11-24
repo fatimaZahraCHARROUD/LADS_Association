@@ -123,7 +123,20 @@ export default function AdminMeetings() {
     if (!canWrite) return;
     api
       .get("/meetings/meta/my-departments")
-      .then((d) => setDepartments(Array.isArray(d) ? d : []))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : [];
+        setDepartments(list);
+        // If drawer is open and no dept selected yet, pick the default now that the list loaded
+        setForm((prev) => {
+          if (!drawerOpen || prev.departmentId) return prev;
+          const active = access.activeDepartmentId;
+          if (active && list.some((x) => String(x._id) === String(active))) {
+            return { ...prev, departmentId: String(active) };
+          }
+          if (list.length === 1) return { ...prev, departmentId: String(list[0]._id) };
+          return prev;
+        });
+      })
       .catch(() => setDepartments([]));
   }, [canWrite]);
 
@@ -187,6 +200,11 @@ export default function AdminMeetings() {
     }
     if (!form.startAt || !form.endAt) {
       toast.error("Start and end time are required.");
+      return;
+    }
+
+    if (new Date(form.endAt) <= new Date(form.startAt)) {
+      toast.error("End time must be after start time.");
       return;
     }
 

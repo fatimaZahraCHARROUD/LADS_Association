@@ -54,17 +54,10 @@ function toFormDate(value) {
   return isNaN(d) ? "" : d.toISOString().slice(0, 10);
 }
 
-const idOf = (x) => String(x?._id ?? x ?? "");
-const displayName = (u) =>
-  u?.fullName ||
-  u?.name ||
-  [u?.firstName, u?.lastName].filter(Boolean).join(" ") ||
-  u?.email ||
-  "—";
-
+const idOf = (x) => (x && typeof x === "object" ? x._id : x);
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString() : "—");
 const names = (list) =>
-  (list || []).map((u) => displayName(u)).filter(Boolean).join(", ") || "—";
+  (list || []).map((u) => u.fullName).filter(Boolean).join(", ") || "—";
 const isHttpUrl = (u) => /^https?:\/\//i.test(u || "");
 
 function ProgressBar({ value }) {
@@ -81,22 +74,11 @@ function ProgressBar({ value }) {
 
 function PeoplePicker({ users, value, onChange }) {
   const [q, setQ] = useState("");
-  const shown = users.filter((u) => {
-    const name = displayName(u).toLowerCase();
-    const email = (u?.email || "").toLowerCase();
-    const term = q.trim().toLowerCase();
-    return name.includes(term) || email.includes(term);
-  });
-
-  const valStrs = (value || []).map(idOf).filter(Boolean);
-  const toggle = (id) => {
-    const sid = idOf(id);
-    onChange(
-      valStrs.includes(sid)
-        ? valStrs.filter((v) => v !== sid)
-        : [...valStrs, sid]
-    );
-  };
+  const shown = users.filter((u) =>
+    (u.fullName || "").toLowerCase().includes(q.trim().toLowerCase())
+  );
+  const toggle = (id) =>
+    onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
 
   return (
     <div className="border border-brand-border rounded-lg bg-white">
@@ -110,26 +92,23 @@ function PeoplePicker({ users, value, onChange }) {
         {shown.length === 0 && (
           <p className="text-xs text-brand-muted px-1 py-2">No users found.</p>
         )}
-        {shown.map((u) => {
-          const uid = idOf(u);
-          return (
-            <label
-              key={uid}
-              className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={valStrs.includes(uid)}
-                onChange={() => toggle(uid)}
-              />
-              <span className="text-brand-text">{displayName(u)}</span>
-              <span className="text-xs text-brand-muted">{u.email}</span>
-            </label>
-          );
-        })}
+        {shown.map((u) => (
+          <label
+            key={u._id}
+            className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={value.includes(u._id)}
+              onChange={() => toggle(u._id)}
+            />
+            <span className="text-brand-text">{u.fullName}</span>
+            <span className="text-xs text-brand-muted">{u.email}</span>
+          </label>
+        ))}
       </div>
       <div className="px-3 py-1.5 text-xs text-brand-muted border-t border-brand-border">
-        {valStrs.length} selected
+        {value.length} selected
       </div>
     </div>
   );
@@ -167,10 +146,7 @@ export default function Projects() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProjects();
-    Promise.all([
-      api.get("/users").catch(() => api.get("/members")),
-      api.get("/departments"),
-    ])
+    Promise.all([api.get("/members"), api.get("/departments")])
       .then(([m, d]) => {
         setUsers(Array.isArray(m) ? m : []);
         setDepartments(Array.isArray(d) ? d : []);
@@ -191,8 +167,8 @@ export default function Projects() {
       description: row.description || "",
       img: row.img || "",
       departmentId: idOf(row.departmentId) || "",
-      managerIds: (row.managerIds || []).map(idOf).filter(Boolean),
-      memberIds: (row.memberIds || []).map(idOf).filter(Boolean),
+      managerIds: (row.managerIds || []).map(idOf),
+      memberIds: (row.memberIds || []).map(idOf),
       startDate: toFormDate(row.startDate),
       endDate: toFormDate(row.endDate),
       status: row.status || "planned",
@@ -227,8 +203,6 @@ export default function Projects() {
 
     const payload = {
       ...form,
-      managerIds: (form.managerIds || []).map(idOf).filter(Boolean),
-      memberIds: (form.memberIds || []).map(idOf).filter(Boolean),
       progress,
       departmentId: form.departmentId || null,
     };
@@ -242,7 +216,6 @@ export default function Projects() {
         await api.post("/projects", payload);
         toast.success("Project created");
       }
-      window.dispatchEvent(new CustomEvent("project-work-updated"));
       setDrawerOpen(false);
       await loadProjects();
     } catch (err) {
@@ -269,7 +242,6 @@ export default function Projects() {
         status: updated.status,
         progress: updated.progress,
       }));
-      window.dispatchEvent(new CustomEvent("project-work-updated"));
       await loadProjects();
     } catch (err) {
       toast.error(err.message);
@@ -300,7 +272,6 @@ export default function Projects() {
       await api.delete(`/projects/${confirmDelete._id}`);
       toast.success("Project deleted");
       setConfirmDelete(null);
-      window.dispatchEvent(new CustomEvent("project-work-updated"));
       await loadProjects();
     } catch (err) {
       toast.error(err.message);
@@ -361,6 +332,7 @@ export default function Projects() {
         </StatusBadge>
       ),
     },
+   
     {
       key: "isPublished",
       header: "Visibility",

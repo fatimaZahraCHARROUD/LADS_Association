@@ -3,53 +3,44 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  DepartmentMember,
-  DepartmentMemberDocument,
-} from './schemas/department-member.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { DepartmentMember } from './entities/department-member.entity';
 import { CreateDepartmentMemberDto } from './dto/create-department-member.dto';
 
 @Injectable()
 export class DepartmentMembersService {
   constructor(
-    @InjectModel(DepartmentMember.name)
-    private deptMemberModel: Model<DepartmentMemberDocument>,
+    @InjectRepository(DepartmentMember)
+    private deptMemberRepo: Repository<DepartmentMember>,
   ) {}
 
   async create(dto: CreateDepartmentMemberDto) {
-    const existing = await this.deptMemberModel.findOne({
-      user: dto.user,
-      department: dto.department,
+    const existing = await this.deptMemberRepo.findOne({
+      where: { user: Number(dto.user), department: Number(dto.department) },
     });
     if (existing) {
-      throw new BadRequestException(
-        'This member is already in this department',
-      );
+      throw new BadRequestException('This member is already in this department');
     }
-
-    return this.deptMemberModel.create(dto);
+    const member = this.deptMemberRepo.create({
+      user: Number(dto.user),
+      department: Number(dto.department),
+    } as Partial<DepartmentMember>);
+    return this.deptMemberRepo.save(member);
   }
 
   findAll() {
-    return this.deptMemberModel
-      .find()
-      .populate('user', 'fullName email profileImage status')
-      .populate('department', 'name')
-      .exec();
+    return this.deptMemberRepo.find();
   }
 
   findByDepartment(department: string) {
-    return this.deptMemberModel
-      .find({ department })
-      .populate('user', 'fullName email profileImage status')
-      .exec();
+    return this.deptMemberRepo.find({ where: { department: Number(department) } });
   }
 
   async remove(id: string) {
-    const item = await this.deptMemberModel.findByIdAndDelete(id).exec();
+    const item = await this.deptMemberRepo.findOne({ where: { id: Number(id) } });
     if (!item) throw new NotFoundException(`DepartmentMember ${id} not found`);
+    await this.deptMemberRepo.remove(item);
     return { deleted: true };
   }
 }

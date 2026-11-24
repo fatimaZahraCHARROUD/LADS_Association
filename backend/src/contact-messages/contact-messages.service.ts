@@ -1,63 +1,56 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  ContactMessage,
-  ContactMessageDocument,
-} from './schemas/contact-message.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ContactMessage } from './entities/contact-message.entity';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class ContactMessagesService {
   constructor(
-    @InjectModel(ContactMessage.name)
-    private contactModel: Model<ContactMessageDocument>,
+    @InjectRepository(ContactMessage)
+    private contactRepo: Repository<ContactMessage>,
     private mailService: MailService,
   ) {}
 
   async create(dto: CreateContactMessageDto) {
-    // 1. Save message in MongoDB
-    const message = await this.contactModel.create(dto);
+    const message = this.contactRepo.create(dto as Partial<ContactMessage>);
+    const saved = await this.contactRepo.save(message);
 
-    // 2. Return immediately, send email in background
     setImmediate(async () => {
       try {
         await this.mailService.sendContactEmail(dto);
         console.log(`✅ Contact email sent to admin for ${dto.fullName}`);
       } catch (error) {
-        console.error(
-          `❌ Failed to send contact email for ${dto.fullName}:`,
-          error,
-        );
+        console.error(`❌ Failed to send contact email for ${dto.fullName}:`, error);
       }
     });
 
-    // 3. Return response immediately
-    return message;
+    return saved;
   }
 
   findAll() {
-    return this.contactModel.find().sort({ createdAt: -1 }).exec();
+    return this.contactRepo.find({ order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string) {
-    const msg = await this.contactModel.findById(id).exec();
+    const msg = await this.contactRepo.findOne({ where: { id: Number(id) } });
     if (!msg) throw new NotFoundException(`Contact message ${id} not found`);
     return msg;
   }
 
   async remove(id: string) {
-    const msg = await this.contactModel.findByIdAndDelete(id).exec();
+    const msg = await this.contactRepo.findOne({ where: { id: Number(id) } });
     if (!msg) throw new NotFoundException(`Contact message ${id} not found`);
+    await this.contactRepo.remove(msg);
     return { deleted: true };
   }
 
   async markAsRead(id: string) {
-    const msg = await this.contactModel.findById(id).exec();
+    const msg = await this.contactRepo.findOne({ where: { id: Number(id) } });
     if (!msg) throw new NotFoundException(`Contact message ${id} not found`);
     if (msg.readAt) return msg;
     msg.readAt = new Date();
-    return msg.save();
+    return this.contactRepo.save(msg);
   }
 }
